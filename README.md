@@ -12,7 +12,7 @@ You might also be interested in:
  - [x] Send text
  - [x] Press/release individual keys
  - [x] Media keys are supported
- - [ ] Read Numlock/Capslock/Scrolllock state
+ - [x] Read Numlock/Capslock/Scrolllock state
  - [x] Set battery level (basically works, but doesn't show up in Android's status bar)
  - [x] Compatible with Android
  - [x] Compatible with Windows
