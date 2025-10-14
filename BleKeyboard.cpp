@@ -13,17 +13,13 @@
 #include "BLEHIDDevice.h"
 #endif // USE_NIMBLE
 #include "HIDTypes.h"
-#include <driver/adc.h>
+#include "esp_timer.h"
+#include "esp_mac.h"
 #include "sdkconfig.h"
 
 
-#if defined(CONFIG_ARDUHAL_ESP_LOG)
-  #include "esp32-hal-log.h"
-  #define LOG_TAG ""
-#else
-  #include "esp_log.h"
-  static const char* LOG_TAG = "BLEDevice";
-#endif
+#include "esp_log.h"
+static const char* LOG_TAG = "BleKeyboard";
 
 
 // Report IDs:
@@ -103,47 +99,48 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
 
 void BleKeyboard::begin(void)
 {
-  BLEDevice::init(deviceName);
+  BLEDevice::init(String(deviceName.c_str()));
   BLEServer* pServer = BLEDevice::createServer();
   pServer->setCallbacks(this);
 
   hid = new BLEHIDDevice(pServer);
-  inputKeyboard = hid->inputReport(KEYBOARD_ID);  // <-- input REPORTID from report map
+  inputKeyboard = hid->inputReport(KEYBOARD_ID);
   outputKeyboard = hid->outputReport(KEYBOARD_ID);
   inputMediaKeys = hid->inputReport(MEDIA_KEYS_ID);
 
   outputKeyboard->setCallbacks(this);
-
-  hid->manufacturer()->setValue(deviceManufacturer);
-
+  hid->manufacturer()->setValue(String(deviceManufacturer.c_str()));
   hid->pnp(0x02, vid, pid, version);
   hid->hidInfo(0x00, 0x01);
 
-
 #if defined(USE_NIMBLE)
-
-  BLEDevice::setSecurityAuth(true, true, true);
-
+    BLEDevice::setSecurityAuth(true, true, true);
+    BLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT); // "Just Works"
 #else
-
-  BLESecurity* pSecurity = new BLESecurity();
-  pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_MITM_BOND);
-
+    BLESecurity* pSecurity = new BLESecurity();
+    pSecurity->setAuthenticationMode(ESP_LE_AUTH_BOND); // Bonding without MITM
+    pSecurity->setCapability(ESP_IO_CAP_NONE); // "Just Works"
+    pSecurity->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
 #endif // USE_NIMBLE
 
   hid->reportMap((uint8_t*)_hidReportDescriptor, sizeof(_hidReportDescriptor));
   hid->startServices();
-
   onStarted(pServer);
 
   advertising = pServer->getAdvertising();
   advertising->setAppearance(HID_KEYBOARD);
   advertising->addServiceUUID(hid->hidService()->getUUID());
   advertising->setScanResponse(false);
+  
+  BLEAdvertisementData advertisementData;
+  advertisementData.setFlags(ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT);
+  advertisementData.setCompleteServices(BLEUUID(hid->hidService()->getUUID()));
+  advertising->setAdvertisementData(advertisementData);
+  
   advertising->start();
   hid->setBatteryLevel(batteryLevel);
 
-  ESP_LOGD(LOG_TAG, "Advertising started!");
+  ESP_LOGI(LOG_TAG, "Advertising started!");
 }
 
 void BleKeyboard::end(void)
@@ -504,12 +501,9 @@ void BleKeyboard::onConnect(BLEServer* pServer) {
   this->connected = true;
 
 #if !defined(USE_NIMBLE)
-
-  BLE2902* desc = (BLE2902*)this->inputKeyboard->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
-  desc->setNotifications(true);
-  desc = (BLE2902*)this->inputMediaKeys->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
-  desc->setNotifications(true);
-
+  // You might not need to manually set these
+  this->inputKeyboard->notify();
+  this->inputMediaKeys->notify();
 #endif // !USE_NIMBLE
 
 }
@@ -518,15 +512,13 @@ void BleKeyboard::onDisconnect(BLEServer* pServer) {
   this->connected = false;
 
 #if !defined(USE_NIMBLE)
-
-  BLE2902* desc = (BLE2902*)this->inputKeyboard->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
-  desc->setNotifications(false);
-  desc = (BLE2902*)this->inputMediaKeys->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
-  desc->setNotifications(false);
-
+  // You might not need to manually set these
+  this->inputKeyboard->notify();
+  this->inputMediaKeys->notify();
+  
   advertising->start();
-
 #endif // !USE_NIMBLE
+
 }
 
 void BleKeyboard::onWrite(BLECharacteristic* me) {
