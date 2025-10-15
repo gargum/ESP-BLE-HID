@@ -33,6 +33,10 @@
 #define BLE_KEYBOARD_VERSION_MINOR 0
 #define BLE_KEYBOARD_VERSION_REVISION 4
 
+// NKRO configuration
+#define NKRO_KEY_COUNT 104 // Surprise! "N" in "N-Key Rollover" stands for "104" in my implementation.
+
+// Those numbers are the real HID codes. It's designed that way to make it easier to understand and modify the code.
 const uint8_t KEY_A = 0x04; 
 const uint8_t KEY_B = 0x05;          
 const uint8_t KEY_C = 0x06;          
@@ -397,73 +401,81 @@ const uint8_t KC_PDOT = 0x63;
 const uint8_t KC_PEQL = 0x67;
 const uint8_t KC_PCMM = 0x85;
 
-typedef uint8_t MediaKeyReport[2];
+// Media keys are supposed use 16 bit HID codes for some reason, so I'm just following that rule here
 
-const MediaKeyReport KEY_SYSTEM_POWER = {0x30, 0x01};    // Usage 0x01, Page 0x0C
-const MediaKeyReport KEY_SYSTEM_SLEEP = {0x34, 0x01};    // Usage 0x01, Page 0x0C  
-const MediaKeyReport KEY_SYSTEM_WAKE = {0x35, 0x01};     // Usage 0x01, Page 0x0C
-const MediaKeyReport KEY_NEXT_TRACK = {0xB5, 0x00};      // Usage 0xB5, Page 0x0C
-const MediaKeyReport KEY_PREVIOUS_TRACK = {0xB6, 0x00};  // Usage 0xB6, Page 0x0C
-const MediaKeyReport KEY_FAST_FORWARD = {0xB3, 0x00};    // Usage 0xB3, Page 0x0C
-const MediaKeyReport KEY_REWIND = {0xB4, 0x00};          // Usage 0xB4, Page 0x0C
-const MediaKeyReport KEY_STOP = {0xB7, 0x00};            // Usage 0xB7, Page 0x0C
-const MediaKeyReport KEY_PLAY_PAUSE = {0xCD, 0x00};      // Usage 0xCD, Page 0x0C
-const MediaKeyReport KEY_MUTE = {0xE2, 0x00};            // Usage 0xE2, Page 0x0C
-const MediaKeyReport KEY_VOLUME_UP = {0xE9, 0x00};       // Usage 0xE9, Page 0x0C
-const MediaKeyReport KEY_VOLUME_DOWN = {0xEA, 0x00};     // Usage 0xEA, Page 0x0C
-const MediaKeyReport KEY_WWW_HOME = {0x23, 0x02};        // Usage 0x0223, Page 0x0C
-const MediaKeyReport KEY_LOCAL_MACHINE_BROWSER = {0x94, 0x01}; // Usage 0x0194, Page 0x0C
-const MediaKeyReport KEY_CALCULATOR = {0x92, 0x01};      // Usage 0x0192, Page 0x0C
-const MediaKeyReport KEY_WWW_BOOKMARKS = {0x2A, 0x02};   // Usage 0x022A, Page 0x0C
-const MediaKeyReport KEY_WWW_SEARCH = {0x21, 0x02};      // Usage 0x0221, Page 0x0C
-const MediaKeyReport KEY_WWW_STOP = {0x26, 0x02};        // Usage 0x0226, Page 0x0C
-const MediaKeyReport KEY_WWW_REFRESH = {0x27, 0x02};     // Usage 0x0227, Page 0x0C
-const MediaKeyReport KEY_WWW_BACK = {0x24, 0x02};        // Usage 0x0224, Page 0x0C
-const MediaKeyReport KEY_WWW_FORWARD = {0x25, 0x02};     // Usage 0x0225, Page 0x0C
-const MediaKeyReport KEY_CONSUMER_CONTROL_CONFIGURATION = {0x83, 0x01}; // Usage 0x0183, Page 0x0C
-const MediaKeyReport KEY_EMAIL_READER = {0x8A, 0x01};    // Usage 0x018A, Page 0x0C
-const MediaKeyReport KEY_EJECT = {0xB8, 0x00};           // Usage 0xB8, Page 0x0C
-const MediaKeyReport KEY_BRIGHTNESS_UP = {0x6F, 0x00};   // Usage 0x006F, Page 0x0C
-const MediaKeyReport KEY_BRIGHTNESS_DOWN = {0x70, 0x00}; // Usage 0x0070, Page 0x0C
-const MediaKeyReport KEY_CONTROL_PANEL = {0x86, 0x01};   // Usage 0x0186, Page 0x0C
-const MediaKeyReport KEY_LAUNCHPAD = {0x87, 0x01};       // Usage 0x0187, Page 0x0C
+const uint16_t KEY_MEDIA_POWER = 0x0130;
+const uint16_t KEY_MEDIA_SLEEP = 0x0134;
+const uint16_t KEY_MEDIA_WAKE = 0x0135;
+const uint16_t KEY_MEDIA_NEXT_TRACK = 0x00B5;
+const uint16_t KEY_MEDIA_PREVIOUS_TRACK = 0x00B6;
+const uint16_t KEY_MEDIA_STOP = 0x00B7;
+const uint16_t KEY_MEDIA_PLAY_PAUSE = 0x00CD;
+const uint16_t KEY_MEDIA_FAST_FORWARD = 0x00B3;
+const uint16_t KEY_MEDIA_REWIND = 0x00B4;
+const uint16_t KEY_MEDIA_EJECT = 0x00B8;
+const uint16_t KEY_MEDIA_MUTE = 0x00E2;
+const uint16_t KEY_MEDIA_VOLUME_UP = 0x00E9;
+const uint16_t KEY_MEDIA_VOLUME_DOWN = 0x00EA;
+const uint16_t KEY_MEDIA_BRIGHTNESS_UP = 0x006F;
+const uint16_t KEY_MEDIA_BRIGHTNESS_DOWN = 0x0070;
+const uint16_t KEY_MEDIA_MY_COMPUTER = 0x0194;
+const uint16_t KEY_MEDIA_CALCULATOR = 0x0192;
+const uint16_t KEY_MEDIA_MAIL = 0x018A;
+const uint16_t KEY_MEDIA_MEDIA_SELECTION = 0x0183;
+const uint16_t KEY_MEDIA_CONTROL_PANEL = 0x0186;
+const uint16_t KEY_MEDIA_LAUNCHPAD = 0x0187;
+const uint16_t KEY_MEDIA_WWW_HOME = 0x0223;
+const uint16_t KEY_MEDIA_WWW_FAVORITES = 0x022A;
+const uint16_t KEY_MEDIA_WWW_SEARCH = 0x0221;
+const uint16_t KEY_MEDIA_WWW_STOP = 0x0226;
+const uint16_t KEY_MEDIA_WWW_BACK = 0x0224;
+const uint16_t KEY_MEDIA_WWW_FORWARD = 0x0225;
+const uint16_t KEY_MEDIA_WWW_REFRESH = 0x0227;
 
-const MediaKeyReport KC_PWR  = {0x30, 0x01};
-const MediaKeyReport KC_SLEP = {0x34, 0x01};
-const MediaKeyReport KC_WAKE = {0x35, 0x01};
-const MediaKeyReport KC_MNXT = {0xB5, 0x00};
-const MediaKeyReport KC_MPRV = {0xB6, 0x00};
-const MediaKeyReport KC_MFFD = {0xB3, 0x00};
-const MediaKeyReport KC_MRWD = {0xB4, 0x00};
-const MediaKeyReport KC_MSTP = {0xB7, 0x00};
-const MediaKeyReport KC_MPLY = {0xCD, 0x00};
-const MediaKeyReport KC_MUTE = {0xE2, 0x00};
-const MediaKeyReport KC_VOLU = {0xE9, 0x00};
-const MediaKeyReport KC_VOLD = {0xEA, 0x00};
-const MediaKeyReport KC_WHOM = {0x23, 0x02};
-const MediaKeyReport KC_MYCM = {0x94, 0x01};
-const MediaKeyReport KC_CALC = {0x92, 0x01};
-const MediaKeyReport KC_WFAV = {0x2A, 0x02};
-const MediaKeyReport KC_WSCH = {0x21, 0x02};
-const MediaKeyReport KC_WSTP = {0x26, 0x02};
-const MediaKeyReport KC_WREF = {0x27, 0x02};
-const MediaKeyReport KC_WBAK = {0x24, 0x02};
-const MediaKeyReport KC_WFWD = {0x25, 0x02};
-const MediaKeyReport KC_MSEL = {0x83, 0x01};
-const MediaKeyReport KC_MAIL = {0x8A, 0x01};
-const MediaKeyReport KC_EJCT = {0xB8, 0x00};
-const MediaKeyReport KC_BRIU = {0x6F, 0x00};
-const MediaKeyReport KC_BRID = {0x70, 0x00};
-const MediaKeyReport KC_CPNL = {0x86, 0x01};
-const MediaKeyReport KC_LPAD = {0x87, 0x01};
+const uint16_t KC_PWR  = 0x0130;
+const uint16_t KC_SLEP = 0x0134;
+const uint16_t KC_WAKE = 0x0135;
+const uint16_t KC_MNXT = 0x00B5;
+const uint16_t KC_MPRV = 0x00B6;
+const uint16_t KC_MFFD = 0x00B3;
+const uint16_t KC_MRWD = 0x00B4;
+const uint16_t KC_MSTP = 0x00B7;
+const uint16_t KC_MPLY = 0x00CD;
+const uint16_t KC_MUTE = 0x00E2;
+const uint16_t KC_VOLU = 0x00E9;
+const uint16_t KC_VOLD = 0x00EA;
+const uint16_t KC_WHOM = 0x0223;
+const uint16_t KC_MYCM = 0x0194;
+const uint16_t KC_CALC = 0x0192;
+const uint16_t KC_WFAV = 0x022A;
+const uint16_t KC_WSCH = 0x0221;
+const uint16_t KC_WSTP = 0x0226;
+const uint16_t KC_WREF = 0x0227;
+const uint16_t KC_WBAK = 0x0224;
+const uint16_t KC_WFWD = 0x0225;
+const uint16_t KC_MSEL = 0x0183;
+const uint16_t KC_MAIL = 0x018A;
+const uint16_t KC_EJCT = 0x00B8;
+const uint16_t KC_BRIU = 0x006F;
+const uint16_t KC_BRID = 0x0070;
+const uint16_t KC_CPNL = 0x0186;
+const uint16_t KC_LPAD = 0x0187;
 
-//  Low level key report: up to 6 keys and shift, ctrl etc at once
+//  6KRO key report: up to 6 keys and shift, ctrl etc at once
 typedef struct
 {
   uint8_t modifiers;
   uint8_t reserved;
   uint8_t keys[6];
-} KeyReport;
+} KeyReport6KRO;
+
+//  NKRO key report: bitmask for up to NKRO_KEY_COUNT keys
+typedef struct
+{
+  uint8_t modifiers;
+  uint8_t reserved;
+  uint8_t keys_bitmask[(NKRO_KEY_COUNT + 7) / 8];  // Bitmask for keys
+} KeyReportNKRO;
 
 class BleKeyboard : public Print, public BLEServerCallbacks, public BLECharacteristicCallbacks
 {
@@ -472,47 +484,71 @@ private:
   BLECharacteristic* inputKeyboard;
   BLECharacteristic* outputKeyboard;
   BLECharacteristic* inputMediaKeys;
+  BLECharacteristic* inputNKRO;
   BLEAdvertising*    advertising;
-  KeyReport          _keyReport;
-  MediaKeyReport     _mediaKeyReport;
+  KeyReport6KRO      _keyReport6KRO;
+  KeyReportNKRO      _keyReportNKRO;
+  uint32_t           _mediaKeyBitmask;
   std::string        deviceName;
   std::string        deviceManufacturer;
   uint8_t            batteryLevel;
   bool               connected = false;
   uint32_t           _delay_ms = 7;
-  void delay_ms(uint64_t ms);
-
+  bool               _useNKRO = true;  // Default to NKRO
+  
+  //I picked random numbers here and it worked fine, idk if these actually matter
+  //I let you declare these values because QMK allows that and it was easy enough to add
   uint16_t vid       = 0x05ac;
   uint16_t pid       = 0x820a;
   uint16_t version   = 0x0210;
   
+  void delay_ms(uint64_t ms);
   bool isModifierKey(uint8_t k);
+  uint32_t mediaKeyToBitmask(uint16_t usageCode);
+  void sendNKROReport();
+  void send6KROReport();
+  void updateNKROBitmask(uint8_t k, bool pressed);
 
 public:
   BleKeyboard(std::string deviceName = "ESP32 Keyboard", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
   void begin(void);
   void end(void);
-  void sendReport(KeyReport* keys);
-  void sendReport(MediaKeyReport* keys);
+  void sendReport(KeyReport6KRO* keys);
+  void sendReport();
   size_t press(uint8_t k);
-  size_t press(const MediaKeyReport k);
+  size_t press(uint16_t mediaKey);
   size_t release(uint8_t k);
-  size_t release(const MediaKeyReport k);
+  size_t release(uint16_t mediaKey);
   size_t write(uint8_t c);
-  size_t write(const MediaKeyReport c);
+  size_t write(uint16_t mediaKey);
   size_t write(const uint8_t *buffer, size_t size);
   void releaseAll(void);
+  
+  // NKRO/6KRO mode switching
+  void useNKRO(bool enable = true);
+  void use6KRO();
+  bool isNKROEnabled();
+  
+  // BLE helper functions
   bool isConnected(void);
   void setBatteryLevel(uint8_t level);
   void setName(std::string deviceName);  
   void setDelay(uint32_t ms);
 
+  // Misc hardware helper functions
   void set_vendor_id(uint16_t vid);
   void set_product_id(uint16_t pid);
   void set_version(uint16_t version);
   
+  // Modifier key helper functions
   void setModifiers(uint8_t modifiers);
   uint8_t getModifiers();
+  
+  // Media key helper functions
+  void setMediaKeyBitmask(uint32_t bitmask);
+  uint32_t getMediaKeyBitmask();
+  void addMediaKey(uint16_t mediaKey);
+  void removeMediaKey(uint16_t mediaKey);
   
 protected:
   virtual void onStarted(BLEServer *pServer) { };
