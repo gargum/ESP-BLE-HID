@@ -1,10 +1,6 @@
 # ESP32 BLE Keyboard library
 
-This library allows you to make the ESP32 act as a Bluetooth Keyboard and control what it does.  
-You might also be interested in:
-- [ESP32-BLE-Mouse](https://github.com/T-vK/ESP32-BLE-Mouse)
-- [ESP32-BLE-Gamepad](https://github.com/lemmingDev/ESP32-BLE-Gamepad)
-
+This library allows you to make the ESP32 act as a Bluetooth Keyboard.
 
 ## Features
 
@@ -19,6 +15,12 @@ You might also be interested in:
  - [x] Compatible with Linux
  - [x] Compatible with MacOS X (not stable, some people have issues, doesn't work with old devices)
  - [x] Compatible with iOS (not stable, some people have issues, doesn't work with old devices)
+
+## New Additions
+
+ - [x] Various added keycodes
+ - [ ] Mouse emulation
+ - [ ] Joystick emulation
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
@@ -156,7 +158,4 @@ build_flags =
 ```
 
 ## Credits
-
-Credits to [chegewara](https://github.com/chegewara) and [the authors of the USB keyboard library](https://github.com/arduino-libraries/Keyboard/) as this project is heavily based on their work!  
-Also, credits to [duke2421](https://github.com/T-vK/ESP32-BLE-Keyboard/issues/1) who helped a lot with testing, debugging and fixing the device descriptor!
-And credits to [sivar2311](https://github.com/sivar2311) for adding NimBLE support, greatly reducing the memory footprint, fixing advertising issues and for adding the `setDelay` method.
+Credits to [T-vK](https://github.com/T-vK) and [the authors of the USB keyboard library](https://github.com/arduino-libraries/Keyboard/), whose work this project is a fork of!
