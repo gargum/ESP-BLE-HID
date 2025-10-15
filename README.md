@@ -77,8 +77,8 @@ void loop() {
 ```
 
 ## API docs
-The BleKeyboard interface is almost identical to the Keyboard Interface, so you can use documentation right here:
-https://www.arduino.cc/reference/en/language/functions/usb/keyboard/
+The interface is designed to copy the aliases used by keycodes in QMK. This means, the aliased versions of the keycodes described in this document should all function:
+[QMK Docs - Basic Keycodes](https://docs.qmk.fm/keycodes_basic)
 
 Just remember that you have to use `bleKeyboard` instead of just `Keyboard` and you need these two lines at the top of your script:
 ```
@@ -86,23 +86,40 @@ Just remember that you have to use `bleKeyboard` instead of just `Keyboard` and 
 BleKeyboard bleKeyboard;
 ```
 
-In addition to that you can send media keys (which is not possible with the USB keyboard library). Supported are the following:
-- KEY_MEDIA_NEXT_TRACK
-- KEY_MEDIA_PREVIOUS_TRACK
-- KEY_MEDIA_STOP
-- KEY_MEDIA_PLAY_PAUSE
-- KEY_MEDIA_MUTE
-- KEY_MEDIA_VOLUME_UP
-- KEY_MEDIA_VOLUME_DOWN
-- KEY_MEDIA_WWW_HOME
-- KEY_MEDIA_LOCAL_MACHINE_BROWSER // Opens "My Computer" on Windows
-- KEY_MEDIA_CALCULATOR
-- KEY_MEDIA_WWW_BOOKMARKS
-- KEY_MEDIA_WWW_SEARCH
-- KEY_MEDIA_WWW_STOP
-- KEY_MEDIA_WWW_BACK
-- KEY_MEDIA_CONSUMER_CONTROL_CONFIGURATION // Media Selection
-- KEY_MEDIA_EMAIL_READER
+A wide array of media keys are also supported by this library. Here is the current complete list of available media keycodes:
+
+| FULL KEYCODE                       | ALIAS / SHORTFORM KEYCODE |
+| ---------------------------------- | ------- |
+| KEY_SYSTEM_POWER                   | KC_PWR  |
+| KEY_SYSTEM_SLEEP                   | KC_SLEP |
+| KEY_SYSTEM_WAKE                    | KC_WAKE |
+| KEY_NEXT_TRACK                     | KC_MNXT |
+| KEY_PREVIOUS_TRACK                 | KC_MPRV |
+| KEY_FAST_FORWARD                   | KC_MFFD |
+| KEY_REWIND                         | KC_MRWD |
+| KEY_STOP                           | KC_MSTP |
+| KEY_PLAY_PAUSE                     | KC_MPLY |
+| KEY_MUTE                           | KC_MUTE |
+| KEY_VOLUME_UP                      | KC_VOLU |
+| KEY_VOLUME_DOWN                    | KC_VOLD |
+| KEY_WWW_HOME                       | KC_WHOM |
+| KEY_LOCAL_MACHINE_BROWSER          | KC_MYCM |
+| KEY_CALCULATOR                     | KC_CALC |
+| KEY_WWW_BOOKMARKS                  | KC_WFAV |
+| KEY_WWW_SEARCH                     | KC_WSCH |
+| KEY_WWW_STOP                       | KC_WSTP |
+| KEY_WWW_REFRESH                    | KC_WREF |
+| KEY_WWW_BACK                       | KC_WBAK |
+| KEY_WWW_FORWARD                    | KC_WFWD |
+| KEY_CONSUMER_CONTROL_CONFIGURATION | KC_MSEL |
+| KEY_EMAIL_READER                   | KC_MAIL |
+| KEY_EJECT                          | KC_EJCT |
+| KEY_BRIGHTNESS_UP                  | KC_BRIU |
+| KEY_BRIGHTNESS_DOWN                | KC_BRID |
+| KEY_CONTROL_PANEL                  | KC_CPNL |
+| KEY_LAUNCHPAD                      | KC_LPAD |
+
+
 
 There is also Bluetooth specific information that you can set (optional):
 Instead of `BleKeyboard bleKeyboard;` you can do `BleKeyboard bleKeyboard("Bluetooth Device Name", "Bluetooth Device Manufacturer", 100);`. (Max lenght is 15 characters, anything beyond that will be truncated.)  
