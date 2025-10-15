@@ -358,8 +358,8 @@ size_t BleKeyboard::press(uint8_t k)
 {
     uint8_t i;
     
-    // Check if it's a modifier key
-    if (k >= 0x01 && k <= 0x80 && ((k & (k-1)) == 0)) { // Check if k is a power of 2 (single bit set)
+    // Check if it's a modifier key (using the helper function so it's easier for people to modify)
+    if (isModifierKey(k)) {
         // It's a modifier key - set the appropriate bit in the modifiers byte
         _keyReport.modifiers |= k;
         k = 0;
@@ -412,8 +412,8 @@ size_t BleKeyboard::release(uint8_t k)
 {
     uint8_t i;
     
-    // Check if it's a modifier key
-    if (k >= 0x01 && k <= 0x80 && ((k & (k-1)) == 0)) { // Check if k is a power of 2 (single bit set)
+    // Check if it's a modifier key (using the helper function so it's easier for people to modify)
+    if (isModifierKey(k)) {
         // It's a modifier key - clear the appropriate bit in the modifiers byte
         _keyReport.modifiers &= ~k;
         k = 0;
@@ -492,18 +492,15 @@ size_t BleKeyboard::write(const uint8_t *buffer, size_t size) {
 	return n;
 }
 
-// Helper method to check if a keycode represents a modifier
 bool BleKeyboard::isModifierKey(uint8_t k) {
     return (k >= 0x01 && k <= 0x80 && ((k & (k-1)) == 0));
 }
 
-// Method to set modifiers directly by bitmask
 void BleKeyboard::setModifiers(uint8_t modifiers) {
     _keyReport.modifiers = modifiers;
     sendReport(&_keyReport);
 }
 
-// Method to get current modifiers
 uint8_t BleKeyboard::getModifiers() {
     return _keyReport.modifiers;
 }
