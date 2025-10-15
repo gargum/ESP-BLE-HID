@@ -367,6 +367,8 @@ private:
   uint16_t vid       = 0x05ac;
   uint16_t pid       = 0x820a;
   uint16_t version   = 0x0210;
+  
+  bool isModifierKey(uint8_t k);
 
 public:
   BleKeyboard(std::string deviceName = "ESP32 Keyboard", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
@@ -390,6 +392,10 @@ public:
   void set_vendor_id(uint16_t vid);
   void set_product_id(uint16_t pid);
   void set_version(uint16_t version);
+  
+  void setModifiers(uint8_t modifiers);
+  uint8_t getModifiers();
+  
 protected:
   virtual void onStarted(BLEServer *pServer) { };
   virtual void onConnect(BLEServer* pServer) override;
