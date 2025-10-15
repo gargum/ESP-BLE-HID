@@ -26,11 +26,14 @@ static const char* LOG_TAG = "BleKeyboard";
 #define KEYBOARD_ID 0x01
 #define MEDIA_KEYS_ID 0x02
 
+// NKRO Report ID
+#define NKRO_KEYBOARD_ID 0x03
+
 static const uint8_t _hidReportDescriptor[] = {
+  // 6KRO Report Descriptor (for backward compatibility)
   USAGE_PAGE(1),      0x01,          // USAGE_PAGE (Generic Desktop Ctrls)
   USAGE(1),           0x06,          // USAGE (Keyboard)
   COLLECTION(1),      0x01,          // COLLECTION (Application)
-  // ------------------------------------------------- Keyboard
   REPORT_ID(1),       KEYBOARD_ID,   //   REPORT_ID (1)
   USAGE_PAGE(1),      0x07,          //   USAGE_PAGE (Kbrd/Keypad)
   USAGE_MINIMUM(1),   0xE0,          //   USAGE_MINIMUM (0xE0)
@@ -61,6 +64,42 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE_MAXIMUM(1),   0x65,          //   USAGE_MAXIMUM (0x65)
   HIDINPUT(1),        0x00,          //   INPUT (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
   END_COLLECTION(0),                 // END_COLLECTION
+  
+  // NKRO Report Descriptor
+  USAGE_PAGE(1),      0x01,          // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x06,          // USAGE (Keyboard)
+  COLLECTION(1),      0x01,          // COLLECTION (Application)
+  REPORT_ID(1),       NKRO_KEYBOARD_ID, // REPORT_ID (3)
+  USAGE_PAGE(1),      0x07,          // USAGE_PAGE (Key Codes)
+  USAGE_MINIMUM(1),   0xE0,          // USAGE_MINIMUM (Keyboard LeftControl)
+  USAGE_MAXIMUM(1),   0xE7,          // USAGE_MAXIMUM (Keyboard Right GUI)
+  LOGICAL_MINIMUM(1), 0x00,          // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x01,          // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),     0x01,          // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x08,          // REPORT_COUNT (8)
+  HIDINPUT(1),        0x02,          // INPUT (Data, Variable, Absolute)
+  REPORT_COUNT(1),    0x01,          // REPORT_COUNT (1)
+  REPORT_SIZE(1),     0x08,          // REPORT_SIZE (8)
+  HIDINPUT(1),        0x01,          // INPUT (Constant)
+  REPORT_COUNT(1),    0x05,          // REPORT_COUNT (5)
+  REPORT_SIZE(1),     0x01,          // REPORT_SIZE (1)
+  USAGE_PAGE(1),      0x08,          // USAGE_PAGE (LEDs)
+  USAGE_MINIMUM(1),   0x01,          // USAGE_MINIMUM (Num Lock)
+  USAGE_MAXIMUM(1),   0x05,          // USAGE_MAXIMUM (Kana)
+  HIDOUTPUT(1),       0x02,          // OUTPUT (Data, Variable, Absolute)
+  REPORT_COUNT(1),    0x01,          // REPORT_COUNT (1)
+  REPORT_SIZE(1),     0x03,          // REPORT_SIZE (3)
+  HIDOUTPUT(1),       0x01,          // OUTPUT (Constant)
+  USAGE_PAGE(1),      0x07,          // USAGE_PAGE (Key Codes)
+  LOGICAL_MINIMUM(1), 0x00,          // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x01,          // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),     0x01,          // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x68,          // REPORT_COUNT (104) - 104 keys
+  USAGE_MINIMUM(1),   0x00,          // USAGE_MINIMUM (0)
+  USAGE_MAXIMUM(1),   0x67,          // USAGE_MAXIMUM (103) - Maximum key index
+  HIDINPUT(1),        0x02,          // INPUT (Data, Variable, Absolute)
+  END_COLLECTION(0),                 // END_COLLECTION
+  
   // ------------------------------------------------- Media Keys
   USAGE_PAGE(1),      0x0C,          // USAGE_PAGE (Consumer)
   USAGE(1),           0x01,          // USAGE (Consumer Control)
@@ -120,11 +159,22 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
     : hid(0)
     , deviceName(std::string(deviceName).substr(0, 15))
     , deviceManufacturer(std::string(deviceManufacturer).substr(0,15))
-    , batteryLevel(batteryLevel) {}
+    , batteryLevel(batteryLevel) 
+    , _mediaKeyBitmask(0) 
+    , _useNKRO(true) {
+  // Initialize NKRO report
+  memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
+  // Initialize 6KRO report  
+  memset(&_keyReport6KRO, 0, sizeof(_keyReport6KRO));
+}
 
 void BleKeyboard::begin(void)
 {
-  BLEDevice::init(String(deviceName.c_str()));
+  // Check if BLE is already initialized
+  if (!BLEDevice::getInitialized()) {
+    BLEDevice::init(String(deviceName.c_str()));
+  }
+  
   BLEServer* pServer = BLEDevice::createServer();
   pServer->setCallbacks(this);
 
@@ -132,6 +182,7 @@ void BleKeyboard::begin(void)
   inputKeyboard = hid->inputReport(KEYBOARD_ID);
   outputKeyboard = hid->outputReport(KEYBOARD_ID);
   inputMediaKeys = hid->inputReport(MEDIA_KEYS_ID);
+  inputNKRO = hid->inputReport(NKRO_KEYBOARD_ID);
 
   outputKeyboard->setCallbacks(this);
   hid->manufacturer()->setValue(String(deviceManufacturer.c_str()));
@@ -152,22 +203,37 @@ void BleKeyboard::begin(void)
 
   hid->reportMap((uint8_t*)_hidReportDescriptor, sizeof(_hidReportDescriptor));
   hid->startServices();
-  onStarted(pServer);
 
   advertising = pServer->getAdvertising();
+  
+  // Set advertising parameters before setting data
   advertising->setAppearance(HID_KEYBOARD);
   advertising->addServiceUUID(hid->hidService()->getUUID());
-  advertising->setScanResponse(false);
+  advertising->setScanResponse(true); // Changed to true for better discovery
   
   BLEAdvertisementData advertisementData;
   advertisementData.setFlags(ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT);
+  advertisementData.setName(deviceName.c_str()); // Explicitly set the name
   advertisementData.setCompleteServices(BLEUUID(hid->hidService()->getUUID()));
+  
+  // Also set scan response data
+  BLEAdvertisementData scanResponseData;
+  scanResponseData.setCompleteServices(BLEUUID(hid->hidService()->getUUID()));
+  scanResponseData.setName(deviceName.c_str());
+  
   advertising->setAdvertisementData(advertisementData);
+  advertising->setScanResponseData(scanResponseData);
+  
+  // Call onStarted after HID is set up but before advertising starts
+  onStarted(pServer);
   
   advertising->start();
   hid->setBatteryLevel(batteryLevel);
 
   ESP_LOGI(LOG_TAG, "Advertising started!");
+  ESP_LOGI(LOG_TAG, "Device name: %s", deviceName.c_str());
+  ESP_LOGI(LOG_TAG, "Service UUID: %s", hid->hidService()->getUUID().toString().c_str());
+  ESP_LOGI(LOG_TAG, "Using %s mode by default", _useNKRO ? "NKRO" : "6KRO");
 }
 
 void BleKeyboard::end(void)
@@ -210,71 +276,78 @@ void BleKeyboard::set_version(uint16_t version) {
 	this->version = version; 
 }
 
-void BleKeyboard::sendReport(KeyReport* keys)
+void BleKeyboard::sendReport(KeyReport6KRO* keys)
 {
   if (this->isConnected())
   {
-    this->inputKeyboard->setValue((uint8_t*)keys, sizeof(KeyReport));
+    this->inputKeyboard->setValue((uint8_t*)keys, sizeof(KeyReport6KRO));
     this->inputKeyboard->notify();
 #if defined(USE_NIMBLE)        
-    // vTaskDelay(delayTicks);
     this->delay_ms(_delay_ms);
 #endif // USE_NIMBLE
   }	
 }
 
-void BleKeyboard::sendReport(MediaKeyReport* keys)
+void BleKeyboard::sendReport()
 {
   if (this->isConnected())
   {
-    // Create a 32-bit bitmask to hold all 28 media key bits
-    uint32_t mediaKeyBitmask = 0;
-    
-    // Convert the MediaKeyReport to the appropriate bit position
-    // MediaKeyReport format: {usage_id, usage_page}
-    uint16_t usageCode = (*keys)[0] | ((*keys)[1] << 8);
-    
-    // Map the usage code to the correct bit position in the 28-bit field
-    // This mapping depends on the order of USAGE declarations in the HID descriptor
-    switch (usageCode) {
-      case 0x0130: mediaKeyBitmask = (1UL << 0); break;  // System Power
-      case 0x0134: mediaKeyBitmask = (1UL << 1); break;  // System Sleep  
-      case 0x0135: mediaKeyBitmask = (1UL << 2); break;  // System Wake
-      case 0x00B5: mediaKeyBitmask = (1UL << 3); break;  // Next Track
-      case 0x00B6: mediaKeyBitmask = (1UL << 4); break;  // Previous Track
-      case 0x00B7: mediaKeyBitmask = (1UL << 5); break;  // Stop
-      case 0x00CD: mediaKeyBitmask = (1UL << 6); break;  // Play/Pause
-      case 0x00B3: mediaKeyBitmask = (1UL << 7); break;  // Fast Forward
-      case 0x00B4: mediaKeyBitmask = (1UL << 8); break;  // Rewind
-      case 0x00B8: mediaKeyBitmask = (1UL << 9); break;  // Eject
-      case 0x00E2: mediaKeyBitmask = (1UL << 10); break; // Mute
-      case 0x00E9: mediaKeyBitmask = (1UL << 11); break; // Volume Up
-      case 0x00EA: mediaKeyBitmask = (1UL << 12); break; // Volume Down
-      case 0x006F: mediaKeyBitmask = (1UL << 13); break; // Brightness Up
-      case 0x0070: mediaKeyBitmask = (1UL << 14); break; // Brightness Down
-      case 0x0194: mediaKeyBitmask = (1UL << 15); break; // My Computer
-      case 0x0192: mediaKeyBitmask = (1UL << 16); break; // Calculator
-      case 0x018A: mediaKeyBitmask = (1UL << 17); break; // Mail
-      case 0x0183: mediaKeyBitmask = (1UL << 18); break; // Media Selection
-      case 0x0186: mediaKeyBitmask = (1UL << 19); break; // Control Panel
-      case 0x0187: mediaKeyBitmask = (1UL << 20); break; // Launchpad
-      case 0x0223: mediaKeyBitmask = (1UL << 21); break; // WWW Home
-      case 0x022A: mediaKeyBitmask = (1UL << 22); break; // WWW Favorites
-      case 0x0221: mediaKeyBitmask = (1UL << 23); break; // WWW Search
-      case 0x0226: mediaKeyBitmask = (1UL << 24); break; // WWW Stop
-      case 0x0224: mediaKeyBitmask = (1UL << 25); break; // WWW Back
-      case 0x0225: mediaKeyBitmask = (1UL << 26); break; // WWW Forward
-      case 0x0227: mediaKeyBitmask = (1UL << 27); break; // WWW Refresh
-      default: break;
-    }
-    
-    // Send as 32-bit value (4 bytes) - the HID stack will use only the needed 28 bits
-    this->inputMediaKeys->setValue((uint8_t*)&mediaKeyBitmask, sizeof(uint32_t));
+    // Send the current media key bitmask
+    this->inputMediaKeys->setValue((uint8_t*)&_mediaKeyBitmask, sizeof(uint32_t));
     this->inputMediaKeys->notify();
 #if defined(USE_NIMBLE)        
     this->delay_ms(_delay_ms);
 #endif // USE_NIMBLE
   }	
+}
+
+void BleKeyboard::sendNKROReport()
+{
+  if (this->isConnected() && _useNKRO && inputNKRO)  // Check that inputNKRO is not null
+  {
+    inputNKRO->setValue((uint8_t*)&_keyReportNKRO, sizeof(KeyReportNKRO));
+    inputNKRO->notify();
+#if defined(USE_NIMBLE)        
+    this->delay_ms(_delay_ms);
+#endif // USE_NIMBLE
+  }
+}
+
+void BleKeyboard::send6KROReport()
+{
+  if (this->isConnected() && !_useNKRO)
+  {
+    sendReport(&_keyReport6KRO);
+  }
+}
+
+void BleKeyboard::updateNKROBitmask(uint8_t k, bool pressed)
+{
+  if (k < NKRO_KEY_COUNT) {
+    uint8_t bitmaskIndex = k / 8;
+    uint8_t bitOffset = k % 8;
+    
+    if (pressed) {
+      _keyReportNKRO.keys_bitmask[bitmaskIndex] |= (1 << bitOffset);
+    } else {
+      _keyReportNKRO.keys_bitmask[bitmaskIndex] &= ~(1 << bitOffset);
+    }
+  }
+}
+
+// NKRO/6KRO mode switching functions
+void BleKeyboard::useNKRO(bool enable) {
+  _useNKRO = enable;
+  ESP_LOGI(LOG_TAG, "Switched to %s mode", _useNKRO ? "NKRO" : "6KRO");
+}
+
+void BleKeyboard::use6KRO() {
+  _useNKRO = false;
+  ESP_LOGI(LOG_TAG, "Switched to 6KRO mode");
+}
+
+bool BleKeyboard::isNKROEnabled() {
+  return _useNKRO;
 }
 
 extern
@@ -422,49 +495,57 @@ uint8_t USBPutChar(uint8_t c);
 // call release(), releaseAll(), or otherwise clear the report and resend.
 size_t BleKeyboard::press(uint8_t k)
 {
-    uint8_t i;
-    
-    // Check if it's a modifier key (using the helper function so it's easier for people to modify)
-    if (isModifierKey(k)) {
-        // It's a modifier key - set the appropriate bit in the modifiers byte
-        _keyReport.modifiers |= k;
-        k = 0;
-    } 
-    else if (k >= 136) { // it's a non-printing key (not a modifier)
-        k = k - 136;
-    } 
-    
-    // Add k to the key report only if it's not already present
-    // and if there is an empty slot (for non-modifier keys only)
-    if (k != 0) {
-        if (_keyReport.keys[0] != k && _keyReport.keys[1] != k &&
-            _keyReport.keys[2] != k && _keyReport.keys[3] != k &&
-            _keyReport.keys[4] != k && _keyReport.keys[5] != k) {
+    if (_useNKRO) {
+        // NKRO mode
+        if (isModifierKey(k)) {
+            // It's a modifier key - set the appropriate bit in the modifiers byte
+            _keyReportNKRO.modifiers |= k;
+        } else if (k >= 136) { // it's a non-printing key (not a modifier)
+            k = k - 136;
+        }
+        
+        if (k != 0) {
+            updateNKROBitmask(k, true);
+        }
+        
+        sendNKROReport();
+    } else {
+        // 6KRO mode (original implementation)
+        uint8_t i;
+        
+        if (isModifierKey(k)) {
+            _keyReport6KRO.modifiers |= k;
+            k = 0;
+        } else if (k >= 136) {
+            k = k - 136;
+        } 
+        
+        if (k != 0) {
+            if (_keyReport6KRO.keys[0] != k && _keyReport6KRO.keys[1] != k &&
+                _keyReport6KRO.keys[2] != k && _keyReport6KRO.keys[3] != k &&
+                _keyReport6KRO.keys[4] != k && _keyReport6KRO.keys[5] != k) {
 
-            for (i = 0; i < 6; i++) {
-                if (_keyReport.keys[i] == 0x00) {
-                    _keyReport.keys[i] = k;
-                    break;
+                for (i = 0; i < 6; i++) {
+                    if (_keyReport6KRO.keys[i] == 0x00) {
+                        _keyReport6KRO.keys[i] = k;
+                        break;
+                    }
+                }
+                if (i == 6) {
+                    setWriteError();
+                    return 0;
                 }
             }
-            if (i == 6) {
-                setWriteError();
-                return 0;
-            }
         }
+        
+        send6KROReport();
     }
-    
-    sendReport(&_keyReport);
     return 1;
 }
 
-size_t BleKeyboard::press(const MediaKeyReport k)
+size_t BleKeyboard::press(uint16_t mediaKey)
 {
-    // Instead of OR-ing, just set the media key directly
-    _mediaKeyReport[0] = k[0];
-    _mediaKeyReport[1] = k[1];
-    
-    sendReport(&_mediaKeyReport);
+    addMediaKey(mediaKey);
     return 1;
 }
 
@@ -473,69 +554,85 @@ size_t BleKeyboard::press(const MediaKeyReport k)
 // it shouldn't be repeated any more.
 size_t BleKeyboard::release(uint8_t k)
 {
-    uint8_t i;
-    
-    // Check if it's a modifier key (using the helper function so it's easier for people to modify)
-    if (isModifierKey(k)) {
-        // It's a modifier key - clear the appropriate bit in the modifiers byte
-        _keyReport.modifiers &= ~k;
-        k = 0;
-    }
-    else if (k >= 136) { // it's a non-printing key (not a modifier)
-        k = k - 136;
-    }
-    
-    // Test the key report to see if k is present. Clear it if it exists.
-    // Check all positions in case the key is present more than once (which it shouldn't be)
-    if (k != 0) {
-        for (i = 0; i < 6; i++) {
-            if (_keyReport.keys[i] == k) {
-                _keyReport.keys[i] = 0x00;
+    if (_useNKRO) {
+        // NKRO mode
+        if (isModifierKey(k)) {
+            // It's a modifier key - clear the appropriate bit in the modifiers byte
+            _keyReportNKRO.modifiers &= ~k;
+        } else if (k >= 136) {
+            k = k - 136;
+        }
+        
+        if (k != 0) {
+            updateNKROBitmask(k, false);
+        }
+        
+        sendNKROReport();
+    } else {
+        // 6KRO mode (original implementation)
+        uint8_t i;
+        
+        if (isModifierKey(k)) {
+            _keyReport6KRO.modifiers &= ~k;
+            k = 0;
+        } else if (k >= 136) {
+            k = k - 136;
+        }
+        
+        if (k != 0) {
+            for (i = 0; i < 6; i++) {
+                if (_keyReport6KRO.keys[i] == k) {
+                    _keyReport6KRO.keys[i] = 0x00;
+                }
             }
         }
+        
+        send6KROReport();
     }
-    
-    sendReport(&_keyReport);
     return 1;
 }
 
-size_t BleKeyboard::release(const MediaKeyReport k)
+size_t BleKeyboard::release(uint16_t mediaKey)
 {
-    // Clear the media keys
-    _mediaKeyReport[0] = 0;
-    _mediaKeyReport[1] = 0;
-    
-    sendReport(&_mediaKeyReport);
+    removeMediaKey(mediaKey);
     return 1;
 }
+
 
 void BleKeyboard::releaseAll(void)
 {
-	_keyReport.keys[0] = 0;
-	_keyReport.keys[1] = 0;
-	_keyReport.keys[2] = 0;
-	_keyReport.keys[3] = 0;
-	_keyReport.keys[4] = 0;
-	_keyReport.keys[5] = 0;
-	_keyReport.modifiers = 0;
-        _mediaKeyReport[0] = 0;
-        _mediaKeyReport[1] = 0;
-	sendReport(&_keyReport);
-	sendReport(&_mediaKeyReport);
+    if (_useNKRO) {
+        // Clear NKRO report
+        memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
+        sendNKROReport();
+    } else {
+        // Clear 6KRO report
+        _keyReport6KRO.keys[0] = 0;
+        _keyReport6KRO.keys[1] = 0;
+        _keyReport6KRO.keys[2] = 0;
+        _keyReport6KRO.keys[3] = 0;
+        _keyReport6KRO.keys[4] = 0;
+        _keyReport6KRO.keys[5] = 0;
+        _keyReport6KRO.modifiers = 0;
+        send6KROReport();
+    }
+    
+    _mediaKeyBitmask = 0;
+    sendReport();
 }
 
 size_t BleKeyboard::write(uint8_t c)
 {
 	uint8_t p = press(c);  // Keydown
 	release(c);            // Keyup
-	return p;              // just return the result of press() since release() almost always returns 1
+	return p;
 }
 
-size_t BleKeyboard::write(const MediaKeyReport c)
+size_t BleKeyboard::write(uint16_t mediaKey)
 {
-	uint16_t p = press(c);  // Keydown
-	release(c);            // Keyup
-	return p;              // just return the result of press() since release() almost always returns 1
+	uint16_t p = press(mediaKey);  // Keydown
+	release(mediaKey);            // Keyup
+	return p;
 }
 
 size_t BleKeyboard::write(const uint8_t *buffer, size_t size) {
@@ -558,12 +655,73 @@ bool BleKeyboard::isModifierKey(uint8_t k) {
 }
 
 void BleKeyboard::setModifiers(uint8_t modifiers) {
-    _keyReport.modifiers = modifiers;
-    sendReport(&_keyReport);
+    if (_useNKRO) {
+        _keyReportNKRO.modifiers = modifiers;
+        sendNKROReport();
+    } else {
+        _keyReport6KRO.modifiers = modifiers;
+        send6KROReport();
+    }
 }
 
 uint8_t BleKeyboard::getModifiers() {
-    return _keyReport.modifiers;
+    return _useNKRO ? _keyReportNKRO.modifiers : _keyReport6KRO.modifiers;
+}
+
+void BleKeyboard::setMediaKeyBitmask(uint32_t bitmask) {
+    _mediaKeyBitmask = bitmask;
+    sendReport(); // Send the updated bitmask
+}
+
+uint32_t BleKeyboard::getMediaKeyBitmask() {
+    return _mediaKeyBitmask;
+}
+
+uint32_t BleKeyboard::mediaKeyToBitmask(uint16_t usageCode) {
+    // Map the 16-bit usage code to the correct bit position
+    switch (usageCode) {
+      case 0x0130: return (1UL << 0);   // System Power
+      case 0x0134: return (1UL << 1);   // System Sleep  
+      case 0x0135: return (1UL << 2);   // System Wake
+      case 0x00B5: return (1UL << 3);   // Next Track
+      case 0x00B6: return (1UL << 4);   // Previous Track
+      case 0x00B7: return (1UL << 5);   // Stop
+      case 0x00CD: return (1UL << 6);   // Play/Pause
+      case 0x00B3: return (1UL << 7);   // Fast Forward
+      case 0x00B4: return (1UL << 8);   // Rewind
+      case 0x00B8: return (1UL << 9);   // Eject
+      case 0x00E2: return (1UL << 10);  // Mute
+      case 0x00E9: return (1UL << 11);  // Volume Up
+      case 0x00EA: return (1UL << 12);  // Volume Down
+      case 0x006F: return (1UL << 13);  // Brightness Up
+      case 0x0070: return (1UL << 14);  // Brightness Down
+      case 0x0194: return (1UL << 15);  // My Computer
+      case 0x0192: return (1UL << 16);  // Calculator
+      case 0x018A: return (1UL << 17);  // Mail
+      case 0x0183: return (1UL << 18);  // Media Selection
+      case 0x0186: return (1UL << 19);  // Control Panel
+      case 0x0187: return (1UL << 20);  // Launchpad
+      case 0x0223: return (1UL << 21);  // WWW Home
+      case 0x022A: return (1UL << 22);  // WWW Favorites
+      case 0x0221: return (1UL << 23);  // WWW Search
+      case 0x0226: return (1UL << 24);  // WWW Stop
+      case 0x0224: return (1UL << 25);  // WWW Back
+      case 0x0225: return (1UL << 26);  // WWW Forward
+      case 0x0227: return (1UL << 27);  // WWW Refresh
+      default: return 0;
+    }
+}
+
+void BleKeyboard::addMediaKey(uint16_t mediaKey) {
+    uint32_t keyBitmask = mediaKeyToBitmask(mediaKey);
+    _mediaKeyBitmask |= keyBitmask;
+    sendReport();
+}
+
+void BleKeyboard::removeMediaKey(uint16_t mediaKey) {
+    uint32_t keyBitmask = mediaKeyToBitmask(mediaKey);
+    _mediaKeyBitmask &= ~keyBitmask;
+    sendReport();
 }
 
 void BleKeyboard::onConnect(BLEServer* pServer) {
