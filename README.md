@@ -89,16 +89,14 @@ void loop() {
 ```
 
 ## API docs
-The interface is designed to copy the aliases used by keycodes in QMK. This means, the aliased versions of the keycodes described in this document should all function:
+The interface is designed to copy the aliases used by keycodes in QMK. The aliases and functions for all QMK Basic Keycodes are fully implemented.
+The sole exceptions to this are `KC_ASST` and `KC_MCTL`, which have been excluded from this library because I have no idea what either are meant to do.
+
 [QMK Docs - Basic Keycodes](https://docs.qmk.fm/keycodes_basic)
 
-Just remember that you have to use `bleKeyboard` instead of just `Keyboard` and you need these two lines at the top of your script:
-```
-#include <BleKeyboard.h>
-BleKeyboard bleKeyboard;
-```
+A complete list of all available keycodes and commands is included in the `keywords.txt` text file.
 
-A wide array of media keys are also supported by this library. Here is the current complete list of available media keycodes:
+To illustrate what this library has to offer, here is the current complete list of just the available *media* keycodes:
 
 | FULL KEYCODE                       | ALIAS / SHORTFORM KEYCODE |
 | ---------------------------------- | ------- |
@@ -133,12 +131,13 @@ A wide array of media keys are also supported by this library. Here is the curre
 
 
 
-There is also Bluetooth specific information that you can set (optional):
-Instead of `BleKeyboard bleKeyboard;` you can do `BleKeyboard bleKeyboard("Bluetooth Device Name", "Bluetooth Device Manufacturer", 100);`. (Max lenght is 15 characters, anything beyond that will be truncated.)  
-The third parameter is the initial battery level of your device. To adjust the battery level later on you can simply call e.g.  `bleKeyboard.setBatteryLevel(50)` (set battery level to 50%).  
+Features and settings that existed in the original project this repo is a fork of are still available:
+You don't have to declare `BleKeyboard bleKeyboard;` before using `bleKeyboard.setName("NAME")` and `bleKeyboard.setBatteryLevel(100)`! 
+You can instead change `BleKeyboard bleKeyboard;` to `BleKeyboard bleKeyboard("NAME", "MANUFACTURER", 100);`. (Names longer than 15 characters will be truncated.)
 By default the battery level will be set to 100%, the device name will be `ESP32 Keyboard` and the manufacturer will be `Espressif`.  
+
 There is also a `setDelay` method to set a delay between each key event. E.g. `bleKeyboard.setDelay(10)` (10 milliseconds). The default is `8`.  
-This feature is meant to compensate for some applications and devices that can't handle fast input and will skip letters if too many keys are sent in a small time frame.  
+The `setDelay` feature is to maximize compatibility between any devices created using this library, and any underpowered hardware or legacy applications one may wish to use.
 
 ## NimBLE-Mode
 The NimBLE mode enables a significant saving of RAM and FLASH memory.
