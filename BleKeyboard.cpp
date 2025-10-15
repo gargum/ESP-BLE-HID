@@ -492,6 +492,22 @@ size_t BleKeyboard::write(const uint8_t *buffer, size_t size) {
 	return n;
 }
 
+// Helper method to check if a keycode represents a modifier
+bool BleKeyboard::isModifierKey(uint8_t k) {
+    return (k >= 0x01 && k <= 0x80 && ((k & (k-1)) == 0));
+}
+
+// Method to set modifiers directly by bitmask
+void BleKeyboard::setModifiers(uint8_t modifiers) {
+    _keyReport.modifiers = modifiers;
+    sendReport(&_keyReport);
+}
+
+// Method to get current modifiers
+uint8_t BleKeyboard::getModifiers() {
+    return _keyReport.modifiers;
+}
+
 void BleKeyboard::onConnect(BLEServer* pServer) {
   this->connected = true;
 
