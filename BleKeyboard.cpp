@@ -65,28 +65,53 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE_PAGE(1),      0x0C,          // USAGE_PAGE (Consumer)
   USAGE(1),           0x01,          // USAGE (Consumer Control)
   COLLECTION(1),      0x01,          // COLLECTION (Application)
-  REPORT_ID(1),       MEDIA_KEYS_ID, //   REPORT_ID (3)
+  REPORT_ID(1),       MEDIA_KEYS_ID, //   REPORT_ID (2)
   USAGE_PAGE(1),      0x0C,          //   USAGE_PAGE (Consumer)
   LOGICAL_MINIMUM(1), 0x00,          //   LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,          //   LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),     0x01,          //   REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x10,          //   REPORT_COUNT (16)
-  USAGE(1),           0xB5,          //   USAGE (Scan Next Track)     ; bit 0: 1
-  USAGE(1),           0xB6,          //   USAGE (Scan Previous Track) ; bit 1: 2
-  USAGE(1),           0xB7,          //   USAGE (Stop)                ; bit 2: 4
-  USAGE(1),           0xCD,          //   USAGE (Play/Pause)          ; bit 3: 8
-  USAGE(1),           0xE2,          //   USAGE (Mute)                ; bit 4: 16
-  USAGE(1),           0xE9,          //   USAGE (Volume Increment)    ; bit 5: 32
-  USAGE(1),           0xEA,          //   USAGE (Volume Decrement)    ; bit 6: 64
-  USAGE(2),           0x23, 0x02,    //   Usage (WWW Home)            ; bit 7: 128
-  USAGE(2),           0x94, 0x01,    //   Usage (My Computer) ; bit 0: 1
-  USAGE(2),           0x92, 0x01,    //   Usage (Calculator)  ; bit 1: 2
-  USAGE(2),           0x2A, 0x02,    //   Usage (WWW fav)     ; bit 2: 4
-  USAGE(2),           0x21, 0x02,    //   Usage (WWW search)  ; bit 3: 8
-  USAGE(2),           0x26, 0x02,    //   Usage (WWW stop)    ; bit 4: 16
-  USAGE(2),           0x24, 0x02,    //   Usage (WWW back)    ; bit 5: 32
-  USAGE(2),           0x83, 0x01,    //   Usage (Media sel)   ; bit 6: 64
-  USAGE(2),           0x8A, 0x01,    //   Usage (Mail)        ; bit 7: 128
+  LOGICAL_MAXIMUM(2), 0xFF, 0x03,    //   LOGICAL_MAXIMUM (0x03FF) - Maximum 16-bit usage code
+  REPORT_SIZE(1),     0x01,          //   REPORT_SIZE (1) - One bit, one code
+  REPORT_COUNT(1),    0x1C,          //   REPORT_COUNT (1C) - 28 codes, so 28 bits
+  
+  // System Controls
+  USAGE(2),           0x30, 0x01,    //   USAGE (System Power - 0x0130)    [bit 1]
+  USAGE(2),           0x34, 0x01,    //   USAGE (System Sleep - 0x0134)    [bit 2]
+  USAGE(2),           0x35, 0x01,    //   USAGE (System Wake - 0x0135)     [bit 3]
+  
+  // Transport Controls
+  USAGE(1),           0xB5,    //   USAGE (Scan Next Track - 0x00B5)       [bit 4]
+  USAGE(1),           0xB6,    //   USAGE (Scan Previous Track - 0x00B6)   [bit 5]
+  USAGE(1),           0xB7,    //   USAGE (Stop - 0x00B7)                  [bit 6]
+  USAGE(1),           0xCD,    //   USAGE (Play/Pause - 0x00CD)            [bit 7]
+  USAGE(1),           0xB3,    //   USAGE (Fast Forward - 0x00B3)          [bit 8]
+  USAGE(1),           0xB4,    //   USAGE (Rewind - 0x00B4)                [bit 9]
+  USAGE(1),           0xB8,    //   USAGE (Eject - 0x00B8)                 [bit 10]
+  
+  // Volume Controls
+  USAGE(1),           0xE2,    //   USAGE (Mute - 0x00E2)                  [bit 11]
+  USAGE(1),           0xE9,    //   USAGE (Volume Increment - 0x00E9)      [bit 12]
+  USAGE(1),           0xEA,    //   USAGE (Volume Decrement - 0x00EA)      [bit 13]
+  
+  // Display Controls
+  USAGE(1),           0x6F,    //   USAGE (Brightness Up - 0x006F)         [bit 14]
+  USAGE(1),           0x70,    //   USAGE (Brightness Down - 0x0070)       [bit 15]
+  
+  // Application Launch
+  USAGE(2),           0x94, 0x01,    //   USAGE (My Computer - 0x0194)     [bit 16]
+  USAGE(2),           0x92, 0x01,    //   USAGE (Calculator - 0x0192)      [bit 17]
+  USAGE(2),           0x8A, 0x01,    //   USAGE (Mail - 0x018A)            [bit 18]
+  USAGE(2),           0x83, 0x01,    //   USAGE (Media Selection - 0x0183) [bit 19]
+  USAGE(2),           0x86, 0x01,    //   USAGE (Control Panel - 0x0186)   [bit 20]
+  USAGE(2),           0x87, 0x01,    //   USAGE (Launchpad - 0x0187)       [bit 21]
+  
+  // Browser Controls
+  USAGE(2),           0x23, 0x02,    //   USAGE (WWW Home - 0x0223)        [bit 22]
+  USAGE(2),           0x2A, 0x02,    //   USAGE (WWW favorites - 0x022A)   [bit 23]
+  USAGE(2),           0x21, 0x02,    //   USAGE (WWW search - 0x0221)      [bit 24]
+  USAGE(2),           0x26, 0x02,    //   USAGE (WWW stop - 0x0226)        [bit 25]
+  USAGE(2),           0x24, 0x02,    //   USAGE (WWW back - 0x0224)        [bit 26]
+  USAGE(2),           0x25, 0x02,    //   USAGE (WWW forward - 0x0225)     [bit 27]
+  USAGE(2),           0x27, 0x02,    //   USAGE (WWW refresh - 0x0227)     [bit 28]
+  
   HIDINPUT(1),        0x02,          //   INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
   END_COLLECTION(0)                  // END_COLLECTION
 };
@@ -202,10 +227,51 @@ void BleKeyboard::sendReport(MediaKeyReport* keys)
 {
   if (this->isConnected())
   {
-    this->inputMediaKeys->setValue((uint8_t*)keys, sizeof(MediaKeyReport));
+    // Create a 32-bit bitmask to hold all 28 media key bits
+    uint32_t mediaKeyBitmask = 0;
+    
+    // Convert the MediaKeyReport to the appropriate bit position
+    // MediaKeyReport format: {usage_id, usage_page}
+    uint16_t usageCode = (*keys)[0] | ((*keys)[1] << 8);
+    
+    // Map the usage code to the correct bit position in the 28-bit field
+    // This mapping depends on the order of USAGE declarations in the HID descriptor
+    switch (usageCode) {
+      case 0x0130: mediaKeyBitmask = (1UL << 0); break;  // System Power
+      case 0x0134: mediaKeyBitmask = (1UL << 1); break;  // System Sleep  
+      case 0x0135: mediaKeyBitmask = (1UL << 2); break;  // System Wake
+      case 0x00B5: mediaKeyBitmask = (1UL << 3); break;  // Next Track
+      case 0x00B6: mediaKeyBitmask = (1UL << 4); break;  // Previous Track
+      case 0x00B7: mediaKeyBitmask = (1UL << 5); break;  // Stop
+      case 0x00CD: mediaKeyBitmask = (1UL << 6); break;  // Play/Pause
+      case 0x00B3: mediaKeyBitmask = (1UL << 7); break;  // Fast Forward
+      case 0x00B4: mediaKeyBitmask = (1UL << 8); break;  // Rewind
+      case 0x00B8: mediaKeyBitmask = (1UL << 9); break;  // Eject
+      case 0x00E2: mediaKeyBitmask = (1UL << 10); break; // Mute
+      case 0x00E9: mediaKeyBitmask = (1UL << 11); break; // Volume Up
+      case 0x00EA: mediaKeyBitmask = (1UL << 12); break; // Volume Down
+      case 0x006F: mediaKeyBitmask = (1UL << 13); break; // Brightness Up
+      case 0x0070: mediaKeyBitmask = (1UL << 14); break; // Brightness Down
+      case 0x0194: mediaKeyBitmask = (1UL << 15); break; // My Computer
+      case 0x0192: mediaKeyBitmask = (1UL << 16); break; // Calculator
+      case 0x018A: mediaKeyBitmask = (1UL << 17); break; // Mail
+      case 0x0183: mediaKeyBitmask = (1UL << 18); break; // Media Selection
+      case 0x0186: mediaKeyBitmask = (1UL << 19); break; // Control Panel
+      case 0x0187: mediaKeyBitmask = (1UL << 20); break; // Launchpad
+      case 0x0223: mediaKeyBitmask = (1UL << 21); break; // WWW Home
+      case 0x022A: mediaKeyBitmask = (1UL << 22); break; // WWW Favorites
+      case 0x0221: mediaKeyBitmask = (1UL << 23); break; // WWW Search
+      case 0x0226: mediaKeyBitmask = (1UL << 24); break; // WWW Stop
+      case 0x0224: mediaKeyBitmask = (1UL << 25); break; // WWW Back
+      case 0x0225: mediaKeyBitmask = (1UL << 26); break; // WWW Forward
+      case 0x0227: mediaKeyBitmask = (1UL << 27); break; // WWW Refresh
+      default: break;
+    }
+    
+    // Send as 32-bit value (4 bytes) - the HID stack will use only the needed 28 bits
+    this->inputMediaKeys->setValue((uint8_t*)&mediaKeyBitmask, sizeof(uint32_t));
     this->inputMediaKeys->notify();
 #if defined(USE_NIMBLE)        
-    //vTaskDelay(delayTicks);
     this->delay_ms(_delay_ms);
 #endif // USE_NIMBLE
   }	
@@ -394,15 +460,12 @@ size_t BleKeyboard::press(uint8_t k)
 
 size_t BleKeyboard::press(const MediaKeyReport k)
 {
-    uint16_t k_16 = k[1] | (k[0] << 8);
-    uint16_t mediaKeyReport_16 = _mediaKeyReport[1] | (_mediaKeyReport[0] << 8);
-
-    mediaKeyReport_16 |= k_16;
-    _mediaKeyReport[0] = (uint8_t)((mediaKeyReport_16 & 0xFF00) >> 8);
-    _mediaKeyReport[1] = (uint8_t)(mediaKeyReport_16 & 0x00FF);
-
-	sendReport(&_mediaKeyReport);
-	return 1;
+    // Instead of OR-ing, just set the media key directly
+    _mediaKeyReport[0] = k[0];
+    _mediaKeyReport[1] = k[1];
+    
+    sendReport(&_mediaKeyReport);
+    return 1;
 }
 
 // release() takes the specified key out of the persistent key report and
@@ -438,14 +501,12 @@ size_t BleKeyboard::release(uint8_t k)
 
 size_t BleKeyboard::release(const MediaKeyReport k)
 {
-    uint16_t k_16 = k[1] | (k[0] << 8);
-    uint16_t mediaKeyReport_16 = _mediaKeyReport[1] | (_mediaKeyReport[0] << 8);
-    mediaKeyReport_16 &= ~k_16;
-    _mediaKeyReport[0] = (uint8_t)((mediaKeyReport_16 & 0xFF00) >> 8);
-    _mediaKeyReport[1] = (uint8_t)(mediaKeyReport_16 & 0x00FF);
-
-	sendReport(&_mediaKeyReport);
-	return 1;
+    // Clear the media keys
+    _mediaKeyReport[0] = 0;
+    _mediaKeyReport[1] = 0;
+    
+    sendReport(&_mediaKeyReport);
+    return 1;
 }
 
 void BleKeyboard::releaseAll(void)
