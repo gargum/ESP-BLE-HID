@@ -114,9 +114,11 @@ void BleKeyboard::begin(void)
   hid->hidInfo(0x00, 0x01);
 
 #if defined(USE_NIMBLE)
+    // For NimBLE
     BLEDevice::setSecurityAuth(true, true, true);
     BLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT); // "Just Works"
 #else
+    // For regular BLE stack
     BLESecurity* pSecurity = new BLESecurity();
     pSecurity->setAuthenticationMode(ESP_LE_AUTH_BOND); // Bonding without MITM
     pSecurity->setCapability(ESP_IO_CAP_NONE); // "Just Works"
@@ -247,7 +249,6 @@ const uint8_t _asciimap[128] =
 	0x00,             // GS
 	0x00,             // RS
 	0x00,             // US
-
 	0x2c,		   //  ' '
 	0x1e|SHIFT,	   // !
 	0x34|SHIFT,	   // "
@@ -355,43 +356,40 @@ uint8_t USBPutChar(uint8_t c);
 // call release(), releaseAll(), or otherwise clear the report and resend.
 size_t BleKeyboard::press(uint8_t k)
 {
-	uint8_t i;
-	if (k >= 136) {			// it's a non-printing key (not a modifier)
-		k = k - 136;
-	} else if (k >= 128) {	// it's a modifier key
-		_keyReport.modifiers |= (1<<(k-128));
-		k = 0;
-	} else {				// it's a printing key
-		k = pgm_read_byte(_asciimap + k);
-		if (!k) {
-			setWriteError();
-			return 0;
-		}
-		if (k & 0x80) {						// it's a capital letter or other character reached with shift
-			_keyReport.modifiers |= 0x02;	// the left shift modifier
-			k &= 0x7F;
-		}
-	}
+    uint8_t i;
+    
+    // Check if it's a modifier key
+    if (k >= 0x01 && k <= 0x80 && ((k & (k-1)) == 0)) { // Check if k is a power of 2 (single bit set)
+        // It's a modifier key - set the appropriate bit in the modifiers byte
+        _keyReport.modifiers |= k;
+        k = 0;
+    } 
+    else if (k >= 136) { // it's a non-printing key (not a modifier)
+        k = k - 136;
+    } 
+    
+    // Add k to the key report only if it's not already present
+    // and if there is an empty slot (for non-modifier keys only)
+    if (k != 0) {
+        if (_keyReport.keys[0] != k && _keyReport.keys[1] != k &&
+            _keyReport.keys[2] != k && _keyReport.keys[3] != k &&
+            _keyReport.keys[4] != k && _keyReport.keys[5] != k) {
 
-	// Add k to the key report only if it's not already present
-	// and if there is an empty slot.
-	if (_keyReport.keys[0] != k && _keyReport.keys[1] != k &&
-		_keyReport.keys[2] != k && _keyReport.keys[3] != k &&
-		_keyReport.keys[4] != k && _keyReport.keys[5] != k) {
-
-		for (i=0; i<6; i++) {
-			if (_keyReport.keys[i] == 0x00) {
-				_keyReport.keys[i] = k;
-				break;
-			}
-		}
-		if (i == 6) {
-			setWriteError();
-			return 0;
-		}
-	}
-	sendReport(&_keyReport);
-	return 1;
+            for (i = 0; i < 6; i++) {
+                if (_keyReport.keys[i] == 0x00) {
+                    _keyReport.keys[i] = k;
+                    break;
+                }
+            }
+            if (i == 6) {
+                setWriteError();
+                return 0;
+            }
+        }
+    }
+    
+    sendReport(&_keyReport);
+    return 1;
 }
 
 size_t BleKeyboard::press(const MediaKeyReport k)
@@ -412,33 +410,30 @@ size_t BleKeyboard::press(const MediaKeyReport k)
 // it shouldn't be repeated any more.
 size_t BleKeyboard::release(uint8_t k)
 {
-	uint8_t i;
-	if (k >= 136) {			// it's a non-printing key (not a modifier)
-		k = k - 136;
-	} else if (k >= 128) {	// it's a modifier key
-		_keyReport.modifiers &= ~(1<<(k-128));
-		k = 0;
-	} else {				// it's a printing key
-		k = pgm_read_byte(_asciimap + k);
-		if (!k) {
-			return 0;
-		}
-		if (k & 0x80) {							// it's a capital letter or other character reached with shift
-			_keyReport.modifiers &= ~(0x02);	// the left shift modifier
-			k &= 0x7F;
-		}
-	}
-
-	// Test the key report to see if k is present.  Clear it if it exists.
-	// Check all positions in case the key is present more than once (which it shouldn't be)
-	for (i=0; i<6; i++) {
-		if (0 != k && _keyReport.keys[i] == k) {
-			_keyReport.keys[i] = 0x00;
-		}
-	}
-
-	sendReport(&_keyReport);
-	return 1;
+    uint8_t i;
+    
+    // Check if it's a modifier key
+    if (k >= 0x01 && k <= 0x80 && ((k & (k-1)) == 0)) { // Check if k is a power of 2 (single bit set)
+        // It's a modifier key - clear the appropriate bit in the modifiers byte
+        _keyReport.modifiers &= ~k;
+        k = 0;
+    }
+    else if (k >= 136) { // it's a non-printing key (not a modifier)
+        k = k - 136;
+    }
+    
+    // Test the key report to see if k is present. Clear it if it exists.
+    // Check all positions in case the key is present more than once (which it shouldn't be)
+    if (k != 0) {
+        for (i = 0; i < 6; i++) {
+            if (_keyReport.keys[i] == k) {
+                _keyReport.keys[i] = 0x00;
+            }
+        }
+    }
+    
+    sendReport(&_keyReport);
+    return 1;
 }
 
 size_t BleKeyboard::release(const MediaKeyReport k)
@@ -462,8 +457,8 @@ void BleKeyboard::releaseAll(void)
 	_keyReport.keys[4] = 0;
 	_keyReport.keys[5] = 0;
 	_keyReport.modifiers = 0;
-    _mediaKeyReport[0] = 0;
-    _mediaKeyReport[1] = 0;
+        _mediaKeyReport[0] = 0;
+        _mediaKeyReport[1] = 0;
 	sendReport(&_keyReport);
 	sendReport(&_mediaKeyReport);
 }
