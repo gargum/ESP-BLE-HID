@@ -1,26 +1,23 @@
-# ESP32 BLE Keyboard library
+# ESP32 BLE HID Library
 
-This library allows you to make the ESP32 act as a Bluetooth Keyboard.
+This library allows you to make the ESP32 act as a Bluetooth Keyboard or other HID device.
+All development and testing is done on boards *without* the ability to act as USB hosts such as the ESP32-C3 Super Mini.
 
 ## Features
 
  - [x] Send key strokes
  - [x] Send text
  - [x] Press/release individual keys
- - [x] Media keys are supported
+ - [x] Media keys
  - [x] Read Numlock/Capslock/Scrolllock state
- - [x] Set battery level (basically works, but doesn't show up in Android's status bar)
+ - [x] Set battery level
+ - [ ] Mouse emulation
+ - [ ] Joystick emulation
  - [x] Compatible with Android
  - [x] Compatible with Windows
  - [x] Compatible with Linux
- - [x] Compatible with MacOS X (not stable, some people have issues, doesn't work with old devices)
- - [x] Compatible with iOS (not stable, some people have issues, doesn't work with old devices)
-
-## New Additions
-
- - [x] Various added keycodes
- - [ ] Mouse emulation
- - [ ] Joystick emulation
+ - [x] Compatible with MacOS X
+ - [x] Compatible with iOS
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
