@@ -1,6 +1,6 @@
 # ESP32 BLE HID Library
 
-This library allows you to make the ESP32 act as a Bluetooth Keyboard, Mouse, Gamepad, or other [HID device](https://en.wikipedia.org/wiki/Human_interface_device)https://en.wikipedia.org/wiki/Human_interface_device.
+This library allows you to make the ESP32 act as a Bluetooth Keyboard, Mouse, Gamepad, or other [HID device](https://en.wikipedia.org/wiki/Human_interface_device)
 All development and testing is done on boards *without* the ability to act as USB hosts such as the ESP32-C3 Super Mini.
 
 ## Features
