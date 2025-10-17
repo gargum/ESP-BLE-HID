@@ -36,7 +36,26 @@
 // NKRO configuration
 #define NKRO_KEY_COUNT 104 // Surprise! "N" in "N-Key Rollover" stands for "104" in my implementation.
 
-// Those numbers are the real HID codes. It's designed that way to make it easier to understand and modify the code.
+// Pointer configuration
+#define MOUSE_LEFT 1
+#define MOUSE_RIGHT 2
+#define MOUSE_MIDDLE 4
+#define MOUSE_BACK 8
+#define MOUSE_FORWARD 16
+#define MOUSE_ALL (MOUSE_LEFT | MOUSE_RIGHT | MOUSE_MIDDLE)
+
+// Mouse report structure
+typedef struct {
+  uint8_t buttons;
+  int8_t x;
+  int8_t y;
+  int8_t wheel;
+  int8_t hWheel;
+} MouseReport;
+
+// Key codes
+//
+// Those numbers on the right are the real HID codes. It's designed that way to make it easier to understand and modify the code.
 const uint8_t KEY_A = 0x04; 
 const uint8_t KEY_B = 0x05;          
 const uint8_t KEY_C = 0x06;          
@@ -485,9 +504,12 @@ private:
   BLECharacteristic* outputKeyboard;
   BLECharacteristic* inputMediaKeys;
   BLECharacteristic* inputNKRO;
+  BLECharacteristic* inputMouse;
   BLEAdvertising*    advertising;
   KeyReport6KRO      _keyReport6KRO;
   KeyReportNKRO      _keyReportNKRO;
+  uint8_t _mouseButtons;
+  MouseReport _mouseReport;
   uint32_t           _mediaKeyBitmask;
   std::string        deviceName;
   std::string        deviceManufacturer;
@@ -549,9 +571,18 @@ public:
   uint32_t getMediaKeyBitmask();
   void addMediaKey(uint16_t mediaKey);
   void removeMediaKey(uint16_t mediaKey);
+
+  // Mouse/Pointer helper functions
+  void mouseClick(uint8_t b = MOUSE_LEFT);
+  void mouseMove(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
+  void mousePress(uint8_t b = MOUSE_LEFT);
+  void mouseRelease(uint8_t b = MOUSE_LEFT);
+  bool mouseIsPressed(uint8_t b = MOUSE_LEFT);
+  void mouseReleaseAll();
   
 protected:
   virtual void onStarted(BLEServer *pServer) { };
+  virtual void onMouseStarted(BLEServer *pServer) { };
   virtual void onConnect(BLEServer* pServer) override;
   virtual void onDisconnect(BLEServer* pServer) override;
   virtual void onWrite(BLECharacteristic* me) override;
