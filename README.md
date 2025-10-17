@@ -13,7 +13,7 @@ All development and testing is done on boards *without* the ability to act as US
  - [x] Read Numlock/Capslock/Scrolllock state
  - [x] Set battery level
  - [x] 6KRO & NKRO support 
- - [ ] Mouse emulation
+ - [x] Full mouse emulation support
  - [ ] Joystick emulation
  - [x] Compatible with Android
  - [x] Compatible with Windows
