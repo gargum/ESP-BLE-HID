@@ -18,35 +18,50 @@ KeyReport	KEYWORD1
 
 begin	            KEYWORD2
 end	            KEYWORD2
+
 write	            KEYWORD2
 press               KEYWORD2
 release	            KEYWORD2
 releaseAll          KEYWORD2
+
 isConnected	    KEYWORD2
+
 setBatteryLevel	    KEYWORD2
 setName	            KEYWORD2
+setManufacturer     KEYWORD2
+
 setDelay	    KEYWORD2
+
 set_vendor_id	    KEYWORD2
 set_product_id	    KEYWORD2
 set_version	    KEYWORD2
+
 setModifiers        KEYWORD2
 getModifiers        KEYWORD2
+
 setMediaKeyBitmask  KEYWORD2
 getMediaKeyBitmask  KEYWORD2
 addMediaKey         KEYWORD2
 removeMediaKey      KEYWORD2
+
 sendNKROReport      KEYWORD2
 send6KROReport      KEYWORD2
 updateNKROBitmask   KEYWORD2
 useNKRO             KEYWORD2
 use6KRO             KEYWORD2
 isNKROEnabled       KEYWORD2
+
 mouseClick          KEYWORD2
 mouseMove           KEYWORD2
+mouseMoveTo         KEYWORD2
 mousePress          KEYWORD2
 mouseRelease        KEYWORD2
 mouseIsPressed      KEYWORD2
 mouseReleaseAll     KEYWORD2
+
+useAbsolute         KEYWORD2
+setAbsoluteRange    KEYWORD2
+isAbsoluteEnabled   KEYWORD2
 
 #######################################
 # Private Methods
