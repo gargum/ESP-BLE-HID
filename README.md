@@ -15,7 +15,7 @@ All development and testing is done on boards *without* the ability to act as US
  - [x] Set PID, VID, version 
  - [x] 6KRO & NKRO support 
  - [x] Relative pointers
- - [x] Absolute pointers - iOS nor Android supports this afaik, it works everywhere else
+ - [x] Absolute pointers - *iOS nor Android supports this afaik, it works everywhere else*
  - [x] Switch between relative and absolute without reflashing
  - [ ] Digitizers with pen/barrel
  - [ ] Touchscreens with multitouch 
