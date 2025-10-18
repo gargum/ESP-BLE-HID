@@ -11,10 +11,12 @@ All development and testing is done on boards *without* the ability to act as US
  - [x] Press/release individual keys
  - [x] Media keys
  - [x] Read Numlock/Capslock/Scrolllock state
- - [x] Set battery level
+ - [x] Set name, manufacturer, battery level
+ - [x] Set PID, VID, version 
  - [x] 6KRO & NKRO support 
  - [x] Relative pointers
  - [x] Absolute pointers - iOS nor Android supports this afaik, it works everywhere else
+ - [x] Switch between relative and absolute without reflashing
  - [ ] Digitizers with pen/barrel
  - [ ] Touchscreens with multitouch 
  - [ ] Joystick emulation
@@ -146,6 +148,9 @@ The `setDelay` feature is to maximize compatibility between any devices created 
 
 ## NimBLE-Mode
 The NimBLE mode enables a significant saving of RAM and FLASH memory.
+Using it with the ESP-BLE-HID library first requires me to port the NimBLE-Arduino library for use on v3.0 and up, which I haven't gotten around to yet.
+
+These comparisons show off what happens when using the NimBLE-Arduino library with the T-vK ESP32 Keyboard this repo was forked from.
 
 ### Comparison (SendKeyStrokes.ino at compile-time)
 
