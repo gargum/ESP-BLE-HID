@@ -37,6 +37,8 @@
 #define NKRO_KEY_COUNT 104 // Surprise! "N" in "N-Key Rollover" stands for "104" in my implementation.
 
 // Pointer configuration
+#define ABSOLUTE_MIN 0
+#define ABSOLUTE_MAX 32767
 #define MOUSE_LEFT 1
 #define MOUSE_RIGHT 2
 #define MOUSE_MIDDLE 4
@@ -52,6 +54,14 @@ typedef struct {
   int8_t wheel;
   int8_t hWheel;
 } MouseReport;
+
+typedef struct {
+  uint8_t buttons;
+  int16_t x;
+  int16_t y;
+  int8_t wheel;
+  int8_t hWheel;
+} AbsoluteReport;
 
 // Key codes
 //
@@ -505,11 +515,13 @@ private:
   BLECharacteristic* inputMediaKeys;
   BLECharacteristic* inputNKRO;
   BLECharacteristic* inputMouse;
+  BLECharacteristic* inputAbsolute;
   BLEAdvertising*    advertising;
   KeyReport6KRO      _keyReport6KRO;
   KeyReportNKRO      _keyReportNKRO;
-  uint8_t _mouseButtons;
-  MouseReport _mouseReport;
+  uint8_t            _mouseButtons;
+  MouseReport        _mouseReport;
+  AbsoluteReport     _absoluteReport;
   uint32_t           _mediaKeyBitmask;
   std::string        deviceName;
   std::string        deviceManufacturer;
@@ -517,6 +529,7 @@ private:
   bool               connected = false;
   uint32_t           _delay_ms = 7;
   bool               _useNKRO = true;  // Default to NKRO
+  bool               _useAbsolute = false;
   
   //I picked random numbers here and it worked fine, idk if these actually matter
   //I let you declare these values because QMK allows that and it was easy enough to add
@@ -555,6 +568,7 @@ public:
   bool isConnected(void);
   void setBatteryLevel(uint8_t level);
   void setName(std::string deviceName);  
+  void setManufacturer(std::string deviceManufacturer);
   void setDelay(uint32_t ms);
 
   // Misc hardware helper functions
@@ -572,13 +586,22 @@ public:
   void addMediaKey(uint16_t mediaKey);
   void removeMediaKey(uint16_t mediaKey);
 
-  // Mouse/Pointer helper functions
+  // Pointer helper functions (Duplicates are so the same commands can support relative or absolute depending upon whether you feed in coordinates)
   void mouseClick(uint8_t b = MOUSE_LEFT);
+  void mouseClick(uint16_t x, uint16_t y, uint8_t b = MOUSE_LEFT);
   void mouseMove(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
+  void mouseMoveTo(uint16_t x, uint16_t y, signed char wheel = 0, signed char hWheel = 0);
   void mousePress(uint8_t b = MOUSE_LEFT);
+  void mousePress(uint16_t x, uint16_t y, uint8_t b = MOUSE_LEFT);
   void mouseRelease(uint8_t b = MOUSE_LEFT);
+  void mouseRelease(uint16_t x, uint16_t y, uint8_t b = MOUSE_LEFT);
   bool mouseIsPressed(uint8_t b = MOUSE_LEFT);
   void mouseReleaseAll();
+  
+  // Absolute pointer helpers
+  void useAbsolute(bool enable = true);
+  void setAbsoluteRange(uint16_t minVal = 0, uint16_t maxVal = 32767);
+  bool isAbsoluteEnabled();
   
 protected:
   virtual void onStarted(BLEServer *pServer) { };
