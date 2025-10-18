@@ -13,8 +13,8 @@ All development and testing is done on boards *without* the ability to act as US
  - [x] Read Numlock/Capslock/Scrolllock state
  - [x] Set battery level
  - [x] 6KRO & NKRO support 
- - [x] Relative pointers 
- - [ ] Absolute pointers
+ - [x] Relative pointers
+ - [x] Absolute pointers - iOS nor Android supports this afaik, it works everywhere else
  - [ ] Digitizers with pen/barrel
  - [ ] Touchscreens with multitouch 
  - [ ] Joystick emulation
@@ -45,6 +45,7 @@ void setup() {
   Serial.println("Starting BLE work!");
   //Name must be set before calling bleKeyboard.begin()
   bleKeyboard.setName("Keyboard Demo");
+  bleKeyboard.setManufacturer("Santa's Elves")
   bleKeyboard.begin();
   bleKeyboard.use6KRO(); //NKRO is turned on by default, 6KRO must be explicitly specified
   bleKeyboard.setBatteryLevel(100); //Any number can be put here and it will report properly
