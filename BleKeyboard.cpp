@@ -25,79 +25,43 @@ static const char* LOG_TAG = "BleKeyboard";
 // Report IDs:
 #define KEYBOARD_ID 0x01
 #define MEDIA_KEYS_ID 0x02
-
-// NKRO Report ID
 #define NKRO_KEYBOARD_ID 0x03
 
 static const uint8_t _hidReportDescriptor[] = {
-  // 6KRO Report Descriptor (probably gonna get axed from here and replaced with a different implementation at some point)
-  USAGE_PAGE(1),      0x01,          //    USAGE_PAGE (Generic Desktop Ctrls)
-  USAGE(1),           0x06,          //    USAGE (Keyboard)
-  COLLECTION(1),      0x01,          //    COLLECTION (Application)
-  REPORT_ID(1),       KEYBOARD_ID,   //    REPORT_ID (1)
-  USAGE_PAGE(1),      0x07,          //    USAGE_PAGE (Kbrd/Keypad)
-  USAGE_MINIMUM(1),   0xE0,          //    USAGE_MINIMUM (0xE0)
-  USAGE_MAXIMUM(1),   0xE7,          //    USAGE_MAXIMUM (0xE7)
-  LOGICAL_MINIMUM(1), 0x00,          //    LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,          //    Logical Maximum (1)
-  REPORT_SIZE(1),     0x01,          //    REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x08,          //    REPORT_COUNT (8)
-  HIDINPUT(1),        0x02,          //    INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  REPORT_COUNT(1),    0x01,          //    REPORT_COUNT (1) ; 1 byte (Reserved)
-  REPORT_SIZE(1),     0x08,          //    REPORT_SIZE (8)
-  HIDINPUT(1),        0x01,          //    INPUT (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  REPORT_COUNT(1),    0x05,          //    REPORT_COUNT (5) ; 5 bits (Num lock, Caps lock, Scroll lock, Compose, Kana)
-  REPORT_SIZE(1),     0x01,          //    REPORT_SIZE (1)
-  USAGE_PAGE(1),      0x08,          //    USAGE_PAGE (LEDs)
-  USAGE_MINIMUM(1),   0x01,          //    USAGE_MINIMUM (0x01) ; Num Lock
-  USAGE_MAXIMUM(1),   0x05,          //    USAGE_MAXIMUM (0x05) ; Kana
-  HIDOUTPUT(1),       0x02,          //    OUTPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
-  REPORT_COUNT(1),    0x01,          //    REPORT_COUNT (1) ; 3 bits (Padding)
-  REPORT_SIZE(1),     0x03,          //    REPORT_SIZE (3)
-  HIDOUTPUT(1),       0x01,          //    OUTPUT (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
-  REPORT_COUNT(1),    0x06,          //    REPORT_COUNT (6) ; 6 bytes (Keys)
-  REPORT_SIZE(1),     0x08,          //    REPORT_SIZE(8)
-  LOGICAL_MINIMUM(1), 0x00,          //    LOGICAL_MINIMUM(0)
-  LOGICAL_MAXIMUM(1), 0x65,          //    LOGICAL_MAXIMUM(0x65) ; 101 keys
-  USAGE_PAGE(1),      0x07,          //    USAGE_PAGE (Kbrd/Keypad)
-  USAGE_MINIMUM(1),   0x00,          //    USAGE_MINIMUM (0)
-  USAGE_MAXIMUM(1),   0x65,          //    USAGE_MAXIMUM (0x65)
-  HIDINPUT(1),        0x00,          //    INPUT (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  END_COLLECTION(0),                 //    END_COLLECTION
-  // NKRO Report Descriptor
-  USAGE_PAGE(1),      0x01,          //    USAGE_PAGE (Generic Desktop)
-  USAGE(1),           0x06,          //    USAGE (Keyboard)
-  COLLECTION(1),      0x01,          //    COLLECTION (Application)
+  // NKRO Report Descriptor (6KRO is emulated)
+  USAGE_PAGE(1),      0x01,          // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x06,          // USAGE (Keyboard)
+  COLLECTION(1),      0x01,          // COLLECTION (Application)
   REPORT_ID(1),       NKRO_KEYBOARD_ID, // REPORT_ID (3)
-  USAGE_PAGE(1),      0x07,          //    USAGE_PAGE (Key Codes)
-  USAGE_MINIMUM(1),   0xE0,          //    USAGE_MINIMUM (Keyboard LeftControl)
-  USAGE_MAXIMUM(1),   0xE7,          //    USAGE_MAXIMUM (Keyboard Right GUI)
-  LOGICAL_MINIMUM(1), 0x00,          //    LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,          //    LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),     0x01,          //    REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x08,          //    REPORT_COUNT (8)
-  HIDINPUT(1),        0x02,          //    INPUT (Data, Variable, Absolute)
-  REPORT_COUNT(1),    0x01,          //    REPORT_COUNT (1)
-  REPORT_SIZE(1),     0x08,          //    REPORT_SIZE (8)
-  HIDINPUT(1),        0x01,          //    INPUT (Constant)
-  REPORT_COUNT(1),    0x05,          //    REPORT_COUNT (5)
-  REPORT_SIZE(1),     0x01,          //    REPORT_SIZE (1)
-  USAGE_PAGE(1),      0x08,          //    USAGE_PAGE (LEDs)
-  USAGE_MINIMUM(1),   0x01,          //    USAGE_MINIMUM (Num Lock)
-  USAGE_MAXIMUM(1),   0x05,          //    USAGE_MAXIMUM (Kana)
-  HIDOUTPUT(1),       0x02,          //    OUTPUT (Data, Variable, Absolute)
-  REPORT_COUNT(1),    0x01,          //    REPORT_COUNT (1)
-  REPORT_SIZE(1),     0x03,          //    REPORT_SIZE (3)
-  HIDOUTPUT(1),       0x01,          //    OUTPUT (Constant)
-  USAGE_PAGE(1),      0x07,          //    USAGE_PAGE (Key Codes)
-  LOGICAL_MINIMUM(1), 0x00,          //    LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,          //    LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),     0x01,          //    REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x68,          //    REPORT_COUNT (104) - 104 keys
-  USAGE_MINIMUM(1),   0x00,          //    USAGE_MINIMUM (0)
-  USAGE_MAXIMUM(1),   0x67,          //    USAGE_MAXIMUM (103) - Maximum key index
-  HIDINPUT(1),        0x02,          //    INPUT (Data, Variable, Absolute)
-  END_COLLECTION(0),                 //    END_COLLECTION
+  USAGE_PAGE(1),      0x07,          // USAGE_PAGE (Key Codes)
+  USAGE_MINIMUM(1),   0xE0,          // USAGE_MINIMUM (Keyboard LeftControl)
+  USAGE_MAXIMUM(1),   0xE7,          // USAGE_MAXIMUM (Keyboard Right GUI)
+  LOGICAL_MINIMUM(1), 0x00,          // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x01,          // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),     0x01,          // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x08,          // REPORT_COUNT (8)
+  HIDINPUT(1),        0x02,          // INPUT (Data, Variable, Absolute)
+  REPORT_COUNT(1),    0x01,          // REPORT_COUNT (1)
+  REPORT_SIZE(1),     0x08,          // REPORT_SIZE (8)
+  HIDINPUT(1),        0x01,          // INPUT (Constant)
+  REPORT_COUNT(1),    0x05,          // REPORT_COUNT (5)
+  REPORT_SIZE(1),     0x01,          // REPORT_SIZE (1)
+  USAGE_PAGE(1),      0x08,          // USAGE_PAGE (LEDs)
+  USAGE_MINIMUM(1),   0x01,          // USAGE_MINIMUM (Num Lock)
+  USAGE_MAXIMUM(1),   0x05,          // USAGE_MAXIMUM (Kana)
+  HIDOUTPUT(1),       0x02,          // OUTPUT (Data, Variable, Absolute)
+  REPORT_COUNT(1),    0x01,          // REPORT_COUNT (1)
+  REPORT_SIZE(1),     0x03,          // REPORT_SIZE (3)
+  HIDOUTPUT(1),       0x01,          // OUTPUT (Constant)
+  USAGE_PAGE(1),      0x07,          // USAGE_PAGE (Key Codes)
+  LOGICAL_MINIMUM(1), 0x00,          // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x01,          // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),     0x01,          // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x68,          // REPORT_COUNT (104) - 104 keys
+  USAGE_MINIMUM(1),   0x00,          // USAGE_MINIMUM (0)
+  USAGE_MAXIMUM(1),   0x67,          // USAGE_MAXIMUM (103) - Maximum key index
+  HIDINPUT(1),        0x02,          // INPUT (Data, Variable, Absolute)
+  END_COLLECTION(0),                 // END_COLLECTION
   // ------------------------------------------------- Media Keys
   USAGE_PAGE(1),      0x0C,          //    USAGE_PAGE (Consumer)
   USAGE(1),           0x01,          //    USAGE (Consumer Control)
@@ -245,7 +209,6 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
     , _useAbsolute(false) {
   // Initialize reports
   memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
-  memset(&_keyReport6KRO, 0, sizeof(_keyReport6KRO));
   memset(&_mouseReport, 0, sizeof(_mouseReport));
   memset(&_absoluteReport, 0, sizeof(_absoluteReport));
 }
@@ -262,7 +225,6 @@ void BleKeyboard::begin(void)
 
   // Initialize keyboard input report
   hid = new BLEHIDDevice(pServer);
-  inputKeyboard = hid->inputReport(KEYBOARD_ID);
   outputKeyboard = hid->outputReport(KEYBOARD_ID);
   inputMediaKeys = hid->inputReport(MEDIA_KEYS_ID);
   inputNKRO = hid->inputReport(NKRO_KEYBOARD_ID);
@@ -368,18 +330,6 @@ void BleKeyboard::set_version(uint16_t version) {
 	this->version = version; 
 }
 
-void BleKeyboard::sendReport(KeyReport6KRO* keys)
-{
-  if (this->isConnected())
-  {
-    this->inputKeyboard->setValue((uint8_t*)keys, sizeof(KeyReport6KRO));
-    this->inputKeyboard->notify();
-#if defined(USE_NIMBLE)        
-    this->delay_ms(_delay_ms);
-#endif // USE_NIMBLE
-  }	
-}
-
 void BleKeyboard::sendReport()
 {
   if (this->isConnected())
@@ -393,23 +343,13 @@ void BleKeyboard::sendReport()
   }	
 }
 
-void BleKeyboard::sendNKROReport()
-{
-  if (this->isConnected() && _useNKRO && inputNKRO)  // Check that inputNKRO is not null
-  {
+void BleKeyboard::sendNKROReport() {
+  if (this->isConnected() && inputNKRO) {
     inputNKRO->setValue((uint8_t*)&_keyReportNKRO, sizeof(KeyReportNKRO));
     inputNKRO->notify();
 #if defined(USE_NIMBLE)        
     this->delay_ms(_delay_ms);
 #endif // USE_NIMBLE
-  }
-}
-
-void BleKeyboard::send6KROReport()
-{
-  if (this->isConnected() && !_useNKRO)
-  {
-    sendReport(&_keyReport6KRO);
   }
 }
 
@@ -428,14 +368,14 @@ void BleKeyboard::updateNKROBitmask(uint8_t k, bool pressed)
 }
 
 // NKRO/6KRO mode switching functions
-void BleKeyboard::useNKRO(bool enable) {
-  _useNKRO = enable;
+void BleKeyboard::useNKRO(bool state) {
+  _useNKRO = state; // state = enabled, therefore _useNKRO = true/enabled
   ESP_LOGI(LOG_TAG, "Switched to %s mode", _useNKRO ? "NKRO" : "6KRO");
 }
 
-void BleKeyboard::use6KRO() {
-  _useNKRO = false;
-  ESP_LOGI(LOG_TAG, "Switched to 6KRO mode");
+void BleKeyboard::use6KRO(bool state) {
+  _useNKRO = !state; // state = enabled, therefore _useNKRO = not true/enabled = false
+  ESP_LOGI(LOG_TAG, "Switched to %s mode", _useNKRO ? "NKRO" : "6KRO");
 }
 
 bool BleKeyboard::isNKROEnabled() {
@@ -585,54 +525,33 @@ uint8_t USBPutChar(uint8_t c);
 // to the persistent key report and sends the report.  Because of the way
 // USB HID works, the host acts like the key remains pressed until we
 // call release(), releaseAll(), or otherwise clear the report and resend.
-size_t BleKeyboard::press(uint8_t k)
-{
-    if (_useNKRO) {
-        // NKRO mode
-        if (isModifierKey(k)) {
-            // It's a modifier key - set the appropriate bit in the modifiers byte
-            _keyReportNKRO.modifiers |= k;
-        } else if (k >= 136) { // it's a non-printing key (not a modifier)
-            k = k - 136;
-        }
-        
-        if (k != 0) {
-            updateNKROBitmask(k, true);
-        }
-        
-        sendNKROReport();
-    } else {
-        // 6KRO mode (original implementation)
-        uint8_t i;
-        
-        if (isModifierKey(k)) {
-            _keyReport6KRO.modifiers |= k;
-            k = 0;
-        } else if (k >= 136) {
-            k = k - 136;
-        } 
-        
-        if (k != 0) {
-            if (_keyReport6KRO.keys[0] != k && _keyReport6KRO.keys[1] != k &&
-                _keyReport6KRO.keys[2] != k && _keyReport6KRO.keys[3] != k &&
-                _keyReport6KRO.keys[4] != k && _keyReport6KRO.keys[5] != k) {
-
-                for (i = 0; i < 6; i++) {
-                    if (_keyReport6KRO.keys[i] == 0x00) {
-                        _keyReport6KRO.keys[i] = k;
-                        break;
-                    }
-                }
-                if (i == 6) {
-                    setWriteError();
-                    return 0;
-                }
-            }
-        }
-        
-        send6KROReport();
+size_t BleKeyboard::press(uint8_t k) {
+  // Always use NKRO internally
+  if (isModifierKey(k)) {
+    // Modifiers don't count toward the 6-key limit
+    _keyReportNKRO.modifiers |= k;
+  } else if (k >= 136) { 
+    k = k - 136;
+  }
+  
+  if (k != 0) {
+    // Check if we're already at 6 non-modifier keys
+    uint8_t pressedKeys = countPressedKeys();
+    
+    if (pressedKeys >= 6) {
+      // In 6KRO mode, don't allow more than 6 keys
+      if (!_useNKRO) {
+        setWriteError();
+        return 0;
+      }
     }
-    return 1;
+    
+    // Update the bitmask
+    updateNKROBitmask(k, true);
+  }
+  
+  sendNKROReport();
+  return 1;
 }
 
 size_t BleKeyboard::press(uint16_t mediaKey)
@@ -644,44 +563,19 @@ size_t BleKeyboard::press(uint16_t mediaKey)
 // release() takes the specified key out of the persistent key report and
 // sends the report.  This tells the OS the key is no longer pressed and that
 // it shouldn't be repeated any more.
-size_t BleKeyboard::release(uint8_t k)
-{
-    if (_useNKRO) {
-        // NKRO mode
-        if (isModifierKey(k)) {
-            // It's a modifier key - clear the appropriate bit in the modifiers byte
-            _keyReportNKRO.modifiers &= ~k;
-        } else if (k >= 136) {
-            k = k - 136;
-        }
-        
-        if (k != 0) {
-            updateNKROBitmask(k, false);
-        }
-        
-        sendNKROReport();
-    } else {
-        // 6KRO mode (original implementation)
-        uint8_t i;
-        
-        if (isModifierKey(k)) {
-            _keyReport6KRO.modifiers &= ~k;
-            k = 0;
-        } else if (k >= 136) {
-            k = k - 136;
-        }
-        
-        if (k != 0) {
-            for (i = 0; i < 6; i++) {
-                if (_keyReport6KRO.keys[i] == k) {
-                    _keyReport6KRO.keys[i] = 0x00;
-                }
-            }
-        }
-        
-        send6KROReport();
-    }
-    return 1;
+size_t BleKeyboard::release(uint8_t k) {
+  if (isModifierKey(k)) {
+    _keyReportNKRO.modifiers &= ~k;
+  } else if (k >= 136) {
+    k = k - 136;
+  }
+  
+  if (k != 0) {
+    updateNKROBitmask(k, false);
+  }
+  
+  sendNKROReport();
+  return 1;
 }
 
 size_t BleKeyboard::release(uint16_t mediaKey)
@@ -693,21 +587,8 @@ size_t BleKeyboard::release(uint16_t mediaKey)
 
 void BleKeyboard::releaseAll(void)
 {
-    if (_useNKRO) {
-        // Clear NKRO report
-        memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
-        sendNKROReport();
-    } else {
-        // Clear 6KRO report
-        _keyReport6KRO.keys[0] = 0;
-        _keyReport6KRO.keys[1] = 0;
-        _keyReport6KRO.keys[2] = 0;
-        _keyReport6KRO.keys[3] = 0;
-        _keyReport6KRO.keys[4] = 0;
-        _keyReport6KRO.keys[5] = 0;
-        _keyReport6KRO.modifiers = 0;
-        send6KROReport();
-    }
+    memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
+    sendNKROReport();
     
     _mediaKeyBitmask = 0;
     sendReport();
@@ -747,17 +628,12 @@ bool BleKeyboard::isModifierKey(uint8_t k) {
 }
 
 void BleKeyboard::setModifiers(uint8_t modifiers) {
-    if (_useNKRO) {
-        _keyReportNKRO.modifiers = modifiers;
-        sendNKROReport();
-    } else {
-        _keyReport6KRO.modifiers = modifiers;
-        send6KROReport();
-    }
+    _keyReportNKRO.modifiers = modifiers;
+    sendNKROReport();
 }
 
 uint8_t BleKeyboard::getModifiers() {
-    return _useNKRO ? _keyReportNKRO.modifiers : _keyReport6KRO.modifiers;
+    return _keyReportNKRO.modifiers;
 }
 
 void BleKeyboard::setMediaKeyBitmask(uint32_t bitmask) {
@@ -813,6 +689,18 @@ void BleKeyboard::removeMediaKey(uint16_t mediaKey) {
     uint32_t keyBitmask = mediaKeyToBitmask(mediaKey);
     _mediaKeyBitmask &= ~keyBitmask;
     sendReport();
+}
+
+uint8_t BleKeyboard::countPressedKeys() {
+  uint8_t count = 0;
+  for (int i = 0; i < sizeof(_keyReportNKRO.keys_bitmask); i++) {
+    uint8_t byte = _keyReportNKRO.keys_bitmask[i];
+    while (byte) {
+      count += byte & 1;
+      byte >>= 1;
+    }
+  }
+  return count;
 }
 
 void BleKeyboard::mouseClick(uint8_t b) {
@@ -942,7 +830,12 @@ void BleKeyboard::mouseReleaseAll() {
 
 void BleKeyboard::useAbsolute(bool enable) {
   _useAbsolute = enable;
-  ESP_LOGI(LOG_TAG, "Absolute pointer %s", enable ? "enabled" : "disabled");
+  ESP_LOGI(LOG_TAG, "Switched to %s pointer mode", _useAbsolute ? "absolute" : "relative");
+}
+
+void BleKeyboard::useRelative(bool enable) {
+  _useAbsolute = !enable;
+  ESP_LOGI(LOG_TAG, "Switched to %s pointer mode", _useAbsolute ? "absolute" : "relative");
 }
 
 void BleKeyboard::setAbsoluteRange(uint16_t minVal, uint16_t maxVal) {
@@ -959,7 +852,7 @@ void BleKeyboard::onConnect(BLEServer* pServer) {
 
 #if !defined(USE_NIMBLE)
   // You might not need to manually set these
-  this->inputKeyboard->notify();
+  this->inputNKRO->notify();
   this->inputMediaKeys->notify();
 #endif // !USE_NIMBLE
 
@@ -970,7 +863,7 @@ void BleKeyboard::onDisconnect(BLEServer* pServer) {
 
 #if !defined(USE_NIMBLE)
   // You might not need to manually set these
-  this->inputKeyboard->notify();
+  this->inputNKRO->notify();
   this->inputMediaKeys->notify();
   
   advertising->start();
