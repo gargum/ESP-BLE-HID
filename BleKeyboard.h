@@ -63,6 +63,9 @@ typedef struct {
   int8_t hWheel;
 } AbsoluteReport;
 
+static const bool enabled = true;
+static const bool disabled = false;
+
 // Key codes
 //
 // Those numbers on the right are the real HID codes. It's designed that way to make it easier to understand and modify the code.
@@ -490,14 +493,6 @@ const uint16_t KC_BRID = 0x0070;
 const uint16_t KC_CPNL = 0x0186;
 const uint16_t KC_LPAD = 0x0187;
 
-//  6KRO key report: up to 6 keys and shift, ctrl etc at once
-typedef struct
-{
-  uint8_t modifiers;
-  uint8_t reserved;
-  uint8_t keys[6];
-} KeyReport6KRO;
-
 //  NKRO key report: bitmask for up to NKRO_KEY_COUNT keys
 typedef struct
 {
@@ -510,14 +505,12 @@ class BleKeyboard : public Print, public BLEServerCallbacks, public BLECharacter
 {
 private:
   BLEHIDDevice* hid;
-  BLECharacteristic* inputKeyboard;
   BLECharacteristic* outputKeyboard;
   BLECharacteristic* inputMediaKeys;
   BLECharacteristic* inputNKRO;
   BLECharacteristic* inputMouse;
   BLECharacteristic* inputAbsolute;
   BLEAdvertising*    advertising;
-  KeyReport6KRO      _keyReport6KRO;
   KeyReportNKRO      _keyReportNKRO;
   uint8_t            _mouseButtons;
   MouseReport        _mouseReport;
@@ -541,14 +534,13 @@ private:
   bool isModifierKey(uint8_t k);
   uint32_t mediaKeyToBitmask(uint16_t usageCode);
   void sendNKROReport();
-  void send6KROReport();
   void updateNKROBitmask(uint8_t k, bool pressed);
+  uint8_t countPressedKeys();
 
 public:
   BleKeyboard(std::string deviceName = "ESP32 Keyboard", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
   void begin(void);
   void end(void);
-  void sendReport(KeyReport6KRO* keys);
   void sendReport();
   size_t press(uint8_t k);
   size_t press(uint16_t mediaKey);
@@ -560,8 +552,8 @@ public:
   void releaseAll(void);
   
   // NKRO/6KRO mode switching
-  void useNKRO(bool enable = true);
-  void use6KRO();
+  void useNKRO(bool state = enabled);
+  void use6KRO(bool state = enabled);
   bool isNKROEnabled();
   
   // BLE helper functions
@@ -600,6 +592,7 @@ public:
   
   // Absolute pointer helpers
   void useAbsolute(bool enable = true);
+  void useRelative(bool enable = true);
   void setAbsoluteRange(uint16_t minVal = 0, uint16_t maxVal = 32767);
   bool isAbsoluteEnabled();
   
