@@ -30,7 +30,7 @@ static const char* LOG_TAG = "BleKeyboard";
 #define NKRO_KEYBOARD_ID 0x03
 
 static const uint8_t _hidReportDescriptor[] = {
-  // 6KRO Report Descriptor (for backward compatibility)
+  // 6KRO Report Descriptor (probably gonna get axed from here and replaced with a different implementation at some point)
   USAGE_PAGE(1),      0x01,          //    USAGE_PAGE (Generic Desktop Ctrls)
   USAGE(1),           0x06,          //    USAGE (Keyboard)
   COLLECTION(1),      0x01,          //    COLLECTION (Application)
@@ -64,7 +64,6 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE_MAXIMUM(1),   0x65,          //    USAGE_MAXIMUM (0x65)
   HIDINPUT(1),        0x00,          //    INPUT (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
   END_COLLECTION(0),                 //    END_COLLECTION
-  
   // NKRO Report Descriptor
   USAGE_PAGE(1),      0x01,          //    USAGE_PAGE (Generic Desktop)
   USAGE(1),           0x06,          //    USAGE (Keyboard)
@@ -99,7 +98,6 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE_MAXIMUM(1),   0x67,          //    USAGE_MAXIMUM (103) - Maximum key index
   HIDINPUT(1),        0x02,          //    INPUT (Data, Variable, Absolute)
   END_COLLECTION(0),                 //    END_COLLECTION
-  
   // ------------------------------------------------- Media Keys
   USAGE_PAGE(1),      0x0C,          //    USAGE_PAGE (Consumer)
   USAGE(1),           0x01,          //    USAGE (Consumer Control)
@@ -109,13 +107,11 @@ static const uint8_t _hidReportDescriptor[] = {
   LOGICAL_MINIMUM(1), 0x00,          //    LOGICAL_MINIMUM (0)
   LOGICAL_MAXIMUM(2), 0xFF, 0x03,    //    LOGICAL_MAXIMUM (0x03FF) - Maximum 16-bit usage code
   REPORT_SIZE(1),     0x01,          //    REPORT_SIZE (1) - One bit, one code
-  REPORT_COUNT(1),    0x1C,          //    REPORT_COUNT (1C) - 28 codes, so 28 bits
-  
+  REPORT_COUNT(1),    0x1C,          //    REPORT_COUNT (1C) - 28 codes, so 28 bits 
   // System Controls
   USAGE(2),           0x30, 0x01,    //    USAGE (System Power - 0x0130)    [bit 1]
   USAGE(2),           0x34, 0x01,    //    USAGE (System Sleep - 0x0134)    [bit 2]
-  USAGE(2),           0x35, 0x01,    //    USAGE (System Wake - 0x0135)     [bit 3]
-  
+  USAGE(2),           0x35, 0x01,    //    USAGE (System Wake - 0x0135)     [bit 3] 
   // Transport Controls
   USAGE(1),           0xB5,    //   	   USAGE (Scan Next Track - 0x00B5)       [bit 4]
   USAGE(1),           0xB6,    //   	   USAGE (Scan Previous Track - 0x00B6)   [bit 5]
@@ -124,16 +120,13 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE(1),           0xB3,    //   	   USAGE (Fast Forward - 0x00B3)          [bit 8]
   USAGE(1),           0xB4,    //   	   USAGE (Rewind - 0x00B4)                [bit 9]
   USAGE(1),           0xB8,    //   	   USAGE (Eject - 0x00B8)                 [bit 10]
-  
   // Volume Controls
   USAGE(1),           0xE2,    //   	   USAGE (Mute - 0x00E2)                  [bit 11]
   USAGE(1),           0xE9,    //   	   USAGE (Volume Increment - 0x00E9)      [bit 12]
-  USAGE(1),           0xEA,    //   	   USAGE (Volume Decrement - 0x00EA)      [bit 13]
-  
+  USAGE(1),           0xEA,    //   	   USAGE (Volume Decrement - 0x00EA)      [bit 13] 
   // Display Controls
   USAGE(1),           0x6F,    //   	   USAGE (Brightness Up - 0x006F)         [bit 14]
-  USAGE(1),           0x70,    //          USAGE (Brightness Down - 0x0070)       [bit 15]
-  
+  USAGE(1),           0x70,    //          USAGE (Brightness Down - 0x0070)       [bit 15] 
   // Application Launch
   USAGE(2),           0x94, 0x01,    //    USAGE (My Computer - 0x0194)     [bit 16]
   USAGE(2),           0x92, 0x01,    //    USAGE (Calculator - 0x0192)      [bit 17]
@@ -141,7 +134,6 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE(2),           0x83, 0x01,    //    USAGE (Media Selection - 0x0183) [bit 19]
   USAGE(2),           0x86, 0x01,    //    USAGE (Control Panel - 0x0186)   [bit 20]
   USAGE(2),           0x87, 0x01,    //    USAGE (Launchpad - 0x0187)       [bit 21]
-  
   // Browser Controls
   USAGE(2),           0x23, 0x02,    //    USAGE (WWW Home - 0x0223)        [bit 22]
   USAGE(2),           0x2A, 0x02,    //    USAGE (WWW favorites - 0x022A)   [bit 23]
@@ -150,11 +142,9 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE(2),           0x24, 0x02,    //    USAGE (WWW back - 0x0224)        [bit 26]
   USAGE(2),           0x25, 0x02,    //    USAGE (WWW forward - 0x0225)     [bit 27]
   USAGE(2),           0x27, 0x02,    //    USAGE (WWW refresh - 0x0227)     [bit 28]
-  
   HIDINPUT(1),        0x02,          //    INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
   END_COLLECTION(0),                 //    END_COLLECTION
-  // ------------------------------------------------- Mouse/Pointer
-  
+  // ------------------------------------------------- Relative Pointer - Needed for Pointers on Android/iOS
   // Mouse Report Descriptor
   USAGE_PAGE(1),       0x01,        //     USAGE_PAGE (Generic Desktop)
   USAGE(1),            0x02,        //     USAGE (Mouse)
@@ -194,7 +184,53 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_COUNT(1),     0x01,        //     REPORT_COUNT (1)
   HIDINPUT(1),         0x06,        //     INPUT (Data, Var, Rel)
   END_COLLECTION(0),                //     END_COLLECTION (Physical)
-  END_COLLECTION(0)                 //     END_COLLECTION (Application)
+  END_COLLECTION(0),                //     END_COLLECTION (Application)
+  // ------------------------------------------------- Absolute Pointer - Pretty much unsupported by mobile operating systems
+  USAGE_PAGE(1),       0x01,        // USAGE_PAGE (Generic Desktop)
+  USAGE(1),            0x02,        // USAGE (Mouse)
+  COLLECTION(1),       0x01,        // COLLECTION (Application)
+  REPORT_ID(1),        0x05,        // REPORT_ID (5) - Absolute pointer report
+  USAGE(1),            0x01,        // USAGE (Pointer)
+  COLLECTION(1),       0x00,        // COLLECTION (Physical)
+  // Buttons
+  USAGE_PAGE(1),       0x09,        // USAGE_PAGE (Button)
+  USAGE_MINIMUM(1),    0x01,        // USAGE_MINIMUM (Button 1)
+  USAGE_MAXIMUM(1),    0x05,        // USAGE_MAXIMUM (Button 5)
+  LOGICAL_MINIMUM(1),  0x00,        // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1),  0x01,        // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),      0x01,        // REPORT_SIZE (1)
+  REPORT_COUNT(1),     0x05,        // REPORT_COUNT (5)
+  HIDINPUT(1),         0x02,        // INPUT (Data, Variable, Absolute)
+  // Padding
+  REPORT_SIZE(1),      0x03,        // REPORT_SIZE (3)
+  REPORT_COUNT(1),     0x01,        // REPORT_COUNT (1)
+  HIDINPUT(1),         0x03,        // INPUT (Constant, Variable, Absolute)
+  // Absolute X/Y position
+  USAGE_PAGE(1),       0x01,        // USAGE_PAGE (Generic Desktop)
+  USAGE(1),            0x30,        // USAGE (X)
+  USAGE(1),            0x31,        // USAGE (Y)
+  LOGICAL_MINIMUM(2),  0x00, 0x00,  // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(2),  0xFF, 0x7F,  // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),      0x10,        // REPORT_SIZE (16)
+  REPORT_COUNT(1),     0x02,        // REPORT_COUNT (2)
+  HIDINPUT(1),         0x02,        // INPUT (Data, Variable, Absolute)
+  // Wheel (relative)
+  USAGE(1),            0x38,        // USAGE (Wheel)
+  LOGICAL_MINIMUM(1),  0x81,        // LOGICAL_MINIMUM (-127)
+  LOGICAL_MAXIMUM(1),  0x7f,        // LOGICAL_MAXIMUM (127)
+  REPORT_SIZE(1),      0x08,        // REPORT_SIZE (8)
+  REPORT_COUNT(1),     0x01,        // REPORT_COUNT (1)
+  HIDINPUT(1),         0x06,        // INPUT (Data, Variable, Relative)
+  // Horizontal wheel (relative)
+  USAGE_PAGE(1),       0x0c,        // USAGE PAGE (Consumer Devices)
+  USAGE(2),      0x38, 0x02,        // USAGE (AC Pan)
+  LOGICAL_MINIMUM(1),  0x81,        // LOGICAL_MINIMUM (-127)
+  LOGICAL_MAXIMUM(1),  0x7f,        // LOGICAL_MAXIMUM (127)
+  REPORT_SIZE(1),      0x08,        // REPORT_SIZE (8)
+  REPORT_COUNT(1),     0x01,        // REPORT_COUNT (1)
+  HIDINPUT(1),         0x06,        // INPUT (Data, Var, Rel)
+  END_COLLECTION(0),                // END_COLLECTION (Physical)
+  END_COLLECTION(0),                // END_COLLECTION (Application)
 
 };
 
@@ -205,11 +241,13 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
     , batteryLevel(batteryLevel) 
     , _mediaKeyBitmask(0) 
     , _useNKRO(true)
-    , _mouseButtons(0) {
+    , _mouseButtons(0)
+    , _useAbsolute(false) {
   // Initialize reports
   memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
   memset(&_keyReport6KRO, 0, sizeof(_keyReport6KRO));
   memset(&_mouseReport, 0, sizeof(_mouseReport));
+  memset(&_absoluteReport, 0, sizeof(_absoluteReport));
 }
 
 void BleKeyboard::begin(void)
@@ -235,7 +273,8 @@ void BleKeyboard::begin(void)
   hid->hidInfo(0x00, 0x01);
 
   // Initialize mouse input report
-  inputMouse = hid->inputReport(0x04); // Use report ID 4 for mouse
+  inputMouse = hid->inputReport(0x04);    // Use report ID 4 for relative pointer
+  inputAbsolute = hid->inputReport(0x05); // Use report ID 5 for absolute pointer
   
 #if defined(USE_NIMBLE)
     // For NimBLE
@@ -301,6 +340,11 @@ void BleKeyboard::setBatteryLevel(uint8_t level) {
 //must be called before begin in order to set the name
 void BleKeyboard::setName(std::string deviceName) {
   this->deviceName = deviceName;
+}
+
+//must be called before begin in order to set the manufacturer
+void BleKeyboard::setManufacturer(std::string deviceManufacturer) {
+  this->deviceManufacturer = deviceManufacturer;
 }
 
 /**
@@ -726,7 +770,6 @@ uint32_t BleKeyboard::getMediaKeyBitmask() {
 }
 
 uint32_t BleKeyboard::mediaKeyToBitmask(uint16_t usageCode) {
-    // Map the 16-bit usage code to the correct bit position
     switch (usageCode) {
       case 0x0130: return (1UL << 0);   // System Power
       case 0x0134: return (1UL << 1);   // System Sleep  
@@ -772,18 +815,35 @@ void BleKeyboard::removeMediaKey(uint16_t mediaKey) {
     sendReport();
 }
 
-void BleKeyboard::mouseClick(uint8_t b)
-{
-  _mouseButtons = b;
-  mouseMove(0,0,0,0);
-  _mouseButtons = 0;
-  mouseMove(0,0,0,0);
+void BleKeyboard::mouseClick(uint8_t b) {
+  if (_useAbsolute) {
+    // In absolute mode without coordinates, use current position
+    mouseClick(_absoluteReport.x, _absoluteReport.y, b);
+  } else {
+    // Relative mode
+    _mouseButtons = b;
+    mouseMove(0, 0, 0, 0);
+    _mouseButtons = 0;
+    mouseMove(0, 0, 0, 0);
+  }
 }
 
-void BleKeyboard::mouseMove(signed char x, signed char y, signed char wheel, signed char hWheel)
-{
-  if (this->isConnected() && inputMouse)
-  {
+void BleKeyboard::mouseClick(uint16_t x, uint16_t y, uint8_t b) {
+  // Auto-switch to absolute mode if coordinates are provided
+  if (!_useAbsolute) {
+    useAbsolute(true);
+  }
+  mousePress(x, y, b);
+  mouseRelease(x, y, b);
+}
+
+void BleKeyboard::mouseMove(signed char x, signed char y, signed char wheel, signed char hWheel) {
+  // Auto-switch to relative mode if moving with relative coordinates
+  if (_useAbsolute) {
+    useAbsolute(false);
+  }
+  
+  if (this->isConnected() && inputMouse) {
     _mouseReport.buttons = _mouseButtons;
     _mouseReport.x = x;
     _mouseReport.y = y;
@@ -799,27 +859,99 @@ void BleKeyboard::mouseMove(signed char x, signed char y, signed char wheel, sig
   }
 }
 
-void BleKeyboard::mousePress(uint8_t b)
-{
-  _mouseButtons |= b;
-  mouseMove(0,0,0,0);
+void BleKeyboard::mouseMoveTo(uint16_t x, uint16_t y, signed char wheel, signed char hWheel) {
+  // Auto-switch to absolute mode if moving to absolute coordinates
+  if (!_useAbsolute) {
+    useAbsolute(true);
+  }
+  
+  if (this->isConnected() && inputAbsolute) {
+    _absoluteReport.x = x;
+    _absoluteReport.y = y;
+    _absoluteReport.wheel = wheel;
+    _absoluteReport.hWheel = hWheel;
+    
+    inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
+    inputAbsolute->notify();
+    
+#if defined(USE_NIMBLE)        
+    this->delay_ms(_delay_ms);
+#endif // USE_NIMBLE
+  }
 }
 
-void BleKeyboard::mouseRelease(uint8_t b)
-{
-  _mouseButtons &= ~b;
-  mouseMove(0,0,0,0);
+void BleKeyboard::mousePress(uint8_t b) {
+  if (_useAbsolute) {
+    // In absolute mode without coordinates, use current position
+    mousePress(_absoluteReport.x, _absoluteReport.y, b);
+  } else {
+    // Relative mode
+    _mouseButtons |= b;
+    mouseMove(0, 0, 0, 0);
+  }
 }
 
-bool BleKeyboard::mouseIsPressed(uint8_t b)
-{
-  return (_mouseButtons & b) != 0;
+void BleKeyboard::mousePress(uint16_t x, uint16_t y, uint8_t b) {
+  // Auto-switch to absolute mode if coordinates are provided
+  if (!_useAbsolute) {
+    useAbsolute(true);
+  }
+  
+  _absoluteReport.buttons |= b;
+  mouseMoveTo(x, y);
 }
 
-void BleKeyboard::mouseReleaseAll()
-{
-  _mouseButtons = 0;
-  mouseMove(0,0,0,0);
+void BleKeyboard::mouseRelease(uint8_t b) {
+  if (_useAbsolute) {
+    // In absolute mode without coordinates, use current position
+    mouseRelease(_absoluteReport.x, _absoluteReport.y, b);
+  } else {
+    // Relative mode
+    _mouseButtons &= ~b;
+    mouseMove(0, 0, 0, 0);
+  }
+}
+
+void BleKeyboard::mouseRelease(uint16_t x, uint16_t y, uint8_t b) {
+  // Auto-switches to absolute mode if coordinates are provided
+  if (!_useAbsolute) {
+    useAbsolute(true);
+  }
+  
+  _absoluteReport.buttons &= ~b;
+  mouseMoveTo(x, y);
+}
+
+bool BleKeyboard::mouseIsPressed(uint8_t b) {
+  if (_useAbsolute) {
+    return (_absoluteReport.buttons & b) != 0;
+  } else {
+    return (_mouseButtons & b) != 0;
+  }
+}
+
+void BleKeyboard::mouseReleaseAll() {
+  if (_useAbsolute) {
+    _absoluteReport.buttons = 0;
+    mouseMoveTo(_absoluteReport.x, _absoluteReport.y);
+  } else {
+    _mouseButtons = 0;
+    mouseMove(0, 0, 0, 0);
+  }
+}
+
+void BleKeyboard::useAbsolute(bool enable) {
+  _useAbsolute = enable;
+  ESP_LOGI(LOG_TAG, "Absolute pointer %s", enable ? "enabled" : "disabled");
+}
+
+void BleKeyboard::setAbsoluteRange(uint16_t minVal, uint16_t maxVal) {
+  // This is just to scale your coordinates - the actual range is fixed to 32767 on both axes
+  ESP_LOGI(LOG_TAG, "Absolute pointer range set to %d-%d", minVal, maxVal);
+}
+
+bool BleKeyboard::isAbsoluteEnabled() {
+  return _useAbsolute;
 }
 
 void BleKeyboard::onConnect(BLEServer* pServer) {
