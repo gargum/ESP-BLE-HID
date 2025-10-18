@@ -45,7 +45,6 @@ addMediaKey         KEYWORD2
 removeMediaKey      KEYWORD2
 
 sendNKROReport      KEYWORD2
-send6KROReport      KEYWORD2
 updateNKROBitmask   KEYWORD2
 useNKRO             KEYWORD2
 use6KRO             KEYWORD2
@@ -59,6 +58,7 @@ mouseRelease        KEYWORD2
 mouseIsPressed      KEYWORD2
 mouseReleaseAll     KEYWORD2
 
+useRelative         KEYWORD2
 useAbsolute         KEYWORD2
 setAbsoluteRange    KEYWORD2
 isAbsoluteEnabled   KEYWORD2
