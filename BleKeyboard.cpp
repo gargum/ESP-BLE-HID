@@ -195,7 +195,81 @@ static const uint8_t _hidReportDescriptor[] = {
   HIDINPUT(1),         0x06,        // INPUT (Data, Var, Rel)
   END_COLLECTION(0),                // END_COLLECTION (Physical)
   END_COLLECTION(0),                // END_COLLECTION (Application)
+  // ------------------------------------------------- Gamepad
+  USAGE_PAGE(1),       0x01,          // USAGE_PAGE (Generic Desktop)
+  USAGE(1),            0x05,          // USAGE (Game Pad)
+  COLLECTION(1),       0x01,          // COLLECTION (Application)
+  REPORT_ID(1),        0x06,          // REPORT_ID (6) - Gamepad report
+  // 64 buttons in two 32-bit fields
+  USAGE_PAGE(1),       0x09,          // USAGE_PAGE (Button)
+  LOGICAL_MINIMUM(1),  0x00,          // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1),  0x01,          // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),      0x01,          // REPORT_SIZE (1)
+  REPORT_COUNT(1),     0x40,          // REPORT_COUNT (64) - All 64 buttons
+  USAGE_MINIMUM(1),    0x01,          // USAGE_MINIMUM (Button 1)
+  USAGE_MAXIMUM(1),    0x40,          // USAGE_MAXIMUM (Button 64)
+  HIDINPUT(1),         0x02,          // INPUT (Data, Variable, Absolute)
+  // Left analogue stick (X/Y) - Fully working
+  USAGE_PAGE(1),       0x01,          // USAGE_PAGE (Generic Desktop)
+  USAGE(1),            0x01,          // USAGE (Pointer) - Important context
+  COLLECTION(1),       0x00,          // COLLECTION (Physical)
+  USAGE(1),            0x30,          // USAGE (X)
+  USAGE(1),            0x31,          // USAGE (Y)
+  LOGICAL_MINIMUM(2),  0x01, 0x80,    // LOGICAL_MINIMUM (-32767)
+  LOGICAL_MAXIMUM(2),  0xFF, 0x7F,    // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),      0x10,          // REPORT_SIZE (16)
+  REPORT_COUNT(1),     0x02,          // REPORT_COUNT (2)
+  HIDINPUT(1),         0x02,          // INPUT (Data, Variable, Absolute)
+  END_COLLECTION(0),                   // END_COLLECTION (Physical)
+  // Right analogue stick (X/Y) - Fully working
+  USAGE_PAGE(1),       0x01,          // USAGE_PAGE (Generic Desktop)
+  USAGE(1),            0x01,          // USAGE (Pointer)
+  COLLECTION(1),       0x00,          // COLLECTION (Physical)
+  USAGE(1),            0x33,          // USAGE (Rx)
+  USAGE(1),            0x34,          // USAGE (Ry)
+  LOGICAL_MINIMUM(2),  0x01, 0x80,    // LOGICAL_MINIMUM (-32767) 
+  LOGICAL_MAXIMUM(2),  0xFF, 0x7F,    // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),      0x10,          // REPORT_SIZE (16)
+  REPORT_COUNT(1),     0x02,          // REPORT_COUNT (2)
+  HIDINPUT(1),         0x02,          // INPUT (Data, Variable, Absolute)
+  END_COLLECTION(0),                   // END_COLLECTION (Physical)
+  // Analogue triggers - Fully working
+  USAGE_PAGE(1),       0x01,          // USAGE_PAGE (Generic Desktop)
+  USAGE(1),            0x32,          // USAGE (Z) - Left trigger
+  USAGE(1),            0x35,          // USAGE (Rz) - Right trigger
+  LOGICAL_MINIMUM(2),  0x00, 0x00,    // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(2),  0xFF, 0x7F,    // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),      0x10,          // REPORT_SIZE (16)
+  REPORT_COUNT(1),     0x02,          // REPORT_COUNT (2)
+  HIDINPUT(1),         0x02,          // INPUT (Data, Variable, Absolute)
+  // Gyroscope - Needs an overhaul to work properly
+  USAGE_PAGE(1),       0x01,          // USAGE_PAGE (Generic Desktop)
+  USAGE(1),            0x01,          // USAGE (Pointer)
+  COLLECTION(1),       0x00,          // COLLECTION (Physical)
+  USAGE(1),            0x38,          // USAGE (Vx) - Gyro X
+  USAGE(1),            0x39,          // USAGE (Vy) - Gyro Y
+  USAGE(1),            0x3A,          // USAGE (Vz) - Gyro Z
+  LOGICAL_MINIMUM(2),  0x01, 0x80,    // LOGICAL_MINIMUM (-32767)
+  LOGICAL_MAXIMUM(2),  0xFF, 0x7F,    // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),      0x10,          // REPORT_SIZE (16)
+  REPORT_COUNT(1),     0x03,          // REPORT_COUNT (3)
+  HIDINPUT(1),         0x02,          // INPUT (Data, Variable, Absolute)
+  END_COLLECTION(0),                   // END_COLLECTION (Physical)
+  // Accelerometer - Needs an overhaul to work properly
+  USAGE_PAGE(1),       0x01,          // USAGE_PAGE (Generic Desktop)
+  USAGE(1),            0x01,          // USAGE (Pointer)
+  COLLECTION(1),       0x00,          // COLLECTION (Physical)
+  USAGE(1),            0x73,          // USAGE (Accelerometer X)
+  USAGE(1),            0x74,          // USAGE (Accelerometer Y)
+  USAGE(1),            0x75,          // USAGE (Accelerometer Z)
+  LOGICAL_MINIMUM(2),  0x01, 0x80,    // LOGICAL_MINIMUM (-32767)
+  LOGICAL_MAXIMUM(2),  0xFF, 0x7F,    // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),      0x10,          // REPORT_SIZE (16)
+  REPORT_COUNT(1),     0x03,          // REPORT_COUNT (3)
+  HIDINPUT(1),         0x02,          // INPUT (Data, Variable, Absolute)
+  END_COLLECTION(0),                   // END_COLLECTION (Physical)
 
+  END_COLLECTION(0),                   // END_COLLECTION (Application)
 };
 
 BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer, uint8_t batteryLevel) 
@@ -211,6 +285,7 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
   memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
   memset(&_mouseReport, 0, sizeof(_mouseReport));
   memset(&_absoluteReport, 0, sizeof(_absoluteReport));
+  memset(&_gamepadReport, 0, sizeof(_gamepadReport));
 }
 
 void BleKeyboard::begin(void)
@@ -237,6 +312,7 @@ void BleKeyboard::begin(void)
   // Initialize mouse input report
   inputMouse = hid->inputReport(0x04);    // Use report ID 4 for relative pointer
   inputAbsolute = hid->inputReport(0x05); // Use report ID 5 for absolute pointer
+  inputGamepad = hid->inputReport(0x06);  // Use report ID 6 for gamepad
   
 #if defined(USE_NIMBLE)
     // For NimBLE
@@ -845,6 +921,111 @@ void BleKeyboard::setAbsoluteRange(uint16_t minVal, uint16_t maxVal) {
 
 bool BleKeyboard::isAbsoluteEnabled() {
   return _useAbsolute;
+}
+
+void BleKeyboard::gamepadPress(uint8_t button) {
+  if (button >= 1 && button <= 64) {
+    uint8_t field = (button - 1) / 32;
+    uint8_t bit = (button - 1) % 32;
+    _gamepadReport.buttons[field] |= (1UL << bit);
+  }
+  sendGamepadReport();
+}
+
+void BleKeyboard::gamepadRelease(uint8_t button) {
+  if (button >= 1 && button <= 64) {
+    uint8_t field = (button - 1) / 32;
+    uint8_t bit = (button - 1) % 32;
+    _gamepadReport.buttons[field] &= ~(1UL << bit);
+  }
+  sendGamepadReport();
+}
+
+bool BleKeyboard::gamepadIsPressed(uint8_t button) {
+  if (button >= 1 && button <= 64) {
+    uint8_t field = (button - 1) / 32;
+    uint8_t bit = (button - 1) % 32;
+    return (_gamepadReport.buttons[field] & (1UL << bit)) != 0;
+  }
+  return false;
+}
+
+void BleKeyboard::gamepadReleaseAll() {
+  _gamepadReport.buttons[0] = 0;
+  _gamepadReport.buttons[1] = 0;
+  sendGamepadReport();
+}
+
+void BleKeyboard::gamepadSetAxis(uint8_t axis, int16_t value) {
+  if (axis < GAMEPAD_AXIS_COUNT) {
+    _gamepadReport.axes[axis] = value;
+  }
+  sendGamepadReport();
+}
+
+int16_t BleKeyboard::gamepadGetAxis(uint8_t axis) {
+  if (axis < GAMEPAD_AXIS_COUNT) {
+    return _gamepadReport.axes[axis];
+  }
+  return 0;
+}
+
+void BleKeyboard::gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]) {
+  memcpy(_gamepadReport.axes, values, sizeof(_gamepadReport.axes));
+  sendGamepadReport();
+}
+
+void BleKeyboard::sendGamepadReport() {
+    if (this->isConnected() && inputGamepad) {
+    inputGamepad->setValue((uint8_t*)&_gamepadReport, sizeof(_gamepadReport));
+    inputGamepad->notify();
+    
+#if defined(USE_NIMBLE)        
+    this->delay_ms(_delay_ms);
+#endif // USE_NIMBLE
+  }
+}
+
+void BleKeyboard::gamepadSetLeftStick(int16_t x, int16_t y) {
+    _gamepadReport.axes[AXIS_LX] = x;
+    _gamepadReport.axes[AXIS_LY] = y;
+    sendGamepadReport();
+}
+
+void BleKeyboard::gamepadSetRightStick(int16_t x, int16_t y) {
+    _gamepadReport.axes[AXIS_RX] = x;
+    _gamepadReport.axes[AXIS_RY] = y;
+    sendGamepadReport();
+}
+
+void BleKeyboard::gamepadSetTriggers(int16_t left, int16_t right) {
+    _gamepadReport.axes[AXIS_LT] = left;
+    _gamepadReport.axes[AXIS_RT] = right;
+    sendGamepadReport();
+}
+
+void BleKeyboard::gamepadSetGyro(int16_t pitch, int16_t yaw, int16_t roll) {
+    _gamepadReport.axes[AXIS_GX] = pitch;
+    _gamepadReport.axes[AXIS_GY] = yaw;
+    _gamepadReport.axes[AXIS_GZ] = roll;
+    sendGamepadReport();
+}
+
+void BleKeyboard::gamepadSetAccel(int16_t x, int16_t y, int16_t z) {
+    _gamepadReport.axes[AXIS_AX] = x;
+    _gamepadReport.axes[AXIS_AY] = y;
+    _gamepadReport.axes[AXIS_AZ] = z;
+    sendGamepadReport();
+}
+
+void BleKeyboard::gamepadGetLeftStick(int16_t &x, int16_t &y) {
+    x = gamepadGetAxis(AXIS_LX);
+    y = gamepadGetAxis(AXIS_LY);
+}
+
+void BleKeyboard::gamepadGetRightStick(int16_t &x, int16_t &y) {
+    x = gamepadGetAxis(AXIS_RX);
+    y = gamepadGetAxis(AXIS_RY);
 }
 
 void BleKeyboard::onConnect(BLEServer* pServer) {
