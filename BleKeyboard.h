@@ -48,7 +48,7 @@
 
 // Gamepad configuration
 #define GAMEPAD_BUTTON_COUNT 64
-#define GAMEPAD_AXIS_COUNT 12
+#define GAMEPAD_AXIS_COUNT 6
 
 // Mouse report structure
 typedef struct {
@@ -638,12 +638,6 @@ const uint8_t AXIS_RX = 2;  // Right stick X
 const uint8_t AXIS_RY = 3;  // Right stick Y
 const uint8_t AXIS_LT = 4;  // Left trigger
 const uint8_t AXIS_RT = 5;  // Right trigger
-const uint8_t AXIS_GX = 6;  // Gyro X (Pitch)
-const uint8_t AXIS_GY = 7;  // Gyro Y (Yaw)
-const uint8_t AXIS_GZ = 8;  // Gyro Z (Roll)
-const uint8_t AXIS_AX = 9;  // Accel X
-const uint8_t AXIS_AY = 10; // Accel Y
-const uint8_t AXIS_AZ = 11; // Accel Z
 
 const uint8_t GA_LX = 0;
 const uint8_t GA_LY = 1;
@@ -651,12 +645,6 @@ const uint8_t GA_RX = 2;
 const uint8_t GA_RY = 3;
 const uint8_t GA_LT = 4;
 const uint8_t GA_RT = 5;
-const uint8_t GA_GX = 6;
-const uint8_t GA_GY = 7;
-const uint8_t GA_GZ = 8;
-const uint8_t GA_AX = 9;
-const uint8_t GA_AY = 10;
-const uint8_t GA_AZ = 11;
 
 //  NKRO key report: bitmask for up to NKRO_KEY_COUNT keys
 typedef struct
@@ -774,11 +762,9 @@ public:
   void gamepadSetLeftStick(int16_t x, int16_t y);
   void gamepadSetRightStick(int16_t x, int16_t y);
   void gamepadSetTriggers(int16_t left, int16_t right);
-  void gamepadSetGyro(int16_t pitch, int16_t yaw, int16_t roll);
-  void gamepadSetAccel(int16_t x, int16_t y, int16_t z);
-  void gamepadSetAxis(uint8_t axis, int16_t value);  // Axis 0-11
   void gamepadGetLeftStick(int16_t &x, int16_t &y);
   void gamepadGetRightStick(int16_t &x, int16_t &y);
+  void gamepadSetAxis(uint8_t axis, int16_t value);  // Axis 0-11
   int16_t gamepadGetAxis(uint8_t axis);
   void gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
   
