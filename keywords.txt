@@ -72,8 +72,6 @@ gamepadReleaseAll    KEYWORD2
 gamepadSetLeftStick  KEYWORD2
 gamepadSetRightStick KEYWORD2
 gamepadSetTriggers   KEYWORD2
-gamepadSetGyro       KEYWORD2
-gamepadSetAccel      KEYWORD2
 gamepadSetAxis       KEYWORD2
 
 gamepadGetLeftStick  KEYWORD2
