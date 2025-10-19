@@ -22,8 +22,6 @@ All development and testing is done on boards *without* the ability to act as US
  - [x] 64 gamepad buttons
  - [x] 2 analogue sticks
  - [x] 2 analogue triggers
- - [ ] 3-Axis Gyroscope - Haven't fully tested and polished it yet
- - [ ] 3-Axis Accelerometer - Haven't fully tested and polished it yet
  - [x] Compatible with Android* (Android itself lacks absolute pointer support)
  - [x] Compatible with Windows
  - [x] Compatible with Linux
