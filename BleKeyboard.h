@@ -46,6 +46,10 @@
 #define MOUSE_FORWARD 16
 #define MOUSE_ALL (MOUSE_LEFT | MOUSE_RIGHT | MOUSE_MIDDLE)
 
+// Gamepad configuration
+#define GAMEPAD_BUTTON_COUNT 64
+#define GAMEPAD_AXIS_COUNT 12
+
 // Mouse report structure
 typedef struct {
   uint8_t buttons;
@@ -54,7 +58,7 @@ typedef struct {
   int8_t wheel;
   int8_t hWheel;
 } MouseReport;
-
+// Digitizer report structure
 typedef struct {
   uint8_t buttons;
   int16_t x;
@@ -62,6 +66,11 @@ typedef struct {
   int8_t wheel;
   int8_t hWheel;
 } AbsoluteReport;
+// Gamepad report structure
+typedef struct {
+  uint32_t buttons[2];
+  int16_t axes[GAMEPAD_AXIS_COUNT];
+} GamepadReport;
 
 static const bool enabled = true;
 static const bool disabled = false;
@@ -493,6 +502,162 @@ const uint16_t KC_BRID = 0x0070;
 const uint16_t KC_CPNL = 0x0186;
 const uint16_t KC_LPAD = 0x0187;
 
+const uint8_t GAMEPAD_0 = 1;
+const uint8_t GAMEPAD_1 = 2;
+const uint8_t GAMEPAD_2 = 3;
+const uint8_t GAMEPAD_3 = 4;
+const uint8_t GAMEPAD_4 = 5;
+const uint8_t GAMEPAD_5 = 6;
+const uint8_t GAMEPAD_6 = 7;
+const uint8_t GAMEPAD_7 = 8;
+const uint8_t GAMEPAD_8 = 9;
+const uint8_t GAMEPAD_9 = 10;
+const uint8_t GAMEPAD_10 = 11;
+const uint8_t GAMEPAD_11 = 12;
+const uint8_t GAMEPAD_12 = 13;
+const uint8_t GAMEPAD_13 = 14;
+const uint8_t GAMEPAD_14 = 15;
+const uint8_t GAMEPAD_15 = 16;
+const uint8_t GAMEPAD_16 = 17;
+const uint8_t GAMEPAD_17 = 18;
+const uint8_t GAMEPAD_18 = 19;
+const uint8_t GAMEPAD_19 = 20;
+const uint8_t GAMEPAD_20 = 21;
+const uint8_t GAMEPAD_21 = 22;
+const uint8_t GAMEPAD_22 = 23;
+const uint8_t GAMEPAD_23 = 24;
+const uint8_t GAMEPAD_24 = 25;
+const uint8_t GAMEPAD_25 = 26;
+const uint8_t GAMEPAD_26 = 27;
+const uint8_t GAMEPAD_27 = 28;
+const uint8_t GAMEPAD_28 = 29;
+const uint8_t GAMEPAD_29 = 30;
+const uint8_t GAMEPAD_30 = 31;
+const uint8_t GAMEPAD_31 = 32;
+const uint8_t GAMEPAD_32 = 33;
+const uint8_t GAMEPAD_33 = 34;
+const uint8_t GAMEPAD_34 = 35;
+const uint8_t GAMEPAD_35 = 36;
+const uint8_t GAMEPAD_36 = 37;
+const uint8_t GAMEPAD_37 = 38;
+const uint8_t GAMEPAD_38 = 39;
+const uint8_t GAMEPAD_39 = 40;
+const uint8_t GAMEPAD_40 = 41;
+const uint8_t GAMEPAD_41 = 42;
+const uint8_t GAMEPAD_42 = 43;
+const uint8_t GAMEPAD_43 = 44;
+const uint8_t GAMEPAD_44 = 45;
+const uint8_t GAMEPAD_45 = 46;
+const uint8_t GAMEPAD_46 = 47;
+const uint8_t GAMEPAD_47 = 48;
+const uint8_t GAMEPAD_48 = 49;
+const uint8_t GAMEPAD_49 = 50;
+const uint8_t GAMEPAD_50 = 51;
+const uint8_t GAMEPAD_51 = 52;
+const uint8_t GAMEPAD_52 = 53;
+const uint8_t GAMEPAD_53 = 54;
+const uint8_t GAMEPAD_54 = 55;
+const uint8_t GAMEPAD_55 = 56;
+const uint8_t GAMEPAD_56 = 57;
+const uint8_t GAMEPAD_57 = 58;
+const uint8_t GAMEPAD_58 = 59;
+const uint8_t GAMEPAD_59 = 60;
+const uint8_t GAMEPAD_60 = 61;
+const uint8_t GAMEPAD_61 = 62;
+const uint8_t GAMEPAD_62 = 63;
+const uint8_t GAMEPAD_63 = 64;
+
+const uint8_t GB_00 = 1;
+const uint8_t GB_01 = 2;
+const uint8_t GB_02 = 3;
+const uint8_t GB_03 = 4;
+const uint8_t GB_04 = 5;
+const uint8_t GB_05 = 6;
+const uint8_t GB_06 = 7;
+const uint8_t GB_07 = 8;
+const uint8_t GB_08 = 9;
+const uint8_t GB_09 = 10;
+const uint8_t GB_10 = 11;
+const uint8_t GB_11 = 12;
+const uint8_t GB_12 = 13;
+const uint8_t GB_13 = 14;
+const uint8_t GB_14 = 15;
+const uint8_t GB_15 = 16;
+const uint8_t GB_16 = 17;
+const uint8_t GB_17 = 18;
+const uint8_t GB_18 = 19;
+const uint8_t GB_19 = 20;
+const uint8_t GB_20 = 21;
+const uint8_t GB_21 = 22;
+const uint8_t GB_22 = 23;
+const uint8_t GB_23 = 24;
+const uint8_t GB_24 = 25;
+const uint8_t GB_25 = 26;
+const uint8_t GB_26 = 27;
+const uint8_t GB_27 = 28;
+const uint8_t GB_28 = 29;
+const uint8_t GB_29 = 30;
+const uint8_t GB_30 = 31;
+const uint8_t GB_31 = 32;
+const uint8_t GB_32 = 33;
+const uint8_t GB_33 = 34;
+const uint8_t GB_34 = 35;
+const uint8_t GB_35 = 36;
+const uint8_t GB_36 = 37;
+const uint8_t GB_37 = 38;
+const uint8_t GB_38 = 39;
+const uint8_t GB_39 = 40;
+const uint8_t GB_40 = 41;
+const uint8_t GB_41 = 42;
+const uint8_t GB_42 = 43;
+const uint8_t GB_43 = 44;
+const uint8_t GB_44 = 45;
+const uint8_t GB_45 = 46;
+const uint8_t GB_46 = 47;
+const uint8_t GB_47 = 48;
+const uint8_t GB_48 = 49;
+const uint8_t GB_49 = 50;
+const uint8_t GB_50 = 51;
+const uint8_t GB_51 = 52;
+const uint8_t GB_52 = 53;
+const uint8_t GB_53 = 54;
+const uint8_t GB_54 = 55;
+const uint8_t GB_55 = 56;
+const uint8_t GB_56 = 57;
+const uint8_t GB_57 = 58;
+const uint8_t GB_58 = 59;
+const uint8_t GB_59 = 60;
+const uint8_t GB_60 = 61;
+const uint8_t GB_61 = 62;
+const uint8_t GB_62 = 63;
+const uint8_t GB_63 = 64;
+
+const uint8_t AXIS_LX = 0;  // Left stick X
+const uint8_t AXIS_LY = 1;  // Left stick Y
+const uint8_t AXIS_RX = 2;  // Right stick X
+const uint8_t AXIS_RY = 3;  // Right stick Y
+const uint8_t AXIS_LT = 4;  // Left trigger
+const uint8_t AXIS_RT = 5;  // Right trigger
+const uint8_t AXIS_GX = 6;  // Gyro X (Pitch)
+const uint8_t AXIS_GY = 7;  // Gyro Y (Yaw)
+const uint8_t AXIS_GZ = 8;  // Gyro Z (Roll)
+const uint8_t AXIS_AX = 9;  // Accel X
+const uint8_t AXIS_AY = 10; // Accel Y
+const uint8_t AXIS_AZ = 11; // Accel Z
+
+const uint8_t GA_LX = 0;
+const uint8_t GA_LY = 1;
+const uint8_t GA_RX = 2;
+const uint8_t GA_RY = 3;
+const uint8_t GA_LT = 4;
+const uint8_t GA_RT = 5;
+const uint8_t GA_GX = 6;
+const uint8_t GA_GY = 7;
+const uint8_t GA_GZ = 8;
+const uint8_t GA_AX = 9;
+const uint8_t GA_AY = 10;
+const uint8_t GA_AZ = 11;
+
 //  NKRO key report: bitmask for up to NKRO_KEY_COUNT keys
 typedef struct
 {
@@ -510,11 +675,13 @@ private:
   BLECharacteristic* inputNKRO;
   BLECharacteristic* inputMouse;
   BLECharacteristic* inputAbsolute;
+  BLECharacteristic* inputGamepad;
   BLEAdvertising*    advertising;
   KeyReportNKRO      _keyReportNKRO;
   uint8_t            _mouseButtons;
   MouseReport        _mouseReport;
   AbsoluteReport     _absoluteReport;
+  GamepadReport      _gamepadReport;
   uint32_t           _mediaKeyBitmask;
   std::string        deviceName;
   std::string        deviceManufacturer;
@@ -536,6 +703,7 @@ private:
   void sendNKROReport();
   void updateNKROBitmask(uint8_t k, bool pressed);
   uint8_t countPressedKeys();
+  void sendGamepadReport();
 
 public:
   BleKeyboard(std::string deviceName = "ESP32 Keyboard", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
@@ -595,6 +763,24 @@ public:
   void useRelative(bool enable = true);
   void setAbsoluteRange(uint16_t minVal = 0, uint16_t maxVal = 32767);
   bool isAbsoluteEnabled();
+  
+  // Gamepad button helpers
+  void gamepadPress(uint8_t button);           // Button 1-64
+  void gamepadRelease(uint8_t button);         // Button 1-64
+  bool gamepadIsPressed(uint8_t button);
+  void gamepadReleaseAll();
+  
+  // Gamepad axis helpers
+  void gamepadSetLeftStick(int16_t x, int16_t y);
+  void gamepadSetRightStick(int16_t x, int16_t y);
+  void gamepadSetTriggers(int16_t left, int16_t right);
+  void gamepadSetGyro(int16_t pitch, int16_t yaw, int16_t roll);
+  void gamepadSetAccel(int16_t x, int16_t y, int16_t z);
+  void gamepadSetAxis(uint8_t axis, int16_t value);  // Axis 0-11
+  void gamepadGetLeftStick(int16_t &x, int16_t &y);
+  void gamepadGetRightStick(int16_t &x, int16_t &y);
+  int16_t gamepadGetAxis(uint8_t axis);
+  void gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
   
 protected:
   virtual void onStarted(BLEServer *pServer) { };
