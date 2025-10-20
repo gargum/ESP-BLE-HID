@@ -19,9 +19,12 @@ All development and testing is done on boards *without* the ability to act as US
  - [x] Switch between relative and absolute without reflashing
  - [ ] Digitizers with pen/barrel
  - [ ] Touchscreens with multitouch
+ - [x] Fully SDL driver compatible
  - [x] 64 gamepad buttons
+ - [x] 1 hat switch D-Pad
  - [x] 2 analogue sticks
  - [x] 2 analogue triggers
+ - [x] Gamepad inputs automatically recognize and populate (SDL)
  - [x] Compatible with Android* (Android itself lacks absolute pointer support)
  - [x] Compatible with Windows
  - [x] Compatible with Linux
