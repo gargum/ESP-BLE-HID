@@ -242,7 +242,22 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_SIZE(1),      0x10,            // REPORT_SIZE (16)
   REPORT_COUNT(1),     0x02,            // REPORT_COUNT (2)
   HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
-  END_COLLECTION(0),                      // END_COLLECTION (Physical)
+  // Hat switch - NEW SECTION
+  USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
+  USAGE(1),            0x39,            // USAGE (Hat switch)
+  LOGICAL_MINIMUM(1),  0x00,            // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1),  0x07,            // LOGICAL_MAXIMUM (7) - 8 positions
+  PHYSICAL_MINIMUM(1), 0x00,            // PHYSICAL_MINIMUM (0)
+  PHYSICAL_MAXIMUM(2), 0x3B, 0x01,      // PHYSICAL_MAXIMUM (315 degrees)
+  UNIT(1),             0x14,            // UNIT (English Rotation, Degrees)
+  REPORT_SIZE(1),      0x04,            // REPORT_SIZE (4) - 4 bits for 8 values
+  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
+  HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
+  // Padding for the remaining 4 bits
+  REPORT_SIZE(1),      0x04,            // REPORT_SIZE (4)
+  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
+  HIDINPUT(1),         0x03,            // INPUT (Constant, Variable, Absolute)
+  END_COLLECTION(0),                      // END_COLLECTION (Application)
 
 };
 
@@ -260,6 +275,7 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
   memset(&_mouseReport, 0, sizeof(_mouseReport));
   memset(&_absoluteReport, 0, sizeof(_absoluteReport));
   memset(&_gamepadReport, 0, sizeof(_gamepadReport));
+  _gamepadReport.hat = HAT_CENTER; // Initialize hat to center position
 }
 
 void BleKeyboard::begin(void)
@@ -898,28 +914,116 @@ bool BleKeyboard::isAbsoluteEnabled() {
 }
 
 void BleKeyboard::gamepadPress(uint8_t button) {
+  // Handle regular buttons 1-64
   if (button >= 1 && button <= 64) {
     uint8_t field = (button - 1) / 32;
     uint8_t bit = (button - 1) % 32;
     _gamepadReport.buttons[field] |= (1UL << bit);
   }
+  // Handle D-Pad as virtual buttons 65-68
+  else if (button >= 65 && button <= 68) {
+    uint8_t currentHat = _gamepadReport.hat;
+    uint8_t newDirection = currentHat;
+    
+    switch (button) {
+      case 65: // DPAD_UP
+        if (currentHat == HAT_CENTER) newDirection = HAT_UP;
+        else if (currentHat == HAT_RIGHT) newDirection = HAT_UP_RIGHT;
+        else if (currentHat == HAT_LEFT) newDirection = HAT_UP_LEFT;
+        else if (currentHat == HAT_DOWN_RIGHT) newDirection = HAT_UP_RIGHT;
+        else if (currentHat == HAT_DOWN_LEFT) newDirection = HAT_UP_LEFT;
+        else if (currentHat == HAT_DOWN) newDirection = HAT_UP;
+        break;
+      case 66: // DPAD_RIGHT
+        if (currentHat == HAT_CENTER) newDirection = HAT_RIGHT;
+        else if (currentHat == HAT_UP) newDirection = HAT_UP_RIGHT;
+        else if (currentHat == HAT_DOWN) newDirection = HAT_DOWN_RIGHT;
+        else if (currentHat == HAT_UP_LEFT) newDirection = HAT_UP_RIGHT;
+        else if (currentHat == HAT_DOWN_LEFT) newDirection = HAT_DOWN_RIGHT;
+        else if (currentHat == HAT_LEFT) newDirection = HAT_RIGHT;
+        break;
+      case 67: // DPAD_DOWN
+        if (currentHat == HAT_CENTER) newDirection = HAT_DOWN;
+        else if (currentHat == HAT_RIGHT) newDirection = HAT_DOWN_RIGHT;
+        else if (currentHat == HAT_LEFT) newDirection = HAT_DOWN_LEFT;
+        else if (currentHat == HAT_UP_RIGHT) newDirection = HAT_DOWN_RIGHT;
+        else if (currentHat == HAT_UP_LEFT) newDirection = HAT_DOWN_LEFT;
+        else if (currentHat == HAT_UP) newDirection = HAT_DOWN;
+        break;
+      case 68: // DPAD_LEFT
+        if (currentHat == HAT_CENTER) newDirection = HAT_LEFT;
+        else if (currentHat == HAT_UP) newDirection = HAT_UP_LEFT;
+        else if (currentHat == HAT_DOWN) newDirection = HAT_DOWN_LEFT;
+        else if (currentHat == HAT_UP_RIGHT) newDirection = HAT_UP_LEFT;
+        else if (currentHat == HAT_DOWN_RIGHT) newDirection = HAT_DOWN_LEFT;
+        else if (currentHat == HAT_RIGHT) newDirection = HAT_LEFT;
+        break;
+    }
+    _gamepadReport.hat = newDirection;
+  }
   sendGamepadReport();
 }
 
 void BleKeyboard::gamepadRelease(uint8_t button) {
+  // Handle regular buttons 1-64
   if (button >= 1 && button <= 64) {
     uint8_t field = (button - 1) / 32;
     uint8_t bit = (button - 1) % 32;
     _gamepadReport.buttons[field] &= ~(1UL << bit);
   }
+  // Handle D-Pad as virtual buttons 65-68
+  else if (button >= 65 && button <= 68) {
+    uint8_t currentHat = _gamepadReport.hat;
+    uint8_t newDirection = currentHat;
+    
+    switch (button) {
+      case 65: // DPAD_UP - release up
+        if (currentHat == HAT_UP) newDirection = HAT_CENTER;
+        else if (currentHat == HAT_UP_RIGHT) newDirection = HAT_RIGHT;
+        else if (currentHat == HAT_UP_LEFT) newDirection = HAT_LEFT;
+        break;
+      case 66: // DPAD_RIGHT - release right
+        if (currentHat == HAT_RIGHT) newDirection = HAT_CENTER;
+        else if (currentHat == HAT_UP_RIGHT) newDirection = HAT_UP;
+        else if (currentHat == HAT_DOWN_RIGHT) newDirection = HAT_DOWN;
+        break;
+      case 67: // DPAD_DOWN - release down
+        if (currentHat == HAT_DOWN) newDirection = HAT_CENTER;
+        else if (currentHat == HAT_DOWN_RIGHT) newDirection = HAT_RIGHT;
+        else if (currentHat == HAT_DOWN_LEFT) newDirection = HAT_LEFT;
+        break;
+      case 68: // DPAD_LEFT - release left
+        if (currentHat == HAT_LEFT) newDirection = HAT_CENTER;
+        else if (currentHat == HAT_UP_LEFT) newDirection = HAT_UP;
+        else if (currentHat == HAT_DOWN_LEFT) newDirection = HAT_DOWN;
+        break;
+    }
+    _gamepadReport.hat = newDirection;
+  }
   sendGamepadReport();
 }
 
 bool BleKeyboard::gamepadIsPressed(uint8_t button) {
+  // Handle regular buttons 1-64
   if (button >= 1 && button <= 64) {
     uint8_t field = (button - 1) / 32;
     uint8_t bit = (button - 1) % 32;
     return (_gamepadReport.buttons[field] & (1UL << bit)) != 0;
+  }
+  // Handle D-Pad as virtual buttons 65-68
+  else if (button >= 65 && button <= 68) {
+    uint8_t currentHat = _gamepadReport.hat;
+    
+    switch (button) {
+      case 65: // DPAD_UP
+        return (currentHat == HAT_UP || currentHat == HAT_UP_RIGHT || currentHat == HAT_UP_LEFT);
+      case 66: // DPAD_RIGHT
+        return (currentHat == HAT_RIGHT || currentHat == HAT_UP_RIGHT || currentHat == HAT_DOWN_RIGHT);
+      case 67: // DPAD_DOWN
+        return (currentHat == HAT_DOWN || currentHat == HAT_DOWN_RIGHT || currentHat == HAT_DOWN_LEFT);
+      case 68: // DPAD_LEFT
+        return (currentHat == HAT_LEFT || currentHat == HAT_UP_LEFT || currentHat == HAT_DOWN_LEFT);
+    }
   }
   return false;
 }
@@ -927,6 +1031,7 @@ bool BleKeyboard::gamepadIsPressed(uint8_t button) {
 void BleKeyboard::gamepadReleaseAll() {
   _gamepadReport.buttons[0] = 0;
   _gamepadReport.buttons[1] = 0;
+  _gamepadReport.hat = HAT_CENTER; // Also center the D-Pad
   sendGamepadReport();
 }
 
