@@ -1,5 +1,5 @@
 #######################################
-# Syntax Coloring Map For ESP32 BLE Keyboard
+# Syntax Coloring Map For ESP-BLE-HID
 #######################################
 # Class
 #######################################
@@ -419,6 +419,22 @@ GAMEPAD_61      LITERAL1
 GAMEPAD_62 	LITERAL1
 GAMEPAD_63 	LITERAL1
 
+GAMEPAD_SO      LITERAL1
+GAMEPAD_EA      LITERAL1
+GAMEPAD_WE      LITERAL1
+GAMEPAD_NO      LITERAL1
+GAMEPAD_L1      LITERAL1
+GAMEPAD_R1      LITERAL1
+GAMEPAD_BA      LITERAL1
+GAMEPAD_ST      LITERAL1
+GAMEPAD_GU      LITERAL1
+GAMEPAD_L3      LITERAL1
+GAMEPAD_R3      LITERAL1
+GAMEPAD_UP      LITERAL1
+GAMEPAD_RI      LITERAL1
+GAMEPAD_DO      LITERAL1
+GAMEPAD_LE      LITERAL1
+
 #######################################
 # Constants - Gamepad Axes
 #######################################
@@ -429,12 +445,6 @@ AXIS_RX		LITERAL1
 AXIS_RY		LITERAL1
 AXIS_LT		LITERAL1
 AXIS_RT		LITERAL1
-AXIS_GX		LITERAL1
-AXIS_GY		LITERAL1
-AXIS_GZ		LITERAL1
-AXIS_AX		LITERAL1
-AXIS_AY		LITERAL1
-AXIS_AZ 	LITERAL1
 
 #######################################
 # Constants - QMK-Formatted Aliases
@@ -722,15 +732,25 @@ GB_61         LITERAL1
 GB_62         LITERAL1
 GB_63         LITERAL1
 
-GA_LX		LITERAL1
-GA_LY		LITERAL1
-GA_RX		LITERAL1
-GA_RY		LITERAL1
-GA_LT		LITERAL1
-GA_RT		LITERAL1
-GA_GX		LITERAL1
-GA_GY		LITERAL1
-GA_GZ		LITERAL1
-GA_AX		LITERAL1
-GA_AY		LITERAL1
-GA_AZ		LITERAL1
+GB_SO         LITERAL1
+GB_EA         LITERAL1
+GB_WE         LITERAL1
+GB_NO         LITERAL1
+GB_L1         LITERAL1
+GB_R1         LITERAL1
+GB_BA         LITERAL1
+GB_ST         LITERAL1
+GB_GU         LITERAL1
+GB_L3         LITERAL1
+GB_R3         LITERAL1
+GB_UP         LITERAL1
+GB_RI         LITERAL1
+GB_DO         LITERAL1
+GB_LE         LITERAL1
+
+GA_LX         LITERAL1
+GA_LY	      LITERAL1
+GA_RX	      LITERAL1
+GA_RY	      LITERAL1
+GA_LT	      LITERAL1
+GA_RT	      LITERAL1
