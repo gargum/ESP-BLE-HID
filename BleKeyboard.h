@@ -70,6 +70,7 @@ typedef struct {
 typedef struct {
   uint32_t buttons[2];
   int16_t axes[GAMEPAD_AXIS_COUNT];
+  uint8_t hat;
 } GamepadReport;
 
 static const bool enabled = true;
@@ -503,20 +504,31 @@ const uint16_t KC_CPNL = 0x0186;
 const uint16_t KC_LPAD = 0x0187;
 
 const uint8_t GAMEPAD_0 = 1;
+const uint8_t GAMEPAD_SO = 1;
 const uint8_t GAMEPAD_1 = 2;
+const uint8_t GAMEPAD_EA = 2;
 const uint8_t GAMEPAD_2 = 3;
 const uint8_t GAMEPAD_3 = 4;
+const uint8_t GAMEPAD_WE = 4;
 const uint8_t GAMEPAD_4 = 5;
+const uint8_t GAMEPAD_NO = 5;
 const uint8_t GAMEPAD_5 = 6;
 const uint8_t GAMEPAD_6 = 7;
+const uint8_t GAMEPAD_L1 = 7;
 const uint8_t GAMEPAD_7 = 8;
+const uint8_t GAMEPAD_R1 = 8;
 const uint8_t GAMEPAD_8 = 9;
 const uint8_t GAMEPAD_9 = 10;
 const uint8_t GAMEPAD_10 = 11;
+const uint8_t GAMEPAD_BA = 11;
 const uint8_t GAMEPAD_11 = 12;
+const uint8_t GAMEPAD_ST = 12;
 const uint8_t GAMEPAD_12 = 13;
+const uint8_t GAMEPAD_GU = 13;
 const uint8_t GAMEPAD_13 = 14;
+const uint8_t GAMEPAD_L3 = 14;
 const uint8_t GAMEPAD_14 = 15;
+const uint8_t GAMEPAD_R3 = 15;
 const uint8_t GAMEPAD_15 = 16;
 const uint8_t GAMEPAD_16 = 17;
 const uint8_t GAMEPAD_17 = 18;
@@ -566,22 +578,41 @@ const uint8_t GAMEPAD_60 = 61;
 const uint8_t GAMEPAD_61 = 62;
 const uint8_t GAMEPAD_62 = 63;
 const uint8_t GAMEPAD_63 = 64;
+const uint8_t GAMEPAD_64 = 65;
+const uint8_t GAMEPAD_UP = 65;
+const uint8_t GAMEPAD_65 = 66;
+const uint8_t GAMEPAD_RI = 66;
+const uint8_t GAMEPAD_66 = 67;
+const uint8_t GAMEPAD_DO = 67;
+const uint8_t GAMEPAD_67 = 68;
+const uint8_t GAMEPAD_LE = 68;
 
 const uint8_t GB_00 = 1;
+const uint8_t GB_SO = 1;
 const uint8_t GB_01 = 2;
+const uint8_t GB_EA = 2;
 const uint8_t GB_02 = 3;
 const uint8_t GB_03 = 4;
+const uint8_t GB_WE = 4;
 const uint8_t GB_04 = 5;
+const uint8_t GB_NO = 5;
 const uint8_t GB_05 = 6;
 const uint8_t GB_06 = 7;
+const uint8_t GB_L1 = 7;
 const uint8_t GB_07 = 8;
+const uint8_t GB_R1 = 8;
 const uint8_t GB_08 = 9;
 const uint8_t GB_09 = 10;
 const uint8_t GB_10 = 11;
+const uint8_t GB_BA = 11;
 const uint8_t GB_11 = 12;
+const uint8_t GB_ST = 12;
 const uint8_t GB_12 = 13;
+const uint8_t GB_GU = 13;
 const uint8_t GB_13 = 14;
+const uint8_t GB_L3 = 14;
 const uint8_t GB_14 = 15;
+const uint8_t GB_R3 = 15;
 const uint8_t GB_15 = 16;
 const uint8_t GB_16 = 17;
 const uint8_t GB_17 = 18;
@@ -645,6 +676,21 @@ const uint8_t GA_RX = 2;
 const uint8_t GA_RY = 3;
 const uint8_t GA_LT = 4;
 const uint8_t GA_RT = 5;
+
+const uint8_t HAT_CENTER = 0x08;
+const uint8_t HAT_UP = 0x00;
+const uint8_t HAT_UP_RIGHT = 0x01;
+const uint8_t HAT_RIGHT = 0x02;
+const uint8_t HAT_DOWN_RIGHT = 0x03;
+const uint8_t HAT_DOWN = 0x04;
+const uint8_t HAT_DOWN_LEFT = 0x05;
+const uint8_t HAT_LEFT = 0x06;
+const uint8_t HAT_UP_LEFT = 0x07;
+
+const uint8_t GB_UP = 65;
+const uint8_t GB_RI = 66;
+const uint8_t GB_DO = 67;
+const uint8_t GB_LE = 68;
 
 //  NKRO key report: bitmask for up to NKRO_KEY_COUNT keys
 typedef struct
