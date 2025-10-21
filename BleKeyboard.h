@@ -50,6 +50,13 @@
 #define GAMEPAD_BUTTON_COUNT 64
 #define GAMEPAD_AXIS_COUNT 6
 
+//  NKRO report structure
+typedef struct
+{
+  uint8_t modifiers;
+  uint8_t reserved;
+  uint8_t keys_bitmask[(NKRO_KEY_COUNT + 7) / 8];  // Bitmask for keys
+} KeyReportNKRO;
 // Mouse report structure
 typedef struct {
   uint8_t buttons;
@@ -61,8 +68,11 @@ typedef struct {
 // Digitizer report structure
 typedef struct {
   uint8_t buttons;
-  int16_t x;
-  int16_t y;
+  uint16_t x;
+  uint16_t y;
+  uint16_t pressure;         // Pressure value (0 = min, 1023 = max)
+  uint8_t tipSwitch : 1;     // 1 = touching, 0 = not touching
+  uint8_t padding : 7;       // Padding for remaining bits
   int8_t wheel;
   int8_t hWheel;
 } AbsoluteReport;
@@ -692,18 +702,10 @@ const uint8_t GB_RI = 66;
 const uint8_t GB_DO = 67;
 const uint8_t GB_LE = 68;
 
-//  NKRO key report: bitmask for up to NKRO_KEY_COUNT keys
-typedef struct
-{
-  uint8_t modifiers;
-  uint8_t reserved;
-  uint8_t keys_bitmask[(NKRO_KEY_COUNT + 7) / 8];  // Bitmask for keys
-} KeyReportNKRO;
-
 class BleKeyboard : public Print, public BLEServerCallbacks, public BLECharacteristicCallbacks
 {
 private:
-  BLEHIDDevice* hid;
+  BLEHIDDevice*      hid;
   BLECharacteristic* outputKeyboard;
   BLECharacteristic* inputMediaKeys;
   BLECharacteristic* inputNKRO;
@@ -798,9 +800,20 @@ public:
   void setAbsoluteRange(uint16_t minVal = 0, uint16_t maxVal = 32767);
   bool isAbsoluteEnabled();
   
+   // Pressure-sensitive drawing helpers
+  void moveToWithPressure(uint16_t x, uint16_t y, uint16_t pressure = 512, bool touching = true);
+  void clickWithPressure(uint16_t x, uint16_t y, uint16_t pressure = 1023, uint8_t button = MOUSE_LEFT);
+  void beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 1);
+  void updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
+  void endStroke(uint16_t x, uint16_t y);
+  uint16_t getPressure() const;
+  bool getTipSwitch() const;
+  void setPressure(uint16_t pressure);  // Pressure values are 0-1023
+  void setTipSwitch(bool state);
+  
   // Gamepad button helpers
-  void gamepadPress(uint8_t button);           // Button 1-64
-  void gamepadRelease(uint8_t button);         // Button 1-64
+  void gamepadPress(uint8_t button);
+  void gamepadRelease(uint8_t button);
   bool gamepadIsPressed(uint8_t button);
   void gamepadReleaseAll();
   
@@ -810,7 +823,7 @@ public:
   void gamepadSetTriggers(int16_t left, int16_t right);
   void gamepadGetLeftStick(int16_t &x, int16_t &y);
   void gamepadGetRightStick(int16_t &x, int16_t &y);
-  void gamepadSetAxis(uint8_t axis, int16_t value);  // Axis 0-11
+  void gamepadSetAxis(uint8_t axis, int16_t value);
   int16_t gamepadGetAxis(uint8_t axis);
   void gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
   
