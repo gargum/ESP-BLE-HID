@@ -11,6 +11,9 @@ All development and testing is done on boards *without* the ability to act as US
  - [x] Press/release individual keys
  - [x] Media keys
  - [x] Read Numlock/Capslock/Scrolllock state
+ - [x] Set a 6-digit user-defined PIN to connect
+ - [x] Toggle between PIN and Just Works on-the-fly
+ - [x] Change your PIN *after* you've connected
  - [x] Set name, manufacturer, battery level
  - [x] Set PID, VID, version 
  - [x] 6KRO & NKRO support 
