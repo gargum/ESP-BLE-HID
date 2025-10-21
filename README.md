@@ -8,32 +8,22 @@ All development and testing is done on boards *without* the ability to act as US
 
 ## Features
 
- - [x] Send key strokes
- - [x] Send text
- - [x] Press/release individual keys
- - [x] Media keys
- - [x] Read Numlock/Capslock/Scrolllock state
- - [x] Set a 6-digit user-defined PIN to connect
- - [x] Toggle between PIN and Just Works on-the-fly
- - [x] Change your PIN *after* you've connected
- - [x] Set name, manufacturer, battery level
- - [x] Set PID, VID, version 
- - [x] 6KRO & NKRO support 
- - [x] Relative pointers
- - [x] Absolute pointers - *Neither iOS nor Android support this
- - [x] Switch between relative and absolute on-the-fly
- - [x] Digitizers with pen/barrel
- - [x] Fully SDL driver compatible
- - [x] 64 gamepad buttons
- - [x] 1 hat switch D-Pad
- - [x] 2 analogue sticks
- - [x] 2 analogue triggers
- - [x] Gamepad inputs automatically recognize and populate (SDL)
- - [x] Compatible with Android* (Android itself lacks absolute pointer support)
+| CORE FEATURES         | ADVANCED FEATURES                       | QOL FEATURES                                                    |
+| --------------------- | --------------------------------------- | --------------------------------------------------------------- |
+| Keyboard emulation    | *Full NKRO & 6KRO with modifiers*       | *Send full text strings, press/release keys, media key support* |
+| Mouse emulation       | *Absolute & Relative pointers*          | *Automatic context-aware switching between both pointer modes*  |
+| Gamepad emulation     | *Full SDL driver compatibility*         | *Inputs automatically recognized and populated in emualators*   |
+| Digitizer emulation   | *Pressure sensitivity support*          | *Programmable brushstroke macro support with variable pressure* |
+| Set PID, VID, version | *Set name, manufacturer, battery level* | *Set what type of device the ESP32 advertises itself as*        | 
+| 6-Digit PIN security  | *Hotswap between PIN and no PIN*        | *Change your PIN, both before and even *after* connecting!,     |
+
+## Compatibility
+
+ - [x] Compatible with Android* *(Android itself lacks absolute pointer support)*
  - [x] Compatible with Windows
  - [x] Compatible with Linux
  - [x] Compatible with MacOS
- - [x] Compatible with iOS* (iOS itself lacks absolute pointer support)
+ - [x] Compatible with iOS* *(iOS itself lacks absolute pointer support)*
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
