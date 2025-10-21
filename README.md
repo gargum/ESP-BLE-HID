@@ -17,7 +17,7 @@ All development and testing is done on boards *without* the ability to act as US
  - [x] Relative pointers
  - [x] Absolute pointers - *Neither iOS nor Android support this
  - [x] Switch between relative and absolute on-the-fly
- - [ ] Digitizers with pen/barrel
+ - [x] Digitizers with pen/barrel
  - [ ] Touchscreens with multitouch
  - [x] Fully SDL driver compatible
  - [x] 64 gamepad buttons
