@@ -703,6 +703,11 @@ const uint8_t GB_DO = 67;
 const uint8_t GB_LE = 68;
 
 class BleKeyboard : public Print, public BLEServerCallbacks, public BLECharacteristicCallbacks
+#if defined(USE_NIMBLE)
+    , public NimBLESecurityCallbacks
+#else
+    , public BLESecurityCallbacks
+#endif
 {
 private:
   BLEHIDDevice*      hid;
@@ -721,7 +726,9 @@ private:
   uint32_t           _mediaKeyBitmask;
   std::string        deviceName;
   std::string        deviceManufacturer;
+  std::string        securityPin;
   uint8_t            batteryLevel;
+  bool isPinSecurityEnabled() const;
   bool               connected = false;
   uint32_t           _delay_ms = 7;
   bool               _useNKRO = true;  // Default to NKRO
@@ -732,6 +739,8 @@ private:
   uint16_t vid       = 0x05ac;
   uint16_t pid       = 0x820a;
   uint16_t version   = 0x0210;
+ 
+  void setStaticPasskey();
   
   void delay_ms(uint64_t ms);
   bool isModifierKey(uint8_t k);
@@ -743,8 +752,30 @@ private:
 
 public:
   BleKeyboard(std::string deviceName = "ESP32 Keyboard", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
+  
+  ~BleKeyboard();
+  #if !defined(USE_NIMBLE)
+    void gapEventHandler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t* param);
+  #endif
+  
   void begin(void);
   void end(void);
+  
+  void setSecurityPin(const std::string& pin);
+  void clearSecurityPin();
+#if defined(USE_NIMBLE)
+  uint32_t onPassKeyRequest();
+  void onPassKeyNotify(uint32_t pass_key);
+  bool onConfirmPIN(uint32_t pass_key);
+  void onAuthenticationComplete(ble_gap_conn_desc* desc);
+#else
+  uint32_t onPassKeyRequest();
+  void onPassKeyNotify(uint32_t pass_key);
+  bool onSecurityRequest();
+  bool onConfirmPIN(uint32_t pass_key);
+  void onAuthenticationComplete(esp_ble_auth_cmpl_t cmpl);
+#endif
+  
   void sendReport();
   size_t press(uint8_t k);
   size_t press(uint16_t mediaKey);
