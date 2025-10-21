@@ -16,16 +16,16 @@
 #include "esp_timer.h"
 #include "esp_mac.h"
 #include "sdkconfig.h"
-
-
 #include "esp_log.h"
 static const char* LOG_TAG = "BleKeyboard";
-
 
 // Report IDs:
 #define KEYBOARD_ID 0x01
 #define MEDIA_KEYS_ID 0x02
 #define NKRO_KEYBOARD_ID 0x03
+#define MOUSE_ID 0x04
+#define DIGITIZER_ID 0x05
+#define GAMEPAD_ID 0x06
 
 static const uint8_t _hidReportDescriptor[] = {
   // NKRO Report Descriptor (6KRO is emulated)
@@ -113,7 +113,7 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
   USAGE(1),            0x02,            // USAGE (Mouse)
   COLLECTION(1),       0x01,            // COLLECTION (Application)
-  REPORT_ID(1),        0x04,            // REPORT_ID (4) - Mouse report
+  REPORT_ID(1),        MOUSE_ID,        // REPORT_ID (4) - Mouse report
   USAGE(1),            0x01,            // USAGE (Pointer)
   COLLECTION(1),       0x00,            // COLLECTION (Physical)
   // Buttons (Left, Right, Middle, Back, Forward)
@@ -149,14 +149,12 @@ static const uint8_t _hidReportDescriptor[] = {
   HIDINPUT(1),         0x06,            // INPUT (Data, Var, Rel)
   END_COLLECTION(0),                      // END_COLLECTION (Physical)
   END_COLLECTION(0),                      // END_COLLECTION (Application)
-  // ------------------------------------------------- Absolute Pointer - Pretty much unsupported by mobile operating systems
+  // ------------------------------------------------- Absolute Pointer - Only works on desktop
   USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
   USAGE(1),            0x02,            // USAGE (Mouse)
   COLLECTION(1),       0x01,            // COLLECTION (Application)
-  REPORT_ID(1),        0x05,            // REPORT_ID (5) - Absolute pointer report
-  USAGE(1),            0x01,            // USAGE (Pointer)
-  COLLECTION(1),       0x00,            // COLLECTION (Physical)
-  // Buttons
+  REPORT_ID(1),        DIGITIZER_ID,    // REPORT_ID (5) - Absolute mouse report
+  // Buttons (Left, Right, Middle, Back, Forward)
   USAGE_PAGE(1),       0x09,            // USAGE_PAGE (Button)
   USAGE_MINIMUM(1),    0x01,            // USAGE_MINIMUM (Button 1)
   USAGE_MAXIMUM(1),    0x05,            // USAGE_MAXIMUM (Button 5)
@@ -177,15 +175,38 @@ static const uint8_t _hidReportDescriptor[] = {
   LOGICAL_MAXIMUM(2),  0xFF, 0x7F,      // LOGICAL_MAXIMUM (32767)
   REPORT_SIZE(1),      0x10,            // REPORT_SIZE (16)
   REPORT_COUNT(1),     0x02,            // REPORT_COUNT (2)
+  UNIT(1),             0x13,            // UNIT (Inch, EngLinear)
+  UNIT_EXPONENT(1),    0x0D,            // UNIT_EXPONENT (-3)
   HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
-  // Wheel (relative)
+  // Pressure
+  USAGE_PAGE(1),       0xFF, 0x00,      // USAGE_PAGE (Vendor Defined 0xFF00)
+  USAGE(1),            0x01,            // USAGE (Vendor Usage 1 - Pressure)
+  LOGICAL_MINIMUM(2),  0x00, 0x00,      // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(2),  0xFF, 0x03,      // LOGICAL_MAXIMUM (1023)
+  REPORT_SIZE(1),      0x10,            // REPORT_SIZE (16)
+  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
+  HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
+  // Tip switch
+  USAGE_PAGE(1),       0xFF, 0x00,      // USAGE_PAGE (Vendor Defined 0xFF00)  
+  USAGE(1),            0x02,            // USAGE (Vendor Usage 2 - Tip Switch)
+  LOGICAL_MINIMUM(1),  0x00,            // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1),  0x01,            // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),      0x01,            // REPORT_SIZE (1)
+  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
+  HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
+  // Padding for remaining 7 bits
+  REPORT_SIZE(1),      0x07,            // REPORT_SIZE (7)
+  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
+  HIDINPUT(1),         0x03,            // INPUT (Constant, Variable, Absolute)
+  // Wheel (relative) - kept for compatibility
+  USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
   USAGE(1),            0x38,            // USAGE (Wheel)
   LOGICAL_MINIMUM(1),  0x81,            // LOGICAL_MINIMUM (-127)
   LOGICAL_MAXIMUM(1),  0x7f,            // LOGICAL_MAXIMUM (127)
   REPORT_SIZE(1),      0x08,            // REPORT_SIZE (8)
   REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
   HIDINPUT(1),         0x06,            // INPUT (Data, Variable, Relative)
-  // Horizontal wheel (relative)
+  // Horizontal wheel (relative) - kept for compatibility
   USAGE_PAGE(1),       0x0c,            // USAGE PAGE (Consumer Devices)
   USAGE(2),      0x38, 0x02,            // USAGE (AC Pan)
   LOGICAL_MINIMUM(1),  0x81,            // LOGICAL_MINIMUM (-127)
@@ -193,13 +214,12 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_SIZE(1),      0x08,            // REPORT_SIZE (8)
   REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
   HIDINPUT(1),         0x06,            // INPUT (Data, Var, Rel)
-  END_COLLECTION(0),                      // END_COLLECTION (Physical)
   END_COLLECTION(0),                      // END_COLLECTION (Application)
   // ------------------------------------------------- Gamepad
   USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
   USAGE(1),            0x05,            // USAGE (Game Pad)
   COLLECTION(1),       0x01,            // COLLECTION (Application)
-  REPORT_ID(1),        0x06,            // REPORT_ID (6) - Gamepad report
+  REPORT_ID(1),        GAMEPAD_ID,      // REPORT_ID (6) - Gamepad report
   // 64 buttons in two 32-bit fields
   USAGE_PAGE(1),       0x09,            // USAGE_PAGE (Button)
   LOGICAL_MINIMUM(1),  0x00,            // LOGICAL_MINIMUM (0)
@@ -242,7 +262,7 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_SIZE(1),      0x10,            // REPORT_SIZE (16)
   REPORT_COUNT(1),     0x02,            // REPORT_COUNT (2)
   HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
-  // Hat switch - NEW SECTION
+  // Hat switch - Fully working
   USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
   USAGE(1),            0x39,            // USAGE (Hat switch)
   LOGICAL_MINIMUM(1),  0x00,            // LOGICAL_MINIMUM (0)
@@ -448,6 +468,7 @@ bool BleKeyboard::isNKROEnabled() {
   return _useNKRO;
 }
 
+// The ASCII map exists to facilitate the keyboard's write function
 extern
 const uint8_t _asciimap[128] PROGMEM;
 
@@ -819,12 +840,19 @@ void BleKeyboard::mouseMoveTo(uint16_t x, uint16_t y, signed char wheel, signed 
     useAbsolute(true);
   }
   
+  _absoluteReport.x = x;
+  _absoluteReport.y = y;
+  _absoluteReport.wheel = wheel;
+  _absoluteReport.hWheel = hWheel;
+  
+  // Set tip switch based on pressure for better compatibility
+  if (_absoluteReport.pressure > 0) {
+    _absoluteReport.tipSwitch = 1;
+  } else {
+    _absoluteReport.tipSwitch = 0;
+  }
+  
   if (this->isConnected() && inputAbsolute) {
-    _absoluteReport.x = x;
-    _absoluteReport.y = y;
-    _absoluteReport.wheel = wheel;
-    _absoluteReport.hWheel = hWheel;
-    
     inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
     inputAbsolute->notify();
     
@@ -911,6 +939,91 @@ void BleKeyboard::setAbsoluteRange(uint16_t minVal, uint16_t maxVal) {
 
 bool BleKeyboard::isAbsoluteEnabled() {
   return _useAbsolute;
+}
+
+void BleKeyboard::setPressure(uint16_t pressure) {
+  _absoluteReport.pressure = pressure;
+}
+
+void BleKeyboard::setTipSwitch(bool state) {
+  _absoluteReport.tipSwitch = state ? 1 : 0;
+}
+
+void BleKeyboard::moveToWithPressure(uint16_t x, uint16_t y, uint16_t pressure, bool touching) {
+  if (!_useAbsolute) {
+    useAbsolute(true);
+  }
+  
+  _absoluteReport.x = x;
+  _absoluteReport.y = y;
+  _absoluteReport.pressure = pressure;
+  _absoluteReport.tipSwitch = touching ? 1 : 0;
+  
+  if (this->isConnected() && inputAbsolute) {
+    inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
+    inputAbsolute->notify();
+    
+#if defined(USE_NIMBLE)        
+    this->delay_ms(_delay_ms);
+#endif // USE_NIMBLE
+  }
+}
+
+void BleKeyboard::clickWithPressure(uint16_t x, uint16_t y, uint16_t pressure, uint8_t button) {
+  if (!_useAbsolute) {
+    useAbsolute(true);
+  }
+  
+  // Press with pressure
+  _absoluteReport.buttons |= button;
+  _absoluteReport.x = x;
+  _absoluteReport.y = y;
+  _absoluteReport.pressure = pressure;
+  _absoluteReport.tipSwitch = 1;
+  // inRange removed from structure
+  
+  if (this->isConnected() && inputAbsolute) {
+    inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
+    inputAbsolute->notify();
+    
+#if defined(USE_NIMBLE)        
+    this->delay_ms(_delay_ms);
+#endif // USE_NIMBLE
+  }
+  
+  // Release
+  _absoluteReport.buttons &= ~button;
+  _absoluteReport.pressure = 0;
+  _absoluteReport.tipSwitch = 0;
+  
+  if (this->isConnected() && inputAbsolute) {
+    inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
+    inputAbsolute->notify();
+    
+#if defined(USE_NIMBLE)        
+    this->delay_ms(_delay_ms);
+#endif // USE_NIMBLE
+  }
+}
+
+void BleKeyboard::beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure) {
+  moveToWithPressure(x, y, initialPressure, true);
+}
+
+void BleKeyboard::updateStroke(uint16_t x, uint16_t y, uint16_t pressure) {
+  moveToWithPressure(x, y, pressure, true);
+}
+
+void BleKeyboard::endStroke(uint16_t x, uint16_t y) {
+  moveToWithPressure(x, y, 0, false);
+}
+
+uint16_t BleKeyboard::getPressure() const {
+  return _absoluteReport.pressure;
+}
+
+bool BleKeyboard::getTipSwitch() const {
+  return _absoluteReport.tipSwitch != 0;
 }
 
 void BleKeyboard::gamepadPress(uint8_t button) {
