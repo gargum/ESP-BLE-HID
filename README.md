@@ -15,7 +15,7 @@ All development and testing is done on boards *without* the ability to act as US
 | Gamepad emulation     | *Full SDL driver compatibility*         | *Inputs automatically recognized and populated in emualators*   |
 | Digitizer emulation   | *Pressure sensitivity support*          | *Programmable brushstroke macro support with variable pressure* |
 | Set PID, VID, version | *Set name, manufacturer, battery level* | *Set what type of device the ESP32 advertises itself as*        | 
-| 6-Digit PIN security  | *Hotswap between PIN and no PIN*        | *Change your PIN, both before and even *after* connecting!,     |
+| 6-Digit PIN security  | *Hotswap between PIN and no PIN*        | *Change your PIN, both before and even *after* connecting!*     |
 
 ## Compatibility
 
