@@ -286,6 +286,7 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
     , deviceName(std::string(deviceName).substr(0, 15))
     , deviceManufacturer(std::string(deviceManufacturer).substr(0,15))
     , batteryLevel(batteryLevel) 
+    , securityPin("") 
     , _mediaKeyBitmask(0) 
     , _useNKRO(true)
     , _mouseButtons(0)
@@ -297,6 +298,8 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
   memset(&_gamepadReport, 0, sizeof(_gamepadReport));
   _gamepadReport.hat = HAT_CENTER; // Initialize hat to center position
 }
+
+BleKeyboard::~BleKeyboard() {}
 
 void BleKeyboard::begin(void)
 {
@@ -324,17 +327,41 @@ void BleKeyboard::begin(void)
   inputAbsolute = hid->inputReport(0x05); // Use report ID 5 for absolute pointer
   inputGamepad = hid->inputReport(0x06);  // Use report ID 6 for gamepad
   
+  if (isPinSecurityEnabled()) {
+      setStaticPasskey();
+  }
+  
+
 #if defined(USE_NIMBLE)
-    // For NimBLE
-    BLEDevice::setSecurityAuth(true, true, true);
-    BLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT); // "Just Works"
+    if (securityPin.empty()) {
+        ESP_LOGI(LOG_TAG, "Using Just Works security mode");
+        BLEDevice::setSecurityAuth(true, true, true);
+        BLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
+    } else {
+        ESP_LOGI(LOG_TAG, "Using PIN security mode: %s", securityPin.c_str());
+        BLEDevice::setSecurityAuth(true, true, true);
+        // Use KEYBOARD_ONLY to force PIN entry flow
+        BLEDevice::setSecurityIOCap(BLE_HS_IO_KEYBOARD_ONLY);
+        // Set security callbacks
+        BLEDevice::setSecurityCallbacks(this);
+    }
 #else
-    // For regular BLE stack
     BLESecurity* pSecurity = new BLESecurity();
-    pSecurity->setAuthenticationMode(ESP_LE_AUTH_BOND); // Bonding without MITM
-    pSecurity->setCapability(ESP_IO_CAP_NONE); // "Just Works"
-    pSecurity->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
-#endif // USE_NIMBLE
+    if (securityPin.empty()) {
+        ESP_LOGI(LOG_TAG, "Using Just Works security mode");
+        pSecurity->setAuthenticationMode(ESP_LE_AUTH_BOND);
+        pSecurity->setCapability(ESP_IO_CAP_NONE);
+        pSecurity->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
+    } else {
+        ESP_LOGI(LOG_TAG, "Using PIN security mode: %s", securityPin.c_str());
+        pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_MITM_BOND);
+        // Use KEYBOARD_ONLY to force PIN entry flow
+        pSecurity->setCapability(ESP_IO_CAP_IN);
+        pSecurity->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
+        // Set security callbacks
+        BLEDevice::setSecurityCallbacks(this);
+    }
+#endif
 
   hid->reportMap((uint8_t*)_hidReportDescriptor, sizeof(_hidReportDescriptor));
   hid->startServices();
@@ -415,6 +442,181 @@ void BleKeyboard::set_product_id(uint16_t pid) {
 void BleKeyboard::set_version(uint16_t version) { 
 	this->version = version; 
 }
+
+void BleKeyboard::setStaticPasskey() {
+    if (!isPinSecurityEnabled()) {
+        return;
+    }
+    
+    // Convert the user-set PIN to integer
+    uint32_t pin = std::stoi(securityPin);
+    
+#if defined(USE_NIMBLE)
+    // For NimBLE - set the static passkey
+    ble_hs_cfg.sm_io_cap = BLE_HS_IO_DISPLAY_ONLY;
+    ble_hs_cfg.sm_sc = 1; // Secure Connections
+    ble_hs_cfg.sm_our_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+    ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+    
+    // Set static passkey
+    ble_sm_set_static_passkey(pin);
+    ESP_LOGI(LOG_TAG, "NimBLE static passkey set to: %06d", pin);
+#else
+    // For ESP-IDF BLE - set the static passkey
+    esp_ble_gap_set_security_param(ESP_BLE_SM_SET_STATIC_PASSKEY, &pin, sizeof(uint32_t));
+    
+    // Also set the IO capability to indicate we provide the PIN
+    esp_ble_io_cap_t iocap = ESP_IO_CAP_OUT;
+    esp_ble_gap_set_security_param(ESP_BLE_SM_IOCAP_MODE, &iocap, sizeof(uint8_t));
+    
+    ESP_LOGI(LOG_TAG, "ESP-IDF static passkey set to: %06d", pin);
+#endif
+}
+
+#if !defined(USE_NIMBLE)
+void BleKeyboard::gapEventHandler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t* param) {
+    // For now, let's keep this empty - we'll handle PIN in the security callbacks
+    // This prevents compilation errors while we focus on the main issue
+}
+#endif
+
+void BleKeyboard::setSecurityPin(const std::string& pin) {
+    // Validate PIN format (6 digits for BLE)
+    if (pin.length() == 6) {
+        bool valid = true;
+        for (char c : pin) {
+            if (!isdigit(c)) {
+                valid = false;
+                break;
+            }
+        }
+        if (valid) {
+            // Ensure PIN is exactly 6 digits with leading zeros if needed
+            this->securityPin = pin;
+            ESP_LOGI(LOG_TAG, "Security PIN set: %s (will use PIN pairing)", securityPin.c_str());
+            
+            // Re-configure security with new PIN if BLE is already initialized
+            if (BLEDevice::getInitialized()) {
+                setStaticPasskey();
+            }
+            return;
+        }
+    }
+    
+    // Invalid PIN - fall back to Just Works
+    ESP_LOGW(LOG_TAG, "Invalid PIN format: '%s'. Must be 6 digits. Using Just Works mode.", pin.c_str());
+    this->securityPin = "";
+}
+
+void BleKeyboard::clearSecurityPin() {
+    this->securityPin = "";
+    ESP_LOGI(LOG_TAG, "Security PIN cleared - using Just Works mode");
+}
+
+bool BleKeyboard::isPinSecurityEnabled() const {
+    return !securityPin.empty();
+}
+
+#if defined(USE_NIMBLE)
+
+uint32_t BleKeyboard::onPassKeyRequest() {
+    if (isPinSecurityEnabled()) {
+        ESP_LOGI(LOG_TAG, "PassKeyRequest - Using user-set PIN: %s", securityPin.c_str());
+        // Convert the user-set string PIN to integer
+        return std::stoi(securityPin);
+    } else {
+        ESP_LOGI(LOG_TAG, "PassKeyRequest - Just Works mode, no PIN required");
+        return 0; // For Just Works mode
+    }
+}
+
+void BleKeyboard::onPassKeyNotify(uint32_t pass_key) {
+    // This should NOT be called in our desired flow - we want PassKeyRequest instead
+    ESP_LOGW(LOG_TAG, "Unexpected PassKeyNotify: %06d - This indicates wrong security flow!", pass_key);
+}
+
+bool BleKeyboard::onConfirmPIN(uint32_t pass_key) {
+    if (!isPinSecurityEnabled()) {
+        ESP_LOGI(LOG_TAG, "ConfirmPIN - Just Works mode, auto-accept");
+        return true;
+    }
+    
+    // Convert expected PIN to integer for direct comparison
+    uint32_t expected_pin = std::stoi(securityPin);
+    ESP_LOGI(LOG_TAG, "ConfirmPIN - Entered: %06d, Expected: %06d", pass_key, expected_pin);
+    
+    bool match = (pass_key == expected_pin);
+    ESP_LOGI(LOG_TAG, "PIN %s", match ? "MATCH" : "MISMATCH");
+    
+    if (!match) {
+        ESP_LOGE(LOG_TAG, "PIN verification failed: entered=%06d, expected=%06d", 
+                 pass_key, expected_pin);
+    }
+    
+    return match;
+}
+
+void BleKeyboard::onAuthenticationComplete(ble_gap_conn_desc* desc) {
+    ESP_LOGI(LOG_TAG, "Authentication complete - encrypted: %d, authenticated: %d, bonded: %d",
+             desc->sec_state.encrypted, desc->sec_state.authenticated, desc->sec_state.bonded);
+}
+
+#else
+
+uint32_t BleKeyboard::onPassKeyRequest() {
+    if (isPinSecurityEnabled()) {
+        ESP_LOGI(LOG_TAG, "PassKeyRequest - Using user-set PIN: %s", securityPin.c_str());
+        // Convert the user-set string PIN to integer
+        return std::stoi(securityPin);
+    } else {
+        ESP_LOGI(LOG_TAG, "PassKeyRequest - Just Works mode, no PIN required");
+        return 0; // For Just Works mode
+    }
+}
+
+void BleKeyboard::onPassKeyNotify(uint32_t pass_key) {
+    // This should NOT be called in our desired flow - we want PassKeyRequest instead
+    ESP_LOGW(LOG_TAG, "Unexpected PassKeyNotify: %06d - This indicates wrong security flow!", pass_key);
+}
+
+bool BleKeyboard::onSecurityRequest() {
+    ESP_LOGI(LOG_TAG, "SecurityRequest");
+    return true;
+}
+
+bool BleKeyboard::onConfirmPIN(uint32_t pass_key) {
+    if (!isPinSecurityEnabled()) {
+        ESP_LOGI(LOG_TAG, "ConfirmPIN - Just Works mode, auto-accept");
+        return true;
+    }
+    
+    // Convert expected PIN to integer for direct comparison
+    uint32_t expected_pin = std::stoi(securityPin);
+    ESP_LOGI(LOG_TAG, "ConfirmPIN - Entered: %06d, Expected: %06d", pass_key, expected_pin);
+    
+    bool match = (pass_key == expected_pin);
+    ESP_LOGI(LOG_TAG, "PIN %s", match ? "MATCH" : "MISMATCH");
+    
+    if (!match) {
+        ESP_LOGE(LOG_TAG, "PIN verification failed: entered=%06d, expected=%06d", 
+                 pass_key, expected_pin);
+    }
+    
+    return match;
+}
+
+void BleKeyboard::onAuthenticationComplete(esp_ble_auth_cmpl_t cmpl) {
+    ESP_LOGI(LOG_TAG, "Authentication complete: %s", 
+             cmpl.success ? "SUCCESS" : "FAILED");
+    if (cmpl.success) {
+        ESP_LOGI(LOG_TAG, "Auth Mode: %d, Key Present: %d, Key Type: %d",
+                 cmpl.auth_mode, cmpl.key_present, cmpl.key_type);
+    } else {
+        ESP_LOGE(LOG_TAG, "Authentication failed, reason: %d", cmpl.fail_reason);
+    }
+}
+
+#endif
 
 void BleKeyboard::sendReport()
 {
