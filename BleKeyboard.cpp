@@ -305,7 +305,7 @@ void BleKeyboard::begin(void)
 {
   // Check if BLE is already initialized
   if (!BLEDevice::getInitialized()) {
-    BLEDevice::init(String(deviceName.c_str()));
+    BLEDevice::init(deviceName.c_str());
   }
   
   BLEServer* pServer = BLEDevice::createServer();
@@ -369,19 +369,25 @@ void BleKeyboard::begin(void)
   advertising = pServer->getAdvertising();
   
   // Set advertising parameters before setting data
-  advertising->setAppearance(HID_KEYBOARD);
   advertising->addServiceUUID(hid->hidService()->getUUID());
-  advertising->setScanResponse(true); // Changed to true for better discovery
+  advertising->setScanResponse(true);
   
   BLEAdvertisementData advertisementData;
   advertisementData.setFlags(ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT);
-  advertisementData.setName(deviceName.c_str()); // Explicitly set the name
+  advertisementData.setName(deviceName.c_str());
+  advertisementData.setAppearance(this->appearance);
   advertisementData.setCompleteServices(BLEUUID(hid->hidService()->getUUID()));
   
-  // Also set scan response data
+  advertisementData.setManufacturerData((deviceManufacturer + "|" + devicePurpose).c_str());
+  
   BLEAdvertisementData scanResponseData;
   scanResponseData.setCompleteServices(BLEUUID(hid->hidService()->getUUID()));
   scanResponseData.setName(deviceName.c_str());
+  scanResponseData.setShortName(deviceName.substr(0, 8).c_str());
+  
+  BLEUUID hidServiceUUID = hid->hidService()->getUUID();
+  
+  scanResponseData.setServiceData(hidServiceUUID, devicePurpose.c_str());
   
   advertising->setAdvertisementData(advertisementData);
   advertising->setScanResponseData(scanResponseData);
@@ -398,8 +404,16 @@ void BleKeyboard::begin(void)
   ESP_LOGI(LOG_TAG, "Using %s mode by default", _useNKRO ? "NKRO" : "6KRO");
 }
 
-void BleKeyboard::end(void)
-{
+void BleKeyboard::end(void) { }
+
+void BleKeyboard::setAppearance(uint16_t newAppearance) {
+  this->appearance = newAppearance;
+  ESP_LOGI(LOG_TAG, "Appearance set to: 0x%04X", newAppearance);
+}
+
+void BleKeyboard::setDevicePurpose(const std::string& purpose) {
+  this->devicePurpose = purpose.substr(0, 31);  // Limit length
+  ESP_LOGI(LOG_TAG, "Device purpose set to: %s", devicePurpose.c_str());
 }
 
 bool BleKeyboard::isConnected(void) {
@@ -422,11 +436,7 @@ void BleKeyboard::setManufacturer(std::string deviceManufacturer) {
   this->deviceManufacturer = deviceManufacturer;
 }
 
-/**
- * @brief Sets the waiting time (in milliseconds) between multiple keystrokes in NimBLE mode.
- * 
- * @param ms Time in milliseconds
- */
+// Sets the waiting time (in milliseconds) between multiple keystrokes in NimBLE mode.
 void BleKeyboard::setDelay(uint32_t ms) {
   this->_delay_ms = ms;
 }
@@ -685,9 +695,9 @@ const uint8_t _asciimap[128] =
 	0x00,             // ENQ
 	0x00,             // ACK
 	0x00,             // BEL
-	0x2a,			// BS	Backspace
-	0x2b,			// TAB	Tab
-	0x28,			// LF	Enter
+	0x2a,	          // BS	Backspace
+	0x2b,		  // TAB	Tab
+	0x28,		  // LF	Enter
 	0x00,             // VT
 	0x00,             // FF
 	0x00,             // CR
@@ -709,9 +719,9 @@ const uint8_t _asciimap[128] =
 	0x00,             // GS
 	0x00,             // RS
 	0x00,             // US
-	0x2c,		   //  ' '
-	0x1e|SHIFT,	   // !
-	0x34|SHIFT,	   // "
+	0x2c,		  //  ' '
+	0x1e|SHIFT,	  // !
+	0x34|SHIFT,	  // "
 	0x20|SHIFT,    // #
 	0x21|SHIFT,    // $
 	0x22|SHIFT,    // %
@@ -849,9 +859,7 @@ size_t BleKeyboard::press(uint16_t mediaKey)
     return 1;
 }
 
-// release() takes the specified key out of the persistent key report and
-// sends the report.  This tells the OS the key is no longer pressed and that
-// it shouldn't be repeated any more.
+// This just sends a keyup event/unpresses a given key
 size_t BleKeyboard::release(uint8_t k) {
   if (isModifierKey(k)) {
     _keyReportNKRO.modifiers &= ~k;
@@ -1412,10 +1420,9 @@ void BleKeyboard::onConnect(BLEServer* pServer) {
   this->connected = true;
 
 #if !defined(USE_NIMBLE)
-  // You might not need to manually set these
   this->inputNKRO->notify();
   this->inputMediaKeys->notify();
-#endif // !USE_NIMBLE
+#endif
 
 }
 
@@ -1423,12 +1430,11 @@ void BleKeyboard::onDisconnect(BLEServer* pServer) {
   this->connected = false;
 
 #if !defined(USE_NIMBLE)
-  // You might not need to manually set these
   this->inputNKRO->notify();
   this->inputMediaKeys->notify();
   
   advertising->start();
-#endif // !USE_NIMBLE
+#endif
 
 }
 
