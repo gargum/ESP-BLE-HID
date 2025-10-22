@@ -31,6 +31,7 @@ bool getInitialized = false;
 #define DIGITIZER_ID 0x05
 #define GAMEPAD_ID 0x06
 
+// This "HID Report Descriptor" tells your computer or phone what the ESP32 you've just connected is supposed to do
 static const uint8_t _hidReportDescriptor[] = {
   // NKRO Report Descriptor (6KRO is emulated)
   USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
@@ -63,7 +64,7 @@ static const uint8_t _hidReportDescriptor[] = {
   LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
   LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
   REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x68,             // REPORT_COUNT (104) - 104 keys
+  REPORT_COUNT(1),    0xFC,             // REPORT_COUNT (252) - 252 keys
   HIDINPUT(1),        0x02,             // INPUT (Data, Variable, Absolute)
   END_COLLECTION(0),                      // END_COLLECTION
   // ------------------------------------------------- Media Keys
@@ -77,43 +78,42 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1) - One bit, one code
   REPORT_COUNT(1),    0x1C,             // REPORT_COUNT (1C) - 28 codes, so 28 bits 
   // System Controls
-  USAGE(2),           0x30, 0x01,       // USAGE (System Power - 0x0130)    [bit 1]
-  USAGE(2),           0x34, 0x01,       // USAGE (System Sleep - 0x0134)    [bit 2]
-  USAGE(2),           0x35, 0x01,       // USAGE (System Wake - 0x0135)     [bit 3] 
+  USAGE(2),           0x30, 0x01,       // USAGE (System Power - 0x0130)        [bit 1]
+  USAGE(2),           0x34, 0x01,       // USAGE (System Sleep - 0x0134)        [bit 2]
+  USAGE(2),           0x35, 0x01,       // USAGE (System Wake - 0x0135)         [bit 3] 
   // Transport Controls
-  USAGE(1),           0xB5,             // USAGE (Scan Next Track - 0x00B5)       [bit 4]
-  USAGE(1),           0xB6,             // USAGE (Scan Previous Track - 0x00B6)   [bit 5]
-  USAGE(1),           0xB7,             // USAGE (Stop - 0x00B7)                  [bit 6]
-  USAGE(1),           0xCD,             // USAGE (Play/Pause - 0x00CD)            [bit 7]
-  USAGE(1),           0xB3,             // USAGE (Fast Forward - 0x00B3)          [bit 8]
-  USAGE(1),           0xB4,             // USAGE (Rewind - 0x00B4)                [bit 9]
-  USAGE(1),           0xB8,             // USAGE (Eject - 0x00B8)                 [bit 10]
+  USAGE(1),           0xB5,             // USAGE (Scan Next Track - 0x00B5)     [bit 4]
+  USAGE(1),           0xB6,             // USAGE (Scan Previous Track - 0x00B6) [bit 5]
+  USAGE(1),           0xB7,             // USAGE (Stop - 0x00B7)                [bit 6]
+  USAGE(1),           0xCD,             // USAGE (Play/Pause - 0x00CD)          [bit 7]
+  USAGE(1),           0xB3,             // USAGE (Fast Forward - 0x00B3)        [bit 8]
+  USAGE(1),           0xB4,             // USAGE (Rewind - 0x00B4)              [bit 9]
+  USAGE(1),           0xB8,             // USAGE (Eject - 0x00B8)               [bit 10]
   // Volume Controls
-  USAGE(1),           0xE2,             // USAGE (Mute - 0x00E2)                  [bit 11]
-  USAGE(1),           0xE9,             // USAGE (Volume Increment - 0x00E9)      [bit 12]
-  USAGE(1),           0xEA,             // USAGE (Volume Decrement - 0x00EA)      [bit 13] 
+  USAGE(1),           0xE2,             // USAGE (Mute - 0x00E2)                [bit 11]
+  USAGE(1),           0xE9,             // USAGE (Volume Increment - 0x00E9)    [bit 12]
+  USAGE(1),           0xEA,             // USAGE (Volume Decrement - 0x00EA)    [bit 13] 
   // Display Controls
-  USAGE(1),           0x6F,             // USAGE (Brightness Up - 0x006F)         [bit 14]
-  USAGE(1),           0x70,             // USAGE (Brightness Down - 0x0070)       [bit 15] 
+  USAGE(1),           0x6F,             // USAGE (Brightness Up - 0x006F)       [bit 14]
+  USAGE(1),           0x70,             // USAGE (Brightness Down - 0x0070)     [bit 15] 
   // Application Launch
-  USAGE(2),           0x94, 0x01,       // USAGE (My Computer - 0x0194)     [bit 16]
-  USAGE(2),           0x92, 0x01,       // USAGE (Calculator - 0x0192)      [bit 17]
-  USAGE(2),           0x8A, 0x01,       // USAGE (Mail - 0x018A)            [bit 18]
-  USAGE(2),           0x83, 0x01,       // USAGE (Media Selection - 0x0183) [bit 19]
-  USAGE(2),           0x86, 0x01,       // USAGE (Control Panel - 0x0186)   [bit 20]
-  USAGE(2),           0x87, 0x01,       // USAGE (Launchpad - 0x0187)       [bit 21]
+  USAGE(2),           0x94, 0x01,       // USAGE (My Computer - 0x0194)         [bit 16]
+  USAGE(2),           0x92, 0x01,       // USAGE (Calculator - 0x0192)          [bit 17]
+  USAGE(2),           0x8A, 0x01,       // USAGE (Mail - 0x018A)                [bit 18]
+  USAGE(2),           0x83, 0x01,       // USAGE (Media Selection - 0x0183)     [bit 19]
+  USAGE(2),           0x86, 0x01,       // USAGE (Control Panel - 0x0186)       [bit 20]
+  USAGE(2),           0x87, 0x01,       // USAGE (Launchpad - 0x0187)           [bit 21]
   // Browser Controls
-  USAGE(2),           0x23, 0x02,       // USAGE (WWW Home - 0x0223)        [bit 22]
-  USAGE(2),           0x2A, 0x02,       // USAGE (WWW favorites - 0x022A)   [bit 23]
-  USAGE(2),           0x21, 0x02,       // USAGE (WWW search - 0x0221)      [bit 24]
-  USAGE(2),           0x26, 0x02,       // USAGE (WWW stop - 0x0226)        [bit 25]
-  USAGE(2),           0x24, 0x02,       // USAGE (WWW back - 0x0224)        [bit 26]
-  USAGE(2),           0x25, 0x02,       // USAGE (WWW forward - 0x0225)     [bit 27]
-  USAGE(2),           0x27, 0x02,       // USAGE (WWW refresh - 0x0227)     [bit 28]
+  USAGE(2),           0x23, 0x02,       // USAGE (WWW Home - 0x0223)            [bit 22]
+  USAGE(2),           0x2A, 0x02,       // USAGE (WWW favorites - 0x022A)       [bit 23]
+  USAGE(2),           0x21, 0x02,       // USAGE (WWW search - 0x0221)          [bit 24]
+  USAGE(2),           0x26, 0x02,       // USAGE (WWW stop - 0x0226)            [bit 25]
+  USAGE(2),           0x24, 0x02,       // USAGE (WWW back - 0x0224)            [bit 26]
+  USAGE(2),           0x25, 0x02,       // USAGE (WWW forward - 0x0225)         [bit 27]
+  USAGE(2),           0x27, 0x02,       // USAGE (WWW refresh - 0x0227)         [bit 28]
   HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
   END_COLLECTION(0),                      // END_COLLECTION
   // ------------------------------------------------- Relative Pointer - Needed for Pointers on Android/iOS
-  // Mouse Report Descriptor
   USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
   USAGE(1),            0x02,            // USAGE (Mouse)
   COLLECTION(1),       0x01,            // COLLECTION (Application)
@@ -284,7 +284,7 @@ static const uint8_t _hidReportDescriptor[] = {
   END_COLLECTION(0),                      // END_COLLECTION (Application)
 
 };
-
+// This is a "constructor". It takes that class from the BleKeyboard.h file, and turns it into "objects" that can actually be used.
 BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer, uint8_t batteryLevel) 
     : hid(0)
     , deviceName(std::string(deviceName).substr(0, 15))
@@ -302,7 +302,7 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
   memset(&_gamepadReport, 0, sizeof(_gamepadReport));
   _gamepadReport.hat = HAT_CENTER; // Initialize hat to center position
 }
-
+// This is a "destructor". It takes objects the contructor made, and destroys them whenever you tell it to. 
 BleKeyboard::~BleKeyboard() {}
 
 void BleKeyboard::begin(void)
@@ -334,7 +334,6 @@ void BleKeyboard::begin(void)
 
   outputKeyboard->setCallbacks(this);
   
-  
   #if defined(USE_NIMBLE)
   hid->setManufacturer(std::string(deviceManufacturer.c_str()));
   setPnpInfo();
@@ -360,7 +359,6 @@ void BleKeyboard::begin(void)
       setStaticPasskey();
   }
   
-
 #if defined(USE_NIMBLE)
     if (securityPin.empty()) {
         ESP_LOGI(LOG_TAG, "Using Just Works security mode");
@@ -391,8 +389,6 @@ void BleKeyboard::begin(void)
         BLEDevice::setSecurityCallbacks(this);
     }
 #endif
-
-  
 
 #if defined(USE_NIMBLE)
   hid->setReportMap((uint8_t*)_hidReportDescriptor, sizeof(_hidReportDescriptor));
@@ -573,13 +569,6 @@ void BleKeyboard::setStaticPasskey() {
 #endif
 }
 
-#if !defined(USE_NIMBLE)
-void BleKeyboard::gapEventHandler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t* param) {
-    // For now, let's keep this empty - we'll handle PIN in the security callbacks
-    // This prevents compilation errors while we focus on the main issue
-}
-#endif
-
 void BleKeyboard::setSecurityPin(const std::string& pin) {
     // Validate PIN format (6 digits for BLE)
     if (pin.length() == 6) {
@@ -748,7 +737,7 @@ void BleKeyboard::sendNKROReport() {
 }
 
 void BleKeyboard::updateNKROBitmask(uint8_t k, bool pressed)
-{
+{  
   if (k < NKRO_KEY_COUNT) {
     uint8_t bitmaskIndex = k / 8;
     uint8_t bitOffset = k % 8;
@@ -921,32 +910,44 @@ uint8_t USBPutChar(uint8_t c);
 // USB HID works, the host acts like the key remains pressed until we
 // call release(), releaseAll(), or otherwise clear the report and resend.
 size_t BleKeyboard::press(uint8_t k) {
-  static bool firstKey = true;
-    if (firstKey && !_useNKRO) {          // 6-KRO mode only (NKRO keeps its own house)
-        firstKey = false;
-        memset(_keyReportNKRO.keys_bitmask, 0, sizeof(_keyReportNKRO.keys_bitmask));
-    }
-  // Always use NKRO internally
-  if (isModifierKey(k)) {
-    // Modifiers don't count toward the 6-key limit
-    _keyReportNKRO.modifiers |= k;
-  } else if (k >= 136) { 
+  // This function ONLY handles regular keycodes (uint8_t)
+  if (k >= 136) { 
     k = k - 136;
   }
   
   if (k != 0) {
     // Check if we're already at 6 non-modifier keys
-    uint8_t pressedKeys = countPressedKeys();
-    
     if (!_useNKRO && countPressedKeys() >= 6) {
-            setWriteError();                
-            return 0;
-        }
+      setWriteError();                
+      return 0;
+    }
     
-    // Update the bitmask
+    // Update the bitmask - ONLY for regular keys
     updateNKROBitmask(k, true);
   }
   
+  sendNKROReport();
+  return 1;
+}
+
+size_t BleKeyboard::press(int16_t modifier) {
+  // This function ONLY handles modifier keys (0x0100-0x8000)
+  
+  // Convert internal modifier code to HID modifier code
+  uint8_t hidModifier = 0;
+  switch (modifier) {
+    case 0x0100:    hidModifier = 0x01; break;
+    case 0x0200:    hidModifier = 0x02; break;
+    case 0x0400:    hidModifier = 0x04; break;
+    case 0x0800:    hidModifier = 0x08; break;
+    case 0x1000:    hidModifier = 0x10; break;
+    case 0x2000:    hidModifier = 0x20; break;
+    case 0x4000:    hidModifier = 0x40; break;
+    case 0x8000:    hidModifier = 0x80; break;
+    default: return 0; // Invalid modifier
+  }
+  
+  _keyReportNKRO.modifiers |= hidModifier;
   sendNKROReport();
   return 1;
 }
@@ -959,9 +960,8 @@ size_t BleKeyboard::press(uint16_t mediaKey)
 
 // This just sends a keyup event/unpresses a given key
 size_t BleKeyboard::release(uint8_t k) {
-  if (isModifierKey(k)) {
-    _keyReportNKRO.modifiers &= ~k;
-  } else if (k >= 136) {
+  // This function ONLY handles regular keycodes
+  if (k >= 136) {
     k = k - 136;
   }
   
@@ -969,6 +969,28 @@ size_t BleKeyboard::release(uint8_t k) {
     updateNKROBitmask(k, false);
   }
   
+  sendNKROReport();
+  return 1;
+}
+
+size_t BleKeyboard::release(int16_t modifier) {
+  // This function ONLY handles modifier keys
+  
+  // Convert internal modifier code to HID modifier code
+  uint8_t hidModifier = 0;
+  switch (modifier) {
+    case 0x0100:    hidModifier = 0x01; break;
+    case 0x0200:    hidModifier = 0x02; break;
+    case 0x0400:    hidModifier = 0x04; break;
+    case 0x0800:    hidModifier = 0x08; break;
+    case 0x1000:    hidModifier = 0x10; break;
+    case 0x2000:    hidModifier = 0x20; break;
+    case 0x4000:    hidModifier = 0x40; break;
+    case 0x8000:    hidModifier = 0x80; break;
+    default: return 0; // Invalid modifier
+  }
+  
+  _keyReportNKRO.modifiers &= ~hidModifier;
   sendNKROReport();
   return 1;
 }
@@ -989,11 +1011,16 @@ void BleKeyboard::releaseAll(void)
     sendReport();
 }
 
-size_t BleKeyboard::write(uint8_t c)
-{
-	uint8_t p = press(c);  // Keydown
-	release(c);            // Keyup
-	return p;
+size_t BleKeyboard::write(uint8_t c) {
+  uint8_t p = press(c);  // Keydown
+  release(c);            // Keyup
+  return p;
+}
+
+size_t BleKeyboard::write(int16_t modifier) {
+  uint16_t p = press(modifier);  // Modifier down
+  release(modifier);             // Modifier up
+  return p;
 }
 
 size_t BleKeyboard::write(uint16_t mediaKey)
@@ -1016,10 +1043,6 @@ size_t BleKeyboard::write(const uint8_t *buffer, size_t size) {
 		buffer++;
 	}
 	return n;
-}
-
-bool BleKeyboard::isModifierKey(uint8_t k) {
-    return (k >= 0x01 && k <= 0x80 && ((k & (k-1)) == 0));
 }
 
 void BleKeyboard::setModifiers(uint8_t modifiers) {
@@ -1088,12 +1111,11 @@ void BleKeyboard::removeMediaKey(uint16_t mediaKey) {
 
 uint8_t BleKeyboard::countPressedKeys() {
   uint8_t count = 0;
-  for (int i = 0; i < sizeof(_keyReportNKRO.keys_bitmask); i++) {
+  // Only count non-modifier keys in the main key area
+  // This ensures modifiers don't count toward the 6-key limit
+  for (int i = 0; i < (NKRO_KEY_COUNT / 8); i++) {
     uint8_t byte = _keyReportNKRO.keys_bitmask[i];
-    while (byte) {
-      count += byte & 1;
-      byte >>= 1;
-    }
+    count += __builtin_popcount(byte);
   }
   return count;
 }
