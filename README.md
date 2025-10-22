@@ -145,8 +145,7 @@ You don't have to declare `BleKeyboard bleKeyboard;` before using `bleKeyboard.s
 You can instead change `BleKeyboard bleKeyboard;` to `BleKeyboard bleKeyboard("NAME", "MANUFACTURER", 100);`. (Names longer than 15 characters will be truncated.)
 By default the battery level will be set to 100%, the device name will be `ESP32 Keyboard` and the manufacturer will be `Espressif`.  
 
-There is also a `setDelay` method to set a delay between each key event. E.g. `bleKeyboard.setDelay(10)` (10 milliseconds). The default is `8`.  
-The `setDelay` feature is to maximize compatibility between any devices created using this library, and any underpowered hardware or legacy applications one may wish to use.
+There is also a `setDelay` method to set a delay between each key event. E.g. `bleKeyboard.setDelay(10)` (10 milliseconds). The default is `8`. The `setDelay` feature is to maximize compatibility between any devices created using this library, and any underpowered hardware or legacy applications one may wish to use.
 
 ## NimBLE-Mode
 The NimBLE mode enables a significant saving of RAM and FLASH memory.
