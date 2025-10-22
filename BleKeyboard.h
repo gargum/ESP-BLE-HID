@@ -8,8 +8,11 @@
 
 #if defined(USE_NIMBLE)
 
-#include "NimBLECharacteristic.h"
+#include "NimBLEDevice.h"
 #include "NimBLEHIDDevice.h"
+#include "NimBLECharacteristic.h"
+#include "NimBLEAdvertising.h"
+#include "NimBLEServer.h"
 
 #define BLEDevice                  NimBLEDevice
 #define BLEServerCallbacks         NimBLEServerCallbacks
@@ -750,14 +753,20 @@ const uint8_t GB_RI = 66;
 const uint8_t GB_DO = 67;
 const uint8_t GB_LE = 68;
 
-class BleKeyboard : public Print, public BLEServerCallbacks, public BLECharacteristicCallbacks
-#if defined(USE_NIMBLE)
-    , public NimBLESecurityCallbacks
-#else
+class BleKeyboard : public Print
+#if !defined(USE_NIMBLE)
+    , public BLEServerCallbacks
+    , public BLECharacteristicCallbacks
     , public BLESecurityCallbacks
+#else
+    , public NimBLEServerCallbacks
+    , public NimBLECharacteristicCallbacks
 #endif
 {
 private:
+#if defined(USE_NIMBLE)
+  void               setPnpInfo();
+#endif
   BLEHIDDevice*      hid;
   uint16_t           appearance = HID_KEYBOARD;
   std::string        devicePurpose = "Keyboard";
@@ -914,10 +923,15 @@ public:
 protected:
   virtual void onStarted(BLEServer *pServer) { };
   virtual void onMouseStarted(BLEServer *pServer) { };
+#if !defined(USE_NIMBLE)
   virtual void onConnect(BLEServer* pServer) override;
   virtual void onDisconnect(BLEServer* pServer) override;
   virtual void onWrite(BLECharacteristic* me) override;
-
+#else
+  virtual void onConnect(BLEServer* pServer);
+  virtual void onDisconnect(BLEServer* pServer);
+  virtual void onWrite(BLECharacteristic* me);
+#endif
 };
 
 #endif // CONFIG_BT_ENABLED
