@@ -6,8 +6,6 @@ This library allows you to make the ESP32 act as a Bluetooth Keyboard, Mouse, Ga
 
 All development and testing is done on boards *without* the ability to act as USB hosts such as the ESP32-C3 Super Mini.
 
-*Please note that pairing with the newly flashed device for the very first time can take up to 30 seconds as the ESP32 initializes and saves the security configs.*
-
 ## Features
 
 | CORE FEATURES                   | EXTENDED FUNCTIONS                                                  | QOL & ADVANCED FUNCTIONS                                                                                |
@@ -26,6 +24,8 @@ All development and testing is done on boards *without* the ability to act as US
  - [x] Compatible with Linux
  - [x] Compatible with MacOS
  - [x] Compatible with iOS* *(iOS itself lacks absolute pointer support)*
+
+*Please note that pairing with the newly flashed device for the very first time can take up to 30 seconds as the ESP32 initializes and saves the security configs.*
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
