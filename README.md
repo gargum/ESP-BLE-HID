@@ -15,7 +15,7 @@ All development and testing is done on boards *without* the ability to act as US
 | Gamepad emulation               | *64 buttons, 1 hat/D-pad, 2 analogue sticks & 2 analogue triggers*  | *Inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                    |
 | Digitizer emulation             | *Pressure sensitivity + tip-switch support*                         | *Programmable brushstroke macro support with variable pressure all throughout*                          |
 | Set the PID, VID, and version   | *Set the name, manufacturer, and the battery level*                 | *Set what type of device the ESP32 advertises itself as, whether that be a keyboard or an insulin pump* | 
-| 6-Digit PIN security (Optional) | *Hotswap between using a PIN to connect and Just Works no-PIN mode* | *Change your PIN, even after you've already flashed and connected to the device!*                       |
+| 6-Digit PIN security (Optional) | *Hotswap between using a PIN to connect & Just Works no-PIN mode* | *Change your PIN, even after you've already flashed and connected to the device!*                       |
 
 ## Compatibility
 
