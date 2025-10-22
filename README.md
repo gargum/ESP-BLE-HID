@@ -1,6 +1,8 @@
 # ESP-BLE-HID
 
-This library allows you to make the ESP32 act as a Bluetooth Keyboard, Mouse, Gamepad, or other [HID device](https://en.wikipedia.org/wiki/Human_interface_device)
+This library allows you to make the ESP32 act as a Bluetooth Keyboard, Mouse, Gamepad, or other [HID device](https://en.wikipedia.org/wiki/Human_interface_device).
+
+
 
 All development and testing is done on boards *without* the ability to act as USB hosts such as the ESP32-C3 Super Mini.
 
@@ -8,14 +10,14 @@ All development and testing is done on boards *without* the ability to act as US
 
 ## Features
 
-| CORE FEATURES         | ADVANCED FEATURES                       | QOL FEATURES                                                    |
-| --------------------- | --------------------------------------- | --------------------------------------------------------------- |
-| Keyboard emulation    | *Full NKRO & 6KRO with modifiers*       | *Send full text strings, press/release keys, media key support* |
-| Mouse emulation       | *Absolute & Relative pointers*          | *Automatic context-aware switching between both pointer modes*  |
-| Gamepad emulation     | *Full SDL driver compatibility*         | *Inputs automatically recognized and populated in emualators*   |
-| Digitizer emulation   | *Pressure sensitivity support*          | *Programmable brushstroke macro support with variable pressure* |
-| Set PID, VID, version | *Set name, manufacturer, battery level* | *Set what type of device the ESP32 advertises itself as*        | 
-| 6-Digit PIN security  | *Hotswap between PIN and no PIN*        | *Change your PIN, both before and even *after* connecting!*     |
+| CORE FEATURES                   | EXTENDED FUNCTIONS                                                  | QOL & ADVANCED FUNCTIONS                                                                                |
+| ------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------                                         |
+| Keyboard emulation              | *NKRO + 6KRO with full support for modifiers & media keys*          | *Send full text strings, press/release keys, and send full keystrokes*                                  |
+| Mouse emulation                 | *Absolute & Relative pointers you can hotswap between*              | *Automatic context-aware switching between both pointer modes so you never need to think about it*      |
+| Gamepad emulation               | *64 buttons, 1 hat/D-pad, 2 analogue sticks & 2 analogue triggers*  | *Inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                    |
+| Digitizer emulation             | *Pressure sensitivity + tip-switch support*                         | *Programmable brushstroke macro support with variable pressure all throughout*                          |
+| Set the PID, VID, and version   | *Set the name, manufacturer, and the battery level*                 | *Set what type of device the ESP32 advertises itself as, whether that be a keyboard or an insulin pump* | 
+| 6-Digit PIN security (Optional) | *Hotswap between using a PIN to connect and Just Works no-PIN mode* | *Change your PIN, even after you've already flashed and connected to the device!*                       |
 
 ## Compatibility
 
