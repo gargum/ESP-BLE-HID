@@ -13,7 +13,7 @@ BleKeyboard jig("MiniMed 780G", "Medtronic", 100); // Setting name, manufacturer
 void setup() {
   jig.setAppearance(INSULIN_PUMP);
   jig.begin();
-  jig.setSecurityPin("013370"); // Setting a PIN to connect
+  //jig.setSecurityPin("013370"); // Setting a PIN to connect, commented out by default for compatibility on mobile
 }
 
 void loop() {
