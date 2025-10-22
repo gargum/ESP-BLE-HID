@@ -1,5 +1,5 @@
 // uncomment the following line to use NimBLE library
-//#define USE_NIMBLE
+// #define USE_NIMBLE
 
 #ifndef ESP32_BLE_KEYBOARD_H
 #define ESP32_BLE_KEYBOARD_H
@@ -37,7 +37,7 @@
 #define BLE_KEYBOARD_VERSION_REVISION 4
 
 // NKRO configuration
-#define NKRO_KEY_COUNT 104 // Surprise! "N" in "N-Key Rollover" stands for "104" in my implementation.
+#define NKRO_KEY_COUNT 252 // Surprise! "N" in "N-Key Rollover" stands for "252" in my implementation.
 
 // Pointer configuration
 #define ABSOLUTE_MIN 0
@@ -319,30 +319,30 @@ const uint8_t KC_LCAP = 0x82;
 const uint8_t KC_LNUM = 0x83;
 const uint8_t KC_LSCR = 0x84;
 
-const uint8_t KEY_LEFT_CTRL   = 0x01;
-const uint8_t KEY_LEFT_SHIFT  = 0x02;
-const uint8_t KEY_LEFT_ALT    = 0x04;
-const uint8_t KEY_LEFT_GUI    = 0x08;
-const uint8_t KEY_RIGHT_CTRL  = 0x10;
-const uint8_t KEY_RIGHT_SHIFT = 0x20;
-const uint8_t KEY_RIGHT_ALT   = 0x40;
-const uint8_t KEY_RIGHT_GUI   = 0x80;
+const int16_t KEY_LEFT_CTRL   = 0x0100;
+const int16_t KEY_LEFT_SHIFT  = 0x0200;
+const int16_t KEY_LEFT_ALT    = 0x0400;
+const int16_t KEY_LEFT_GUI    = 0x0800;
+const int16_t KEY_RIGHT_CTRL  = 0x1000;
+const int16_t KEY_RIGHT_SHIFT = 0x2000;
+const int16_t KEY_RIGHT_ALT   = 0x4000;
+const int16_t KEY_RIGHT_GUI   = 0x8000;
 
-const uint8_t KC_LCTL  = 0x01;
-const uint8_t KC_LSFT  = 0x02;
-const uint8_t KC_LALT  = 0x04;
-const uint8_t KC_LOPT  = 0x04;
-const uint8_t KC_LGUI  = 0x08;
-const uint8_t KC_LCMD  = 0x08;
-const uint8_t KC_LWIN  = 0x08;
-const uint8_t KC_RCTL  = 0x10;
-const uint8_t KC_RSFT  = 0x20;
-const uint8_t KC_RALT  = 0x40;
-const uint8_t KC_ROPT  = 0x40;
-const uint8_t KC_ALGR  = 0x40;
-const uint8_t KC_RGUI  = 0x80;
-const uint8_t KC_RCMD  = 0x80;
-const uint8_t KC_RWIN  = 0x80;
+const int16_t KC_LCTL  = 0x0100;
+const int16_t KC_LSFT  = 0x0200;
+const int16_t KC_LALT  = 0x0400;
+const int16_t KC_LOPT  = 0x0400;
+const int16_t KC_LGUI  = 0x0800;
+const int16_t KC_LCMD  = 0x0800;
+const int16_t KC_LWIN  = 0x0800;
+const int16_t KC_RCTL  = 0x1000;
+const int16_t KC_RSFT  = 0x2000;
+const int16_t KC_RALT  = 0x4000;
+const int16_t KC_ROPT  = 0x4000;
+const int16_t KC_ALGR  = 0x4000;
+const int16_t KC_RGUI  = 0x8000;
+const int16_t KC_RCMD  = 0x8000;
+const int16_t KC_RWIN  = 0x8000;
 
 const uint8_t KEY_RO = 0x87;
 const uint8_t KEY_KATAKANAHIRAGANA = 0x88;
@@ -802,7 +802,6 @@ private:
   void setStaticPasskey();
   
   void delay_ms(uint64_t ms);
-  bool isModifierKey(uint8_t k);
   uint32_t mediaKeyToBitmask(uint16_t usageCode);
   void sendNKROReport();
   void updateNKROBitmask(uint8_t k, bool pressed);
@@ -813,9 +812,6 @@ public:
   BleKeyboard(std::string deviceName = "ESP32 Keyboard", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
   
   ~BleKeyboard();
-  #if !defined(USE_NIMBLE)
-    void gapEventHandler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t* param);
-  #endif
   
   void begin(void);
   void end(void);
@@ -839,11 +835,15 @@ public:
 #endif
   
   void sendReport();
-  size_t press(uint8_t k);
-  size_t press(uint16_t mediaKey);
+  // The library differentiates between keys, modifiers, and media keys by storing them using 3 different integer types
+  size_t press(uint8_t k);           // I went with uint8_t for normal keycodes
+  size_t press(int16_t modifier);    // I chose int16_t for modifiers
+  size_t press(uint16_t mediaKey);   // Lastly, I picked uint16_t for media keys
   size_t release(uint8_t k);
+  size_t release(int16_t modifier);
   size_t release(uint16_t mediaKey);
   size_t write(uint8_t c);
+  size_t write(int16_t modifier);
   size_t write(uint16_t mediaKey);
   size_t write(const uint8_t *buffer, size_t size);
   void releaseAll(void);
