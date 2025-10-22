@@ -25,7 +25,7 @@ All development and testing is done on boards *without* the ability to act as US
  - [x] Compatible with MacOS
  - [x] Compatible with iOS* *(iOS itself lacks absolute pointer support)*
 
-*Please note that pairing with the newly flashed device for the very first time can take up to 30 seconds as the ESP32 initializes and saves the security configs.*
+*Please note that pairing with the newly flashed device for the very first time can take up to 30 seconds as the ESP32 initializes and saves the security configs that facilitate the PIN hotswap and custom security features.*
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
