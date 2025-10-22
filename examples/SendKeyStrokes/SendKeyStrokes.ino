@@ -10,7 +10,8 @@ void setup() {
   Serial.println("Starting BLE work!");
   //Name must be set before calling bleKeyboard.begin()
   bleKeyboard.setName("Keyboard Demo");
-  bleKeyboard.setManufacturer("Santa's Elves")
+  bleKeyboard.setManufacturer("Santa's Elves");
+  bleKeyboard.setAppearance(DESKTOP); // The type of device the ESP32 advertises itself as. I've chosen desktop, because I can
   bleKeyboard.begin();
   bleKeyboard.use6KRO(); //NKRO is turned on by default, 6KRO must be explicitly specified
   bleKeyboard.setBatteryLevel(100); //Any number can be put here and it will report properly
