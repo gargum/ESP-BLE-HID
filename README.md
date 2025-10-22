@@ -6,7 +6,7 @@ This library allows you to make the ESP32 act as a Bluetooth Keyboard, Mouse, Ga
 
 All development and testing is done on boards *without* the ability to act as USB hosts such as the ESP32-C3 Super Mini.
 
-*Please note that pairing with the device for the very first time can take up to 30 seconds as the ESP32 initializes and saves your security settings.*
+*Please note that pairing with the newly flashed device for the very first time can take up to 30 seconds as the ESP32 initializes and saves the security configs.*
 
 ## Features
 
