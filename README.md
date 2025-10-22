@@ -4,6 +4,8 @@ This library allows you to make the ESP32 act as a Bluetooth Keyboard, Mouse, Ga
 
 ESP-BLE-HID is intended to function as an ESP32-based alternative to tools like QMK and ZMK with added support for novel advanced features.
 
+ESP-BLE-HID uses the very minimalist [ESP32-BLE-Keyboard library](https://github.com/T-vK/ESP32-BLE-Keyboard) as a base instead of the much older and more complex TMK firmware, then heavily restructures and expands upon this base to broaden its capabilities and featureset. The end result is a sophisticated and modern tool for firmware development.
+
 All development and testing is done on boards *without* the ability to act as USB hosts such as the ESP32-C3 Super Mini. Any ESP32 with BLE will work with this library, even if that ESP32 lacks HID support.
 
 ## Features
@@ -12,7 +14,7 @@ All development and testing is done on boards *without* the ability to act as US
 | ------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------                                         |
 | Keyboard emulation              | *NKRO + 6KRO with full support for modifiers & media keys*          | *Send full text strings, press/release keys, and send full keystrokes*                                  |
 | Mouse emulation                 | *Absolute & Relative pointers you can hotswap between*              | *Automatic context-aware switching between both pointer modes*                                          |
-| Gamepad emulation               | *64 buttons + 1 D-pad, 2 analogue sticks & 2 analogue triggers*    | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                |
+| Gamepad emulation               | *64 buttons + 1 D-pad, 2 analogue sticks & 2 analogue triggers*     | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                |
 | Digitizer emulation             | *Pressure sensitivity + tip-switch support*                         | *Programmable brushstroke macro support with variable pressure all throughout*                          |
 | Set the PID, VID, and version   | *Set the name, manufacturer, and the battery level*                 | *Set what type of device the ESP32 advertises itself as, whether that be a keyboard or an insulin pump* | 
 | 6-Digit PIN (Optional)          | *Hotswap between using a PIN to connect & Just Works no-PIN mode*   | *Change your PIN, even after you've already flashed and connected to the device!*                       |
