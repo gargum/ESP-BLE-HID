@@ -4,18 +4,19 @@ This library allows you to make the ESP32 act as a Bluetooth Keyboard, Mouse, Ga
 
 ESP-BLE-HID is intended to serve as an ESP32-based alternative to tools like QMK and ZMK with added support for advanced features.
 
-All development and testing is done on boards *without* the ability to act as USB hosts such as the ESP32-C3 Super Mini. Any ESP32 with BLE will work with this library, even if that ESP32 lacks HID support.
+All development/testing is performed on boards *without* USB host mode, like the ESP32-C3 Super Mini.
 
 ## Features
 
-| CORE FEATURES                   | EXTENDED FUNCTIONS                                                  | QOL & ADVANCED FUNCTIONS                                                                                |
-| ------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------                                         |
-| Keyboard emulation              | *NKRO + 6KRO with full support for modifiers & media keys*          | *Send full text strings, press/release keys, and send full keystrokes*                                  |
-| Mouse emulation                 | *Absolute & Relative pointers you can hotswap between*              | *Automatic context-aware switching between both pointer modes*                                          |
-| Gamepad emulation               | *64 buttons + 1 D-pad, 2 analogue sticks & 2 analogue triggers*     | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                |
-| Digitizer emulation             | *Pressure sensitivity + tip-switch support*                         | *Programmable brushstroke macro support with variable pressure all throughout*                          |
-| Set the PID, VID, and version   | *Set the name, manufacturer, and the battery level*                 | *Set what type of device the ESP32 advertises itself as, whether that be a keyboard or an insulin pump* | 
-| 6-Digit PIN (Optional)          | *Hotswap between using a PIN to connect & Just Works no-PIN mode*   | *Change your PIN, even after you've already flashed and connected to the device!*                       |
+| CORE FEATURES                       | EXTENDED FUNCTIONS                                                  | QOL & ADVANCED FUNCTIONS                                                                                             |
+| ----------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------                                                      |
+| Keyboard emulation                  | *NKRO + 6KRO with full support for modifiers & media keys*          | *Send full text strings, press/release keys, and send full keystrokes*                                               |
+| Mouse emulation                     | *Absolute & Relative pointers you can hotswap between*              | *Automatic context-aware switching between both pointer modes*                                                       |
+| Gamepad emulation                   | *64 buttons + 1 D-pad, 2 analogue sticks & 2 analogue triggers*     | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                             |
+| Digitizer emulation                 | *Pressure sensitivity + tip-switch support*                         | *Programmable brushstroke macro support with variable pressure all throughout*                                       |
+| Set the PID, VID, and version       | *Set the name, manufacturer, and the battery level*                 | *Set what type of device the ESP32 advertises itself as. Choose anything from keyboard to keyring to insulin pump!*  | 
+| 6-Digit PIN (Optional)              | *Hotswap between using a PIN to connect & Just Works no-PIN mode*   | *Change your PIN, even after you've already flashed and connected to the device!*                                    |
+| ESP32s with BLE are all supported   | *Compatible with boards that have no HID capabilities whatsoever*   | *Optimized for the ESP32s with the worst specs. If your ESP32 has BLE, it **will** work with this library!*          |
 
 ## Compatibility
 
@@ -24,8 +25,6 @@ All development and testing is done on boards *without* the ability to act as US
  - [x] Compatible with Linux
  - [x] Compatible with MacOS
  - [x] Compatible with iOS* *(iOS itself lacks absolute pointer support)*
-
-*Please note that pairing with the newly flashed device for the very first time can take up to 30 seconds as the ESP32 initializes and saves the security configs that facilitate the PIN hotswap and custom security features.*
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
@@ -98,45 +97,45 @@ void loop() {
 ```
 
 ## API docs
-The interface is designed to copy the aliases used by keycodes in QMK. The aliases and functions for all QMK Basic Keycodes are fully implemented.
+The interface is designed to copy the aliases used by keycodes in QMK. The aliases and functions for all [QMK Basic Keycodes](https://docs.qmk.fm/keycodes_basic) are fully implemented.
 The sole exceptions to this are `KC_ASST` and `KC_MCTL`, which have been excluded from this library because I have no idea what either are meant to do.
-
-[QMK Docs - Basic Keycodes](https://docs.qmk.fm/keycodes_basic)
 
 A complete list of all available keycodes and commands is included in the `keywords.txt` text file.
 
-To illustrate what this library has to offer, here is the current complete list of just the available *media* keycodes:
+To illustrate what this library has to offer, below is a table including the current complete list of the available **media** keycodes alongside the available **appearance codes**. **Media** keycodes are self-explanatory, however **appearance codes** require more elaboration.
 
-| FULL KEYCODE                       | ALIAS / SHORTFORM KEYCODE |
-| ---------------------------------- | ------- |
-| KEY_SYSTEM_POWER                   | KC_PWR  |
-| KEY_SYSTEM_SLEEP                   | KC_SLEP |
-| KEY_SYSTEM_WAKE                    | KC_WAKE |
-| KEY_NEXT_TRACK                     | KC_MNXT |
-| KEY_PREVIOUS_TRACK                 | KC_MPRV |
-| KEY_FAST_FORWARD                   | KC_MFFD |
-| KEY_REWIND                         | KC_MRWD |
-| KEY_STOP                           | KC_MSTP |
-| KEY_PLAY_PAUSE                     | KC_MPLY |
-| KEY_MUTE                           | KC_MUTE |
-| KEY_VOLUME_UP                      | KC_VOLU |
-| KEY_VOLUME_DOWN                    | KC_VOLD |
-| KEY_WWW_HOME                       | KC_WHOM |
-| KEY_LOCAL_MACHINE_BROWSER          | KC_MYCM |
-| KEY_CALCULATOR                     | KC_CALC |
-| KEY_WWW_BOOKMARKS                  | KC_WFAV |
-| KEY_WWW_SEARCH                     | KC_WSCH |
-| KEY_WWW_STOP                       | KC_WSTP |
-| KEY_WWW_REFRESH                    | KC_WREF |
-| KEY_WWW_BACK                       | KC_WBAK |
-| KEY_WWW_FORWARD                    | KC_WFWD |
-| KEY_CONSUMER_CONTROL_CONFIGURATION | KC_MSEL |
-| KEY_EMAIL_READER                   | KC_MAIL |
-| KEY_EJECT                          | KC_EJCT |
-| KEY_BRIGHTNESS_UP                  | KC_BRIU |
-| KEY_BRIGHTNESS_DOWN                | KC_BRID |
-| KEY_CONTROL_PANEL                  | KC_CPNL |
-| KEY_LAUNCHPAD                      | KC_LPAD |
+ESP-BLE-HID uses **appearance codes** to determine what type of device the ESP32 advertises itself as to hosts. This corresponds to the icon next to the name of the device visible when scanning for Bluetooth devices to pair to, alongside the accompanying text explaining what the device does that is visible to the user on some operating systems. Every appearance code is tested and working.
+
+| FULL MEDIA KEYCODE                 | MEDIA KEYCODE ALIAS       | | APPEARANCE CODE - REGULAR  | APPEARANCE CODE - UNUSUAL |
+| ---------------------------------- | ------------------------- |-| -------------------------- | ------------------------- |
+| KEY_SYSTEM_POWER                   | KC_PWR                    | | GENERIC_HID                | OUTDOOR_SPORTS            |
+| KEY_SYSTEM_SLEEP                   | KC_SLEP                   | | KEYBOARD                   | LOCATION_DISPLAY          |
+| KEY_SYSTEM_WAKE                    | KC_WAKE                   | | MOUSE                      | LOCATION_POD              |
+| KEY_NEXT_TRACK                     | KC_MNXT                   | | JOYSTICK                   | WEIGHT_SCALE              |
+| KEY_PREVIOUS_TRACK                 | KC_MPRV                   | | GAMEPAD                    | EAR_THERMOMETER           |
+| KEY_FAST_FORWARD                   | KC_MFFD                   | | DIGITIZER                  | BLOOD_PRESSURE            |
+| KEY_REWIND                         | KC_MRWD                   | | DIGITAL_PEN                | PULSE_OXIMETER            |
+| KEY_STOP                           | KC_MSTP                   | | HEADPHONES                 | GLUCOSE_METER             |
+| KEY_PLAY_PAUSE                     | KC_MPLY                   | | DISPLAY                    | GLUCOSE_CONTINUOUS        |
+| KEY_MUTE                           | KC_MUTE                   | | REMOTE_CONTROL             | MEDICATION_DELIVERY       |
+| KEY_VOLUME_UP                      | KC_VOLU                   | | REMOTE_PRESENTATION        | INSULIN_PEN               |
+| KEY_VOLUME_DOWN                    | KC_VOLD                   | | KEYRING                    | INSULIN_PUMP              |
+| KEY_WWW_HOME                       | KC_WHOM                   | | DESKTOP                    | WHEELCHAIR                |
+| KEY_LOCAL_MACHINE_BROWSER          | KC_MYCM                   | | SERVER                     | MOBILITY_SCOOTER          |
+| KEY_CALCULATOR                     | KC_CALC                   | | LAPTOP                     |
+| KEY_WWW_BOOKMARKS                  | KC_WFAV                   | | TABLET                     |
+| KEY_WWW_SEARCH                     | KC_WSCH                   | | PHONE                      |
+| KEY_WWW_STOP                       | KC_WSTP                   | | SMARTWATCH                 |
+| KEY_WWW_REFRESH                    | KC_WREF                   | | CYCLING_COMPUTER           |
+| KEY_WWW_BACK                       | KC_WBAK                   | | RUNNING_WALKING            |
+| KEY_WWW_FORWARD                    | KC_WFWD                   | | WEARABLE                   |
+| KEY_CONSUMER_CONTROL_CONFIGURATION | KC_MSEL                   | | WEARABLE_IN_SHOE           |
+| KEY_EMAIL_READER                   | KC_MAIL                   | | WEARABLE_ON_SHOE           |
+| KEY_EJECT                          | KC_EJCT                   | | WEARABLE_ON_HIP            |
+| KEY_BRIGHTNESS_UP                  | KC_BRIU                   | | CLOCK                      |
+| KEY_BRIGHTNESS_DOWN                | KC_BRID                   | | BARCODE_SCANNER            |
+| KEY_CONTROL_PANEL                  | KC_CPNL                   | | CARD_READER                |
+| KEY_LAUNCHPAD                      | KC_LPAD                   | | IOT_GATEWAY                |
 
 
 
