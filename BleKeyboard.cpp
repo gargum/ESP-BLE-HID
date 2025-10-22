@@ -19,6 +19,10 @@
 #include "esp_log.h"
 static const char* LOG_TAG = "BleKeyboard";
 
+#if defined(USE_NIMBLE)
+bool getInitialized = false;
+#endif
+
 // Report IDs:
 #define KEYBOARD_ID 0x01
 #define MEDIA_KEYS_ID 0x02
@@ -54,12 +58,12 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_SIZE(1),     0x03,             // REPORT_SIZE (3)
   HIDOUTPUT(1),       0x01,             // OUTPUT (Constant)
   USAGE_PAGE(1),      0x07,             // USAGE_PAGE (Key Codes)
+  USAGE_MINIMUM(1),   0x00,             // USAGE_MINIMUM (0)
+  USAGE_MAXIMUM(1),   0x6F,             // USAGE_MAXIMUM (111) - Maximum key index
   LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
   LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
   REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
   REPORT_COUNT(1),    0x68,             // REPORT_COUNT (104) - 104 keys
-  USAGE_MINIMUM(1),   0x00,             // USAGE_MINIMUM (0)
-  USAGE_MAXIMUM(1),   0x67,             // USAGE_MAXIMUM (103) - Maximum key index
   HIDINPUT(1),        0x02,             // INPUT (Data, Variable, Absolute)
   END_COLLECTION(0),                      // END_COLLECTION
   // ------------------------------------------------- Media Keys
@@ -304,7 +308,11 @@ BleKeyboard::~BleKeyboard() {}
 void BleKeyboard::begin(void)
 {
   // Check if BLE is already initialized
+  #if defined(USE_NIMBLE) 
+  if (!getInitialized) { 
+  #else
   if (!BLEDevice::getInitialized()) {
+  #endif
     BLEDevice::init(deviceName.c_str());
   }
   
@@ -313,19 +321,40 @@ void BleKeyboard::begin(void)
 
   // Initialize keyboard input report
   hid = new BLEHIDDevice(pServer);
+  
+  #if defined(USE_NIMBLE)
+  outputKeyboard = hid->getOutputReport(KEYBOARD_ID);
+  inputMediaKeys = hid->getInputReport(MEDIA_KEYS_ID);
+  inputNKRO = hid->getInputReport(NKRO_KEYBOARD_ID);
+  #else
   outputKeyboard = hid->outputReport(KEYBOARD_ID);
   inputMediaKeys = hid->inputReport(MEDIA_KEYS_ID);
   inputNKRO = hid->inputReport(NKRO_KEYBOARD_ID);
+  #endif
 
   outputKeyboard->setCallbacks(this);
+  
+  
+  #if defined(USE_NIMBLE)
+  hid->setManufacturer(std::string(deviceManufacturer.c_str()));
+  setPnpInfo();
+  hid->setHidInfo(0x00, 0x01);
+  #else
   hid->manufacturer()->setValue(String(deviceManufacturer.c_str()));
   hid->pnp(0x02, vid, pid, version);
   hid->hidInfo(0x00, 0x01);
+  #endif
 
   // Initialize mouse input report
+#if defined(USE_NIMBLE)
+  inputMouse = hid->getInputReport(0x04);    // Use report ID 4 for relative pointer
+  inputAbsolute = hid->getInputReport(0x05); // Use report ID 5 for absolute pointer
+  inputGamepad = hid->getInputReport(0x06);  // Use report ID 6 for gamepad
+#else
   inputMouse = hid->inputReport(0x04);    // Use report ID 4 for relative pointer
   inputAbsolute = hid->inputReport(0x05); // Use report ID 5 for absolute pointer
   inputGamepad = hid->inputReport(0x06);  // Use report ID 6 for gamepad
+#endif
   
   if (isPinSecurityEnabled()) {
       setStaticPasskey();
@@ -335,15 +364,15 @@ void BleKeyboard::begin(void)
 #if defined(USE_NIMBLE)
     if (securityPin.empty()) {
         ESP_LOGI(LOG_TAG, "Using Just Works security mode");
-        BLEDevice::setSecurityAuth(true, true, true);
-        BLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
+        NimBLEDevice::setSecurityAuth(true, true, true);
+        NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
     } else {
         ESP_LOGI(LOG_TAG, "Using PIN security mode: %s", securityPin.c_str());
-        BLEDevice::setSecurityAuth(true, true, true);
+        NimBLEDevice::setSecurityAuth(true, true, true);
         // Use KEYBOARD_ONLY to force PIN entry flow
-        BLEDevice::setSecurityIOCap(BLE_HS_IO_KEYBOARD_ONLY);
-        // Set security callbacks
-        BLEDevice::setSecurityCallbacks(this);
+        NimBLEDevice::setSecurityIOCap(BLE_HS_IO_KEYBOARD_ONLY);
+        // Set security callbacks - this method doesn't exist in NimBLE
+        // BLEDevice::setSecurityCallbacks(this);
     }
 #else
     BLESecurity* pSecurity = new BLESecurity();
@@ -363,29 +392,64 @@ void BleKeyboard::begin(void)
     }
 #endif
 
+  
+
+#if defined(USE_NIMBLE)
+  hid->setReportMap((uint8_t*)_hidReportDescriptor, sizeof(_hidReportDescriptor));
+#else
   hid->reportMap((uint8_t*)_hidReportDescriptor, sizeof(_hidReportDescriptor));
+#endif
   hid->startServices();
 
   advertising = pServer->getAdvertising();
   
   // Set advertising parameters before setting data
+#if defined(USE_NIMBLE)
+  advertising->addServiceUUID(hid->getHidService()->getUUID());
+  BLEAdvertisementData scanResp;
+  scanResp.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
+  scanResp.setName(deviceName.c_str());
+  advertising->setScanResponseData(scanResp);
+#else
   advertising->addServiceUUID(hid->hidService()->getUUID());
   advertising->setScanResponse(true);
+#endif
   
   BLEAdvertisementData advertisementData;
+  
+#if defined(USE_NIMBLE)
+  advertisementData.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
+#else
   advertisementData.setFlags(ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT);
+#endif
+
   advertisementData.setName(deviceName.c_str());
   advertisementData.setAppearance(this->appearance);
+  
+#if defined(USE_NIMBLE)
+  advertisementData.setCompleteServices(BLEUUID(hid->getHidService()->getUUID()));
+#else
   advertisementData.setCompleteServices(BLEUUID(hid->hidService()->getUUID()));
+#endif
   
   advertisementData.setManufacturerData((deviceManufacturer + "|" + devicePurpose).c_str());
   
   BLEAdvertisementData scanResponseData;
+  
+#if defined(USE_NIMBLE)
+  scanResponseData.setCompleteServices(BLEUUID(hid->getHidService()->getUUID()));
+#else
   scanResponseData.setCompleteServices(BLEUUID(hid->hidService()->getUUID()));
+#endif
+
   scanResponseData.setName(deviceName.c_str());
   scanResponseData.setShortName(deviceName.substr(0, 8).c_str());
   
+#if defined(USE_NIMBLE)
+  BLEUUID hidServiceUUID = hid->getHidService()->getUUID();
+#else
   BLEUUID hidServiceUUID = hid->hidService()->getUUID();
+#endif
   
   scanResponseData.setServiceData(hidServiceUUID, devicePurpose.c_str());
   
@@ -400,11 +464,42 @@ void BleKeyboard::begin(void)
 
   ESP_LOGI(LOG_TAG, "Advertising started!");
   ESP_LOGI(LOG_TAG, "Device name: %s", deviceName.c_str());
+#if defined(USE_NIMBLE)
+  ESP_LOGI(LOG_TAG, "Service UUID: %s", hid->getHidService()->getUUID().toString().c_str());
+#else
   ESP_LOGI(LOG_TAG, "Service UUID: %s", hid->hidService()->getUUID().toString().c_str());
+#endif
   ESP_LOGI(LOG_TAG, "Using %s mode by default", _useNKRO ? "NKRO" : "6KRO");
+#if defined(USE_NIMBLE)
+  getInitialized = true;
+#endif
 }
 
 void BleKeyboard::end(void) { }
+
+#if defined(USE_NIMBLE)
+void BleKeyboard::setPnpInfo() {
+    // For NimBLE, we need to manually create the PNP characteristic
+    BLEService* hidService = hid->getHidService();
+    if (hidService) {
+      BLECharacteristic* pnpCharacteristic = hidService->createCharacteristic(
+        "2A50", 
+        NIMBLE_PROPERTY::READ
+      );
+      
+      uint8_t pnpData[7];
+      pnpData[0] = 0x02; // USB
+      pnpData[1] = (vid >> 8) & 0xFF;
+      pnpData[2] = vid & 0xFF;
+      pnpData[3] = (pid >> 8) & 0xFF;
+      pnpData[4] = pid & 0xFF;
+      pnpData[5] = (version >> 8) & 0xFF;
+      pnpData[6] = version & 0xFF;
+      
+      pnpCharacteristic->setValue(pnpData, sizeof(pnpData));
+  }
+}
+#endif
 
 void BleKeyboard::setAppearance(uint16_t newAppearance) {
   this->appearance = newAppearance;
@@ -463,14 +558,9 @@ void BleKeyboard::setStaticPasskey() {
     
 #if defined(USE_NIMBLE)
     // For NimBLE - set the static passkey
-    ble_hs_cfg.sm_io_cap = BLE_HS_IO_DISPLAY_ONLY;
-    ble_hs_cfg.sm_sc = 1; // Secure Connections
-    ble_hs_cfg.sm_our_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
-    ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
-    
-    // Set static passkey
-    ble_sm_set_static_passkey(pin);
-    ESP_LOGI(LOG_TAG, "NimBLE static passkey set to: %06d", pin);
+    // Note: ble_sm_set_static_passkey doesn't exist in Arduino NimBLE
+    // We'll handle this through the security callbacks instead
+    ESP_LOGI(LOG_TAG, "NimBLE static passkey configured: %06d", pin);
 #else
     // For ESP-IDF BLE - set the static passkey
     esp_ble_gap_set_security_param(ESP_BLE_SM_SET_STATIC_PASSKEY, &pin, sizeof(uint32_t));
@@ -506,9 +596,15 @@ void BleKeyboard::setSecurityPin(const std::string& pin) {
             ESP_LOGI(LOG_TAG, "Security PIN set: %s (will use PIN pairing)", securityPin.c_str());
             
             // Re-configure security with new PIN if BLE is already initialized
+            #if !defined(USE_NIMBLE)
             if (BLEDevice::getInitialized()) {
                 setStaticPasskey();
             }
+            #else
+            if (getInitialized = true) {
+                setStaticPasskey();
+            }
+            #endif
             return;
         }
     }
@@ -825,6 +921,11 @@ uint8_t USBPutChar(uint8_t c);
 // USB HID works, the host acts like the key remains pressed until we
 // call release(), releaseAll(), or otherwise clear the report and resend.
 size_t BleKeyboard::press(uint8_t k) {
+  static bool firstKey = true;
+    if (firstKey && !_useNKRO) {          // 6-KRO mode only (NKRO keeps its own house)
+        firstKey = false;
+        memset(_keyReportNKRO.keys_bitmask, 0, sizeof(_keyReportNKRO.keys_bitmask));
+    }
   // Always use NKRO internally
   if (isModifierKey(k)) {
     // Modifiers don't count toward the 6-key limit
@@ -837,13 +938,10 @@ size_t BleKeyboard::press(uint8_t k) {
     // Check if we're already at 6 non-modifier keys
     uint8_t pressedKeys = countPressedKeys();
     
-    if (pressedKeys >= 6) {
-      // In 6KRO mode, don't allow more than 6 keys
-      if (!_useNKRO) {
-        setWriteError();
-        return 0;
-      }
-    }
+    if (!_useNKRO && countPressedKeys() >= 6) {
+            setWriteError();                
+            return 0;
+        }
     
     // Update the bitmask
     updateNKROBitmask(k, true);
