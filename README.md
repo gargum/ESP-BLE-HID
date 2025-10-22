@@ -151,30 +151,21 @@ The `setDelay` feature is to maximize compatibility between any devices created 
 ## NimBLE-Mode
 The NimBLE mode enables a significant saving of RAM and FLASH memory.
 
-These comparisons show off what happens when using the NimBLE-Arduino library with the T-vK ESP32 Keyboard this repo was forked from.
-I haven't gotten around to doing these comparisons myself, I'm sorry
+The ESP32-C3 Super Mini was used for these tests and comparisons, which are now up-to-date!
 
-### Comparison (SendKeyStrokes.ino at compile-time)
+### Comparison (SendKeyStrokes.ino)
 
 **Standard**
 ```
-RAM:   [=         ]   9.3% (used 30548 bytes from 327680 bytes)
-Flash: [========  ]  75.8% (used 994120 bytes from 1310720 bytes)
+RAM:   [=         ]   12% (used 40088 bytes out of the 327680 bytes in total)
+Flash: [========  ]   83% (used 1097410 bytes out of the 1310720 bytes in total)
 ```
 
 **NimBLE mode**
 ```
-RAM:   [=         ]   8.3% (used 27180 bytes from 327680 bytes)
-Flash: [====      ]  44.2% (used 579158 bytes from 1310720 bytes)
+RAM:   [=         ]   7% (used 23568 bytes out of the 327680 bytes in total)
+Flash: [====      ]  46% (used 612884 bytes out of the 1310720 bytes in total)
 ```
-
-### Comparison (SendKeyStrokes.ino at run-time)
-
-|   | Standard | NimBLE mode | difference
-|---|--:|--:|--:|
-| `ESP.getHeapSize()`   | 296.804 | 321.252 | **+ 24.448**  |
-| `ESP.getFreeHeap()`   | 143.572 | 260.764 | **+ 117.192** |
-| `ESP.getSketchSize()` | 994.224 | 579.264 | **- 414.960** |
 
 ## How to activate NimBLE mode?
 
@@ -182,16 +173,6 @@ Flash: [====      ]  44.2% (used 579158 bytes from 1310720 bytes)
 Uncomment the first line in BleKeyboard.h
 ```C++
 #define USE_NIMBLE
-```
-
-### PlatformIO:
-Change your `platformio.ini` to the following settings
-```ini
-lib_deps = 
-  NimBLE-Arduino
-
-build_flags = 
-  -D USE_NIMBLE
 ```
 
 ## Credits
