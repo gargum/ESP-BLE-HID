@@ -54,11 +54,9 @@ updateNKROBitmask    KEYWORD2
 
 sendNKROReport       KEYWORD2
 
-mouseClick           KEYWORD2
-mouseMove            KEYWORD2
-mouseMoveTo          KEYWORD2
-mousePress           KEYWORD2
-mouseRelease         KEYWORD2
+click                KEYWORD2
+move                 KEYWORD2
+moveTo               KEYWORD2
 mouseIsPressed       KEYWORD2
 mouseReleaseAll      KEYWORD2
 
@@ -78,10 +76,7 @@ getTipSwitch         KEYWORD2
 setPressure          KEYWORD2
 setTipSwitch         KEYWORD2
 
-gamepadPress         KEYWORD2
-gamepadRelease       KEYWORD2
 gamepadIsPressed     KEYWORD2
-gamepadReleaseAll    KEYWORD2
 
 gamepadSetLeftStick  KEYWORD2
 gamepadSetRightStick KEYWORD2
