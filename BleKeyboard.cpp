@@ -924,7 +924,7 @@ void BleKeyboard::press(char b) {
   } else {
     // Relative mode
     _mouseButtons |= b;
-    mouseMove(0, 0, 0, 0);
+    move(0, 0, 0, 0);
   }
 }
 
@@ -935,7 +935,7 @@ void BleKeyboard::press(uint16_t x, uint16_t y, char b) {
   }
   
   _absoluteReport.buttons |= b;
-  mouseMoveTo(x, y);
+  moveTo(x, y);
 }
 
 // This just sends a keyup event/unpresses a given key
@@ -997,7 +997,7 @@ void BleKeyboard::release(char b) {
   } else {
     // Relative mode
     _mouseButtons &= ~b;
-    mouseMove(0, 0, 0, 0);
+    move(0, 0, 0, 0);
   }
 }
 
@@ -1008,7 +1008,7 @@ void BleKeyboard::release(uint16_t x, uint16_t y, char b) {
   }
   
   _absoluteReport.buttons &= ~b;
-  mouseMoveTo(x, y);
+  moveTo(x, y);
 }
 
 void BleKeyboard::releaseAll(void)
@@ -1138,20 +1138,20 @@ uint8_t BleKeyboard::countPressedKeys() {
   return count;
 }
 
-void BleKeyboard::mouseClick(char b) {
+void BleKeyboard::click(char b) {
   if (_useAbsolute) {
     // In absolute mode without coordinates, use current position
-    mouseClick(_absoluteReport.x, _absoluteReport.y, b);
+    click(_absoluteReport.x, _absoluteReport.y, b);
   } else {
     // Relative mode
     _mouseButtons = b;
-    mouseMove(0, 0, 0, 0);
+    move(0, 0, 0, 0);
     _mouseButtons = 0;
-    mouseMove(0, 0, 0, 0);
+    move(0, 0, 0, 0);
   }
 }
 
-void BleKeyboard::mouseClick(uint16_t x, uint16_t y, char b) {
+void BleKeyboard::click(uint16_t x, uint16_t y, char b) {
   // Auto-switch to absolute mode if coordinates are provided
   if (!_useAbsolute) {
     useAbsolute(true);
@@ -1160,7 +1160,7 @@ void BleKeyboard::mouseClick(uint16_t x, uint16_t y, char b) {
   release(x, y, b);
 }
 
-void BleKeyboard::mouseMove(signed char x, signed char y, signed char wheel, signed char hWheel) {
+void BleKeyboard::move(signed char x, signed char y, signed char wheel, signed char hWheel) {
   // Auto-switch to relative mode if moving with relative coordinates
   if (_useAbsolute) {
     useAbsolute(false);
@@ -1182,7 +1182,7 @@ void BleKeyboard::mouseMove(signed char x, signed char y, signed char wheel, sig
   }
 }
 
-void BleKeyboard::mouseMoveTo(uint16_t x, uint16_t y, signed char wheel, signed char hWheel) {
+void BleKeyboard::moveTo(uint16_t x, uint16_t y, signed char wheel, signed char hWheel) {
   // Auto-switch to absolute mode if moving to absolute coordinates
   if (!_useAbsolute) {
     useAbsolute(true);
@@ -1221,10 +1221,10 @@ bool BleKeyboard::mouseIsPressed(char b) {
 void BleKeyboard::mouseReleaseAll() {
   if (_useAbsolute) {
     _absoluteReport.buttons = 0;
-    mouseMoveTo(_absoluteReport.x, _absoluteReport.y);
+    moveTo(_absoluteReport.x, _absoluteReport.y);
   } else {
     _mouseButtons = 0;
-    mouseMove(0, 0, 0, 0);
+    move(0, 0, 0, 0);
   }
 }
 
