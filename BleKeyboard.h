@@ -42,12 +42,6 @@
 // Pointer configuration
 #define ABSOLUTE_MIN 0
 #define ABSOLUTE_MAX 32767
-#define MOUSE_LEFT 1
-#define MOUSE_RIGHT 2
-#define MOUSE_MIDDLE 4
-#define MOUSE_BACK 8
-#define MOUSE_FORWARD 16
-#define MOUSE_ALL (MOUSE_LEFT | MOUSE_RIGHT | MOUSE_MIDDLE)
 
 // Gamepad configuration
 #define GAMEPAD_BUTTON_COUNT 64
@@ -136,6 +130,13 @@ static const bool disabled = false;
 #define IOT_GATEWAY           0x008D
 
 
+// Mouse codes
+const char MOUSE_LEFT    = 1;
+const char MOUSE_RIGHT   = 2;
+const char MOUSE_MIDDLE  = 4;
+const char MOUSE_BACK    = 8;
+const char MOUSE_FORWARD = 16;
+const char MOUSE_ALL     = (MOUSE_LEFT | MOUSE_RIGHT | MOUSE_MIDDLE);
 
 // Key codes
 //
