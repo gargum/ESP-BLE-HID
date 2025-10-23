@@ -305,60 +305,62 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
 // This is a "destructor". It takes objects the contructor made, and destroys them whenever you tell it to. 
 BleKeyboard::~BleKeyboard() {}
 
-void BleKeyboard::begin(void)
-{
-  // Check if BLE is already initialized
-  #if defined(USE_NIMBLE) 
-  if (!getInitialized) { 
-  #else
-  if (!BLEDevice::getInitialized()) {
-  #endif
-    BLEDevice::init(deviceName.c_str());
-  }
+void BleKeyboard::begin(void) {
   
-  BLEServer* pServer = BLEDevice::createServer();
-  pServer->setCallbacks(this);
-
-  // Initialize keyboard input report
-  hid = new BLEHIDDevice(pServer);
-  
-  #if defined(USE_NIMBLE)
-  outputKeyboard = hid->getOutputReport(KEYBOARD_ID);
-  inputMediaKeys = hid->getInputReport(MEDIA_KEYS_ID);
-  inputNKRO = hid->getInputReport(NKRO_KEYBOARD_ID);
-  #else
-  outputKeyboard = hid->outputReport(KEYBOARD_ID);
-  inputMediaKeys = hid->inputReport(MEDIA_KEYS_ID);
-  inputNKRO = hid->inputReport(NKRO_KEYBOARD_ID);
-  #endif
-
-  outputKeyboard->setCallbacks(this);
-  
-  #if defined(USE_NIMBLE)
-  hid->setManufacturer(std::string(deviceManufacturer.c_str()));
-  setPnpInfo();
-  hid->setHidInfo(0x00, 0x01);
-  #else
-  hid->manufacturer()->setValue(String(deviceManufacturer.c_str()));
-  hid->pnp(0x02, vid, pid, version);
-  hid->hidInfo(0x00, 0x01);
-  #endif
-
-  // Initialize mouse input report
+    // Initialise BLE stack only once
 #if defined(USE_NIMBLE)
-  inputMouse = hid->getInputReport(0x04);    // Use report ID 4 for relative pointer
-  inputAbsolute = hid->getInputReport(0x05); // Use report ID 5 for absolute pointer
-  inputGamepad = hid->getInputReport(0x06);  // Use report ID 6 for gamepad
+    if (!getInitialized)
 #else
-  inputMouse = hid->inputReport(0x04);    // Use report ID 4 for relative pointer
-  inputAbsolute = hid->inputReport(0x05); // Use report ID 5 for absolute pointer
-  inputGamepad = hid->inputReport(0x06);  // Use report ID 6 for gamepad
+    if (!BLEDevice::getInitialized())
 #endif
-  
-  if (isPinSecurityEnabled()) {
-      setStaticPasskey();
-  }
-  
+    {BLEDevice::init(deviceName.c_str());}
+
+     // Create server & install callbacks
+    BLEServer *pServer = BLEDevice::createServer();
+    pServer->setCallbacks(this);
+
+     // Create HID device object
+    hid = new BLEHIDDevice(pServer);
+
+     // Obtain report-characteristic pointers
+#if defined(USE_NIMBLE)
+    outputKeyboard = hid->getOutputReport(KEYBOARD_ID);
+    inputMediaKeys = hid->getInputReport(MEDIA_KEYS_ID);
+    inputNKRO      = hid->getInputReport(NKRO_KEYBOARD_ID);
+#else
+    outputKeyboard = hid->outputReport(KEYBOARD_ID);
+    inputMediaKeys = hid->inputReport(MEDIA_KEYS_ID);
+    inputNKRO      = hid->inputReport(NKRO_KEYBOARD_ID);
+#endif
+    outputKeyboard->setCallbacks(this);
+
+     // Manufacturer / PnP / HID-info
+#if defined(USE_NIMBLE)
+    hid->setManufacturer(std::string(deviceManufacturer.c_str()));
+    setPnpInfo();                      // local helper for NimBLE
+    hid->setHidInfo(0x00, 0x01);
+#else
+    hid->manufacturer()->setValue(String(deviceManufacturer.c_str()));
+    hid->pnp(0x02, vid, pid, version);
+    hid->hidInfo(0x00, 0x01);
+#endif
+
+     // Mouse / Digitizer / Gamepad reports
+#if defined(USE_NIMBLE)
+    inputMouse    = hid->getInputReport(0x04);
+    inputAbsolute = hid->getInputReport(0x05);
+    inputGamepad  = hid->getInputReport(0x06);
+#else
+    inputMouse    = hid->inputReport(0x04);
+    inputAbsolute = hid->inputReport(0x05);
+    inputGamepad  = hid->inputReport(0x06);
+#endif
+
+     // Static pass-key (if user enabled it)
+    if (isPinSecurityEnabled())
+        setStaticPasskey();
+
+     // Security manager setup
 #if defined(USE_NIMBLE)
     if (securityPin.empty()) {
         ESP_LOGI(LOG_TAG, "Using Just Works security mode");
@@ -367,13 +369,10 @@ void BleKeyboard::begin(void)
     } else {
         ESP_LOGI(LOG_TAG, "Using PIN security mode: %s", securityPin.c_str());
         NimBLEDevice::setSecurityAuth(true, true, true);
-        // Use KEYBOARD_ONLY to force PIN entry flow
         NimBLEDevice::setSecurityIOCap(BLE_HS_IO_KEYBOARD_ONLY);
-        // Set security callbacks - this method doesn't exist in NimBLE
-        // BLEDevice::setSecurityCallbacks(this);
     }
 #else
-    BLESecurity* pSecurity = new BLESecurity();
+    BLESecurity *pSecurity = new BLESecurity();
     if (securityPin.empty()) {
         ESP_LOGI(LOG_TAG, "Using Just Works security mode");
         pSecurity->setAuthenticationMode(ESP_LE_AUTH_BOND);
@@ -382,120 +381,70 @@ void BleKeyboard::begin(void)
     } else {
         ESP_LOGI(LOG_TAG, "Using PIN security mode: %s", securityPin.c_str());
         pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_MITM_BOND);
-        // Use KEYBOARD_ONLY to force PIN entry flow
         pSecurity->setCapability(ESP_IO_CAP_IN);
         pSecurity->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
-        // Set security callbacks
         BLEDevice::setSecurityCallbacks(this);
     }
 #endif
 
+     // Publish HID report map and start services
 #if defined(USE_NIMBLE)
-  hid->setReportMap((uint8_t*)_hidReportDescriptor, sizeof(_hidReportDescriptor));
+    hid->setReportMap((uint8_t *)_hidReportDescriptor, sizeof(_hidReportDescriptor));
 #else
-  hid->reportMap((uint8_t*)_hidReportDescriptor, sizeof(_hidReportDescriptor));
+    hid->reportMap((uint8_t *)_hidReportDescriptor, sizeof(_hidReportDescriptor));
 #endif
-  hid->startServices();
+    hid->startServices();
 
-  advertising = pServer->getAdvertising();
-  
-  // Set advertising parameters before setting data
-#if defined(USE_NIMBLE)
-  advertising->addServiceUUID(hid->getHidService()->getUUID());
-  BLEAdvertisementData scanResp;
-  scanResp.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
-  scanResp.setName(deviceName.c_str());
-  advertising->setScanResponseData(scanResp);
-#else
-  advertising->addServiceUUID(hid->hidService()->getUUID());
-  advertising->setScanResponse(true);
-#endif
-  
-  BLEAdvertisementData advertisementData;
-  
-#if defined(USE_NIMBLE)
-  advertisementData.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
-#else
-  advertisementData.setFlags(ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT);
-#endif
+     // Advertising setup
+    advertising = pServer->getAdvertising();
+    BLEAdvertisementData adv, scan;
 
-  advertisementData.setName(deviceName.c_str());
-  advertisementData.setAppearance(this->appearance);
-  
 #if defined(USE_NIMBLE)
-  advertisementData.setCompleteServices(BLEUUID(hid->getHidService()->getUUID()));
+    advertising->addServiceUUID(hid->getHidService()->getUUID());
+    scan.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
+    scan.setName(deviceName.c_str());
+    advertising->setScanResponseData(scan);
+
+    adv.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
+    adv.setCompleteServices(BLEUUID(hid->getHidService()->getUUID()));
+    scan.setCompleteServices(BLEUUID(hid->getHidService()->getUUID()));
+    BLEUUID hidUuid = hid->getHidService()->getUUID();
 #else
-  advertisementData.setCompleteServices(BLEUUID(hid->hidService()->getUUID()));
-#endif
-  
-  advertisementData.setManufacturerData((deviceManufacturer + "|" + devicePurpose).c_str());
-  
-  BLEAdvertisementData scanResponseData;
-  
-#if defined(USE_NIMBLE)
-  scanResponseData.setCompleteServices(BLEUUID(hid->getHidService()->getUUID()));
-#else
-  scanResponseData.setCompleteServices(BLEUUID(hid->hidService()->getUUID()));
+    advertising->addServiceUUID(hid->hidService()->getUUID());
+    advertising->setScanResponse(true);
+
+    adv.setFlags(ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT);
+    adv.setCompleteServices(BLEUUID(hid->hidService()->getUUID()));
+    scan.setCompleteServices(BLEUUID(hid->hidService()->getUUID()));
+    BLEUUID hidUuid = hid->hidService()->getUUID();
 #endif
 
-  scanResponseData.setName(deviceName.c_str());
-  scanResponseData.setShortName(deviceName.substr(0, 8).c_str());
-  
-#if defined(USE_NIMBLE)
-  BLEUUID hidServiceUUID = hid->getHidService()->getUUID();
-#else
-  BLEUUID hidServiceUUID = hid->hidService()->getUUID();
-#endif
-  
-  scanResponseData.setServiceData(hidServiceUUID, devicePurpose.c_str());
-  
-  advertising->setAdvertisementData(advertisementData);
-  advertising->setScanResponseData(scanResponseData);
-  
-  // Call onStarted after HID is set up but before advertising starts
-  onStarted(pServer);
-  
-  advertising->start();
-  hid->setBatteryLevel(batteryLevel);
+    adv.setName(deviceName.c_str());
+    adv.setAppearance(this->appearance);
+    adv.setManufacturerData((deviceManufacturer + "|" + devicePurpose).c_str());
 
-  ESP_LOGI(LOG_TAG, "Advertising started!");
-  ESP_LOGI(LOG_TAG, "Device name: %s", deviceName.c_str());
+    scan.setName(deviceName.c_str());
+    scan.setShortName(deviceName.substr(0, 8).c_str());
+    scan.setServiceData(hidUuid, devicePurpose.c_str());
+
+    advertising->setAdvertisementData(adv);
+    advertising->setScanResponseData(scan);
+
+     // Start advertising & finish
+    onStarted(pServer);
+    advertising->start();
+    hid->setBatteryLevel(batteryLevel);
+
+    ESP_LOGI(LOG_TAG, "Advertising started!");
+    ESP_LOGI(LOG_TAG, "Device name: %s", deviceName.c_str());
 #if defined(USE_NIMBLE)
-  ESP_LOGI(LOG_TAG, "Service UUID: %s", hid->getHidService()->getUUID().toString().c_str());
+    ESP_LOGI(LOG_TAG, "Service UUID: %s", hid->getHidService()->getUUID().toString().c_str());
+    getInitialized = true;
 #else
-  ESP_LOGI(LOG_TAG, "Service UUID: %s", hid->hidService()->getUUID().toString().c_str());
+    ESP_LOGI(LOG_TAG, "Service UUID: %s", hid->hidService()->getUUID().toString().c_str());
 #endif
-  ESP_LOGI(LOG_TAG, "Using %s mode by default", _useNKRO ? "NKRO" : "6KRO");
-#if defined(USE_NIMBLE)
-  getInitialized = true;
-#endif
+    ESP_LOGI(LOG_TAG, "Using %s mode by default", _useNKRO ? "NKRO" : "6KRO");
 }
-
-void BleKeyboard::end(void) { }
-
-#if defined(USE_NIMBLE)
-void BleKeyboard::setPnpInfo() {
-    // For NimBLE, we need to manually create the PNP characteristic
-    BLEService* hidService = hid->getHidService();
-    if (hidService) {
-      BLECharacteristic* pnpCharacteristic = hidService->createCharacteristic(
-        "2A50", 
-        NIMBLE_PROPERTY::READ
-      );
-      
-      uint8_t pnpData[7];
-      pnpData[0] = 0x02; // USB
-      pnpData[1] = (vid >> 8) & 0xFF;
-      pnpData[2] = vid & 0xFF;
-      pnpData[3] = (pid >> 8) & 0xFF;
-      pnpData[4] = pid & 0xFF;
-      pnpData[5] = (version >> 8) & 0xFF;
-      pnpData[6] = version & 0xFF;
-      
-      pnpCharacteristic->setValue(pnpData, sizeof(pnpData));
-  }
-}
-#endif
 
 void BleKeyboard::setAppearance(uint16_t newAppearance) {
   this->appearance = newAppearance;
@@ -935,16 +884,10 @@ size_t BleKeyboard::press(int16_t modifier) {
   
   // Convert internal modifier code to HID modifier code
   uint8_t hidModifier = 0;
-  switch (modifier) {
-    case 0x0100:    hidModifier = 0x01; break;
-    case 0x0200:    hidModifier = 0x02; break;
-    case 0x0400:    hidModifier = 0x04; break;
-    case 0x0800:    hidModifier = 0x08; break;
-    case 0x1000:    hidModifier = 0x10; break;
-    case 0x2000:    hidModifier = 0x20; break;
-    case 0x4000:    hidModifier = 0x40; break;
-    case 0x8000:    hidModifier = 0x80; break;
-    default: return 0; // Invalid modifier
+  if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
+    hidModifier = modifier >> 8;
+  } else {
+    return 0; // Invalid modifier
   }
   
   _keyReportNKRO.modifiers |= hidModifier;
@@ -956,6 +899,43 @@ size_t BleKeyboard::press(uint16_t mediaKey)
 {
     addMediaKey(mediaKey);
     return 1;
+}
+
+
+void BleKeyboard::press(int8_t button) {
+    if (button >= 1 && button <= 64) {
+        uint8_t field = (button - 1) / 32;
+        uint8_t bit = (button - 1) % 32;
+        _gamepadReport.buttons[field] |= (1UL << bit);
+    }
+    else if (button >= 65 && button <= 68) {
+        uint8_t currentHat = _gamepadReport.hat;
+        uint8_t directionIndex = button - 65; // Convert 65-68 to 0-3
+        
+        _gamepadReport.hat = hatPress[directionIndex][currentHat];
+    }
+    sendGamepadReport();
+}
+
+void BleKeyboard::press(char b) {
+  if (_useAbsolute) {
+    // In absolute mode without coordinates, use current position
+    press(_absoluteReport.x, _absoluteReport.y, b);
+  } else {
+    // Relative mode
+    _mouseButtons |= b;
+    mouseMove(0, 0, 0, 0);
+  }
+}
+
+void BleKeyboard::press(uint16_t x, uint16_t y, char b) {
+  // Auto-switch to absolute mode if coordinates are provided
+  if (!_useAbsolute) {
+    useAbsolute(true);
+  }
+  
+  _absoluteReport.buttons |= b;
+  mouseMoveTo(x, y);
 }
 
 // This just sends a keyup event/unpresses a given key
@@ -978,16 +958,10 @@ size_t BleKeyboard::release(int16_t modifier) {
   
   // Convert internal modifier code to HID modifier code
   uint8_t hidModifier = 0;
-  switch (modifier) {
-    case 0x0100:    hidModifier = 0x01; break;
-    case 0x0200:    hidModifier = 0x02; break;
-    case 0x0400:    hidModifier = 0x04; break;
-    case 0x0800:    hidModifier = 0x08; break;
-    case 0x1000:    hidModifier = 0x10; break;
-    case 0x2000:    hidModifier = 0x20; break;
-    case 0x4000:    hidModifier = 0x40; break;
-    case 0x8000:    hidModifier = 0x80; break;
-    default: return 0; // Invalid modifier
+  if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
+    hidModifier = modifier >> 8;
+  } else {
+    return 0; // Invalid modifier
   }
   
   _keyReportNKRO.modifiers &= ~hidModifier;
@@ -1001,14 +975,58 @@ size_t BleKeyboard::release(uint16_t mediaKey)
     return 1;
 }
 
+void BleKeyboard::release(int8_t button) {
+    if (button >= 1 && button <= 64) {
+        uint8_t field = (button - 1) / 32;
+        uint8_t bit = (button - 1) % 32;
+        _gamepadReport.buttons[field] &= ~(1UL << bit);
+    }
+    else if (button >= 65 && button <= 68) {
+        uint8_t currentHat = _gamepadReport.hat;
+        uint8_t directionIndex = button - 65; // Convert 65-68 to 0-3
+        
+        _gamepadReport.hat = hatRelease[directionIndex][currentHat];
+    }
+    sendGamepadReport();
+}
+
+void BleKeyboard::release(char b) {
+  if (_useAbsolute) {
+    // In absolute mode without coordinates, use current position
+    release(_absoluteReport.x, _absoluteReport.y, b);
+  } else {
+    // Relative mode
+    _mouseButtons &= ~b;
+    mouseMove(0, 0, 0, 0);
+  }
+}
+
+void BleKeyboard::release(uint16_t x, uint16_t y, char b) {
+  // Auto-switches to absolute mode if coordinates are provided
+  if (!_useAbsolute) {
+    useAbsolute(true);
+  }
+  
+  _absoluteReport.buttons &= ~b;
+  mouseMoveTo(x, y);
+}
 
 void BleKeyboard::releaseAll(void)
 {
+    // Release keyboard
     memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
     sendNKROReport();
-    
     _mediaKeyBitmask = 0;
     sendReport();
+}
+
+void BleKeyboard::gamepadReleaseAll(void)
+{
+    // Release gamepad
+    _gamepadReport.buttons[0] = 0;
+    _gamepadReport.buttons[1] = 0;
+    _gamepadReport.hat = HAT_CENTER;
+    sendGamepadReport();
 }
 
 size_t BleKeyboard::write(uint8_t c) {
@@ -1120,7 +1138,7 @@ uint8_t BleKeyboard::countPressedKeys() {
   return count;
 }
 
-void BleKeyboard::mouseClick(uint8_t b) {
+void BleKeyboard::mouseClick(char b) {
   if (_useAbsolute) {
     // In absolute mode without coordinates, use current position
     mouseClick(_absoluteReport.x, _absoluteReport.y, b);
@@ -1133,13 +1151,13 @@ void BleKeyboard::mouseClick(uint8_t b) {
   }
 }
 
-void BleKeyboard::mouseClick(uint16_t x, uint16_t y, uint8_t b) {
+void BleKeyboard::mouseClick(uint16_t x, uint16_t y, char b) {
   // Auto-switch to absolute mode if coordinates are provided
   if (!_useAbsolute) {
     useAbsolute(true);
   }
-  mousePress(x, y, b);
-  mouseRelease(x, y, b);
+  press(x, y, b);
+  release(x, y, b);
 }
 
 void BleKeyboard::mouseMove(signed char x, signed char y, signed char wheel, signed char hWheel) {
@@ -1192,49 +1210,7 @@ void BleKeyboard::mouseMoveTo(uint16_t x, uint16_t y, signed char wheel, signed 
   }
 }
 
-void BleKeyboard::mousePress(uint8_t b) {
-  if (_useAbsolute) {
-    // In absolute mode without coordinates, use current position
-    mousePress(_absoluteReport.x, _absoluteReport.y, b);
-  } else {
-    // Relative mode
-    _mouseButtons |= b;
-    mouseMove(0, 0, 0, 0);
-  }
-}
-
-void BleKeyboard::mousePress(uint16_t x, uint16_t y, uint8_t b) {
-  // Auto-switch to absolute mode if coordinates are provided
-  if (!_useAbsolute) {
-    useAbsolute(true);
-  }
-  
-  _absoluteReport.buttons |= b;
-  mouseMoveTo(x, y);
-}
-
-void BleKeyboard::mouseRelease(uint8_t b) {
-  if (_useAbsolute) {
-    // In absolute mode without coordinates, use current position
-    mouseRelease(_absoluteReport.x, _absoluteReport.y, b);
-  } else {
-    // Relative mode
-    _mouseButtons &= ~b;
-    mouseMove(0, 0, 0, 0);
-  }
-}
-
-void BleKeyboard::mouseRelease(uint16_t x, uint16_t y, uint8_t b) {
-  // Auto-switches to absolute mode if coordinates are provided
-  if (!_useAbsolute) {
-    useAbsolute(true);
-  }
-  
-  _absoluteReport.buttons &= ~b;
-  mouseMoveTo(x, y);
-}
-
-bool BleKeyboard::mouseIsPressed(uint8_t b) {
+bool BleKeyboard::mouseIsPressed(char b) {
   if (_useAbsolute) {
     return (_absoluteReport.buttons & b) != 0;
   } else {
@@ -1356,97 +1332,7 @@ bool BleKeyboard::getTipSwitch() const {
   return _absoluteReport.tipSwitch != 0;
 }
 
-void BleKeyboard::gamepadPress(uint8_t button) {
-  // Handle regular buttons 1-64
-  if (button >= 1 && button <= 64) {
-    uint8_t field = (button - 1) / 32;
-    uint8_t bit = (button - 1) % 32;
-    _gamepadReport.buttons[field] |= (1UL << bit);
-  }
-  // Handle D-Pad as virtual buttons 65-68
-  else if (button >= 65 && button <= 68) {
-    uint8_t currentHat = _gamepadReport.hat;
-    uint8_t newDirection = currentHat;
-    
-    switch (button) {
-      case 65: // DPAD_UP
-        if (currentHat == HAT_CENTER) newDirection = HAT_UP;
-        else if (currentHat == HAT_RIGHT) newDirection = HAT_UP_RIGHT;
-        else if (currentHat == HAT_LEFT) newDirection = HAT_UP_LEFT;
-        else if (currentHat == HAT_DOWN_RIGHT) newDirection = HAT_UP_RIGHT;
-        else if (currentHat == HAT_DOWN_LEFT) newDirection = HAT_UP_LEFT;
-        else if (currentHat == HAT_DOWN) newDirection = HAT_UP;
-        break;
-      case 66: // DPAD_RIGHT
-        if (currentHat == HAT_CENTER) newDirection = HAT_RIGHT;
-        else if (currentHat == HAT_UP) newDirection = HAT_UP_RIGHT;
-        else if (currentHat == HAT_DOWN) newDirection = HAT_DOWN_RIGHT;
-        else if (currentHat == HAT_UP_LEFT) newDirection = HAT_UP_RIGHT;
-        else if (currentHat == HAT_DOWN_LEFT) newDirection = HAT_DOWN_RIGHT;
-        else if (currentHat == HAT_LEFT) newDirection = HAT_RIGHT;
-        break;
-      case 67: // DPAD_DOWN
-        if (currentHat == HAT_CENTER) newDirection = HAT_DOWN;
-        else if (currentHat == HAT_RIGHT) newDirection = HAT_DOWN_RIGHT;
-        else if (currentHat == HAT_LEFT) newDirection = HAT_DOWN_LEFT;
-        else if (currentHat == HAT_UP_RIGHT) newDirection = HAT_DOWN_RIGHT;
-        else if (currentHat == HAT_UP_LEFT) newDirection = HAT_DOWN_LEFT;
-        else if (currentHat == HAT_UP) newDirection = HAT_DOWN;
-        break;
-      case 68: // DPAD_LEFT
-        if (currentHat == HAT_CENTER) newDirection = HAT_LEFT;
-        else if (currentHat == HAT_UP) newDirection = HAT_UP_LEFT;
-        else if (currentHat == HAT_DOWN) newDirection = HAT_DOWN_LEFT;
-        else if (currentHat == HAT_UP_RIGHT) newDirection = HAT_UP_LEFT;
-        else if (currentHat == HAT_DOWN_RIGHT) newDirection = HAT_DOWN_LEFT;
-        else if (currentHat == HAT_RIGHT) newDirection = HAT_LEFT;
-        break;
-    }
-    _gamepadReport.hat = newDirection;
-  }
-  sendGamepadReport();
-}
-
-void BleKeyboard::gamepadRelease(uint8_t button) {
-  // Handle regular buttons 1-64
-  if (button >= 1 && button <= 64) {
-    uint8_t field = (button - 1) / 32;
-    uint8_t bit = (button - 1) % 32;
-    _gamepadReport.buttons[field] &= ~(1UL << bit);
-  }
-  // Handle D-Pad as virtual buttons 65-68
-  else if (button >= 65 && button <= 68) {
-    uint8_t currentHat = _gamepadReport.hat;
-    uint8_t newDirection = currentHat;
-    
-    switch (button) {
-      case 65: // DPAD_UP - release up
-        if (currentHat == HAT_UP) newDirection = HAT_CENTER;
-        else if (currentHat == HAT_UP_RIGHT) newDirection = HAT_RIGHT;
-        else if (currentHat == HAT_UP_LEFT) newDirection = HAT_LEFT;
-        break;
-      case 66: // DPAD_RIGHT - release right
-        if (currentHat == HAT_RIGHT) newDirection = HAT_CENTER;
-        else if (currentHat == HAT_UP_RIGHT) newDirection = HAT_UP;
-        else if (currentHat == HAT_DOWN_RIGHT) newDirection = HAT_DOWN;
-        break;
-      case 67: // DPAD_DOWN - release down
-        if (currentHat == HAT_DOWN) newDirection = HAT_CENTER;
-        else if (currentHat == HAT_DOWN_RIGHT) newDirection = HAT_RIGHT;
-        else if (currentHat == HAT_DOWN_LEFT) newDirection = HAT_LEFT;
-        break;
-      case 68: // DPAD_LEFT - release left
-        if (currentHat == HAT_LEFT) newDirection = HAT_CENTER;
-        else if (currentHat == HAT_UP_LEFT) newDirection = HAT_UP;
-        else if (currentHat == HAT_DOWN_LEFT) newDirection = HAT_DOWN;
-        break;
-    }
-    _gamepadReport.hat = newDirection;
-  }
-  sendGamepadReport();
-}
-
-bool BleKeyboard::gamepadIsPressed(uint8_t button) {
+bool BleKeyboard::gamepadIsPressed(int8_t button) {
   // Handle regular buttons 1-64
   if (button >= 1 && button <= 64) {
     uint8_t field = (button - 1) / 32;
@@ -1471,21 +1357,14 @@ bool BleKeyboard::gamepadIsPressed(uint8_t button) {
   return false;
 }
 
-void BleKeyboard::gamepadReleaseAll() {
-  _gamepadReport.buttons[0] = 0;
-  _gamepadReport.buttons[1] = 0;
-  _gamepadReport.hat = HAT_CENTER; // Also center the D-Pad
-  sendGamepadReport();
-}
-
-void BleKeyboard::gamepadSetAxis(uint8_t axis, int16_t value) {
+void BleKeyboard::gamepadSetAxis(int8_t axis, int16_t value) {
   if (axis < GAMEPAD_AXIS_COUNT) {
     _gamepadReport.axes[axis] = value;
   }
   sendGamepadReport();
 }
 
-int16_t BleKeyboard::gamepadGetAxis(uint8_t axis) {
+int16_t BleKeyboard::gamepadGetAxis(int8_t axis) {
   if (axis < GAMEPAD_AXIS_COUNT) {
     return _gamepadReport.axes[axis];
   }
