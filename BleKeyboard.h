@@ -564,194 +564,208 @@ const uint16_t KC_BRID = 0x0070;
 const uint16_t KC_CPNL = 0x0186;
 const uint16_t KC_LPAD = 0x0187;
 
-const uint8_t GAMEPAD_0 = 1;
-const uint8_t GAMEPAD_SO = 1;
-const uint8_t GAMEPAD_1 = 2;
-const uint8_t GAMEPAD_EA = 2;
-const uint8_t GAMEPAD_2 = 3;
-const uint8_t GAMEPAD_3 = 4;
-const uint8_t GAMEPAD_WE = 4;
-const uint8_t GAMEPAD_4 = 5;
-const uint8_t GAMEPAD_NO = 5;
-const uint8_t GAMEPAD_5 = 6;
-const uint8_t GAMEPAD_6 = 7;
-const uint8_t GAMEPAD_L1 = 7;
-const uint8_t GAMEPAD_7 = 8;
-const uint8_t GAMEPAD_R1 = 8;
-const uint8_t GAMEPAD_8 = 9;
-const uint8_t GAMEPAD_9 = 10;
-const uint8_t GAMEPAD_10 = 11;
-const uint8_t GAMEPAD_BA = 11;
-const uint8_t GAMEPAD_11 = 12;
-const uint8_t GAMEPAD_ST = 12;
-const uint8_t GAMEPAD_12 = 13;
-const uint8_t GAMEPAD_GU = 13;
-const uint8_t GAMEPAD_13 = 14;
-const uint8_t GAMEPAD_L3 = 14;
-const uint8_t GAMEPAD_14 = 15;
-const uint8_t GAMEPAD_R3 = 15;
-const uint8_t GAMEPAD_15 = 16;
-const uint8_t GAMEPAD_16 = 17;
-const uint8_t GAMEPAD_17 = 18;
-const uint8_t GAMEPAD_18 = 19;
-const uint8_t GAMEPAD_19 = 20;
-const uint8_t GAMEPAD_20 = 21;
-const uint8_t GAMEPAD_21 = 22;
-const uint8_t GAMEPAD_22 = 23;
-const uint8_t GAMEPAD_23 = 24;
-const uint8_t GAMEPAD_24 = 25;
-const uint8_t GAMEPAD_25 = 26;
-const uint8_t GAMEPAD_26 = 27;
-const uint8_t GAMEPAD_27 = 28;
-const uint8_t GAMEPAD_28 = 29;
-const uint8_t GAMEPAD_29 = 30;
-const uint8_t GAMEPAD_30 = 31;
-const uint8_t GAMEPAD_31 = 32;
-const uint8_t GAMEPAD_32 = 33;
-const uint8_t GAMEPAD_33 = 34;
-const uint8_t GAMEPAD_34 = 35;
-const uint8_t GAMEPAD_35 = 36;
-const uint8_t GAMEPAD_36 = 37;
-const uint8_t GAMEPAD_37 = 38;
-const uint8_t GAMEPAD_38 = 39;
-const uint8_t GAMEPAD_39 = 40;
-const uint8_t GAMEPAD_40 = 41;
-const uint8_t GAMEPAD_41 = 42;
-const uint8_t GAMEPAD_42 = 43;
-const uint8_t GAMEPAD_43 = 44;
-const uint8_t GAMEPAD_44 = 45;
-const uint8_t GAMEPAD_45 = 46;
-const uint8_t GAMEPAD_46 = 47;
-const uint8_t GAMEPAD_47 = 48;
-const uint8_t GAMEPAD_48 = 49;
-const uint8_t GAMEPAD_49 = 50;
-const uint8_t GAMEPAD_50 = 51;
-const uint8_t GAMEPAD_51 = 52;
-const uint8_t GAMEPAD_52 = 53;
-const uint8_t GAMEPAD_53 = 54;
-const uint8_t GAMEPAD_54 = 55;
-const uint8_t GAMEPAD_55 = 56;
-const uint8_t GAMEPAD_56 = 57;
-const uint8_t GAMEPAD_57 = 58;
-const uint8_t GAMEPAD_58 = 59;
-const uint8_t GAMEPAD_59 = 60;
-const uint8_t GAMEPAD_60 = 61;
-const uint8_t GAMEPAD_61 = 62;
-const uint8_t GAMEPAD_62 = 63;
-const uint8_t GAMEPAD_63 = 64;
-const uint8_t GAMEPAD_64 = 65;
-const uint8_t GAMEPAD_UP = 65;
-const uint8_t GAMEPAD_65 = 66;
-const uint8_t GAMEPAD_RI = 66;
-const uint8_t GAMEPAD_66 = 67;
-const uint8_t GAMEPAD_DO = 67;
-const uint8_t GAMEPAD_67 = 68;
-const uint8_t GAMEPAD_LE = 68;
+const int8_t GAMEPAD_0 = 1;
+const int8_t GAMEPAD_SO = 1;
+const int8_t GAMEPAD_1 = 2;
+const int8_t GAMEPAD_EA = 2;
+const int8_t GAMEPAD_2 = 3;
+const int8_t GAMEPAD_3 = 4;
+const int8_t GAMEPAD_WE = 4;
+const int8_t GAMEPAD_4 = 5;
+const int8_t GAMEPAD_NO = 5;
+const int8_t GAMEPAD_5 = 6;
+const int8_t GAMEPAD_6 = 7;
+const int8_t GAMEPAD_L1 = 7;
+const int8_t GAMEPAD_7 = 8;
+const int8_t GAMEPAD_R1 = 8;
+const int8_t GAMEPAD_8 = 9;
+const int8_t GAMEPAD_9 = 10;
+const int8_t GAMEPAD_10 = 11;
+const int8_t GAMEPAD_BA = 11;
+const int8_t GAMEPAD_11 = 12;
+const int8_t GAMEPAD_ST = 12;
+const int8_t GAMEPAD_12 = 13;
+const int8_t GAMEPAD_GU = 13;
+const int8_t GAMEPAD_13 = 14;
+const int8_t GAMEPAD_L3 = 14;
+const int8_t GAMEPAD_14 = 15;
+const int8_t GAMEPAD_R3 = 15;
+const int8_t GAMEPAD_15 = 16;
+const int8_t GAMEPAD_16 = 17;
+const int8_t GAMEPAD_17 = 18;
+const int8_t GAMEPAD_18 = 19;
+const int8_t GAMEPAD_19 = 20;
+const int8_t GAMEPAD_20 = 21;
+const int8_t GAMEPAD_21 = 22;
+const int8_t GAMEPAD_22 = 23;
+const int8_t GAMEPAD_23 = 24;
+const int8_t GAMEPAD_24 = 25;
+const int8_t GAMEPAD_25 = 26;
+const int8_t GAMEPAD_26 = 27;
+const int8_t GAMEPAD_27 = 28;
+const int8_t GAMEPAD_28 = 29;
+const int8_t GAMEPAD_29 = 30;
+const int8_t GAMEPAD_30 = 31;
+const int8_t GAMEPAD_31 = 32;
+const int8_t GAMEPAD_32 = 33;
+const int8_t GAMEPAD_33 = 34;
+const int8_t GAMEPAD_34 = 35;
+const int8_t GAMEPAD_35 = 36;
+const int8_t GAMEPAD_36 = 37;
+const int8_t GAMEPAD_37 = 38;
+const int8_t GAMEPAD_38 = 39;
+const int8_t GAMEPAD_39 = 40;
+const int8_t GAMEPAD_40 = 41;
+const int8_t GAMEPAD_41 = 42;
+const int8_t GAMEPAD_42 = 43;
+const int8_t GAMEPAD_43 = 44;
+const int8_t GAMEPAD_44 = 45;
+const int8_t GAMEPAD_45 = 46;
+const int8_t GAMEPAD_46 = 47;
+const int8_t GAMEPAD_47 = 48;
+const int8_t GAMEPAD_48 = 49;
+const int8_t GAMEPAD_49 = 50;
+const int8_t GAMEPAD_50 = 51;
+const int8_t GAMEPAD_51 = 52;
+const int8_t GAMEPAD_52 = 53;
+const int8_t GAMEPAD_53 = 54;
+const int8_t GAMEPAD_54 = 55;
+const int8_t GAMEPAD_55 = 56;
+const int8_t GAMEPAD_56 = 57;
+const int8_t GAMEPAD_57 = 58;
+const int8_t GAMEPAD_58 = 59;
+const int8_t GAMEPAD_59 = 60;
+const int8_t GAMEPAD_60 = 61;
+const int8_t GAMEPAD_61 = 62;
+const int8_t GAMEPAD_62 = 63;
+const int8_t GAMEPAD_63 = 64;
+const int8_t GAMEPAD_64 = 65;
+const int8_t GAMEPAD_UP = 65;
+const int8_t GAMEPAD_65 = 66;
+const int8_t GAMEPAD_RI = 66;
+const int8_t GAMEPAD_66 = 67;
+const int8_t GAMEPAD_DO = 67;
+const int8_t GAMEPAD_67 = 68;
+const int8_t GAMEPAD_LE = 68;
 
-const uint8_t GB_00 = 1;
-const uint8_t GB_SO = 1;
-const uint8_t GB_01 = 2;
-const uint8_t GB_EA = 2;
-const uint8_t GB_02 = 3;
-const uint8_t GB_03 = 4;
-const uint8_t GB_WE = 4;
-const uint8_t GB_04 = 5;
-const uint8_t GB_NO = 5;
-const uint8_t GB_05 = 6;
-const uint8_t GB_06 = 7;
-const uint8_t GB_L1 = 7;
-const uint8_t GB_07 = 8;
-const uint8_t GB_R1 = 8;
-const uint8_t GB_08 = 9;
-const uint8_t GB_09 = 10;
-const uint8_t GB_10 = 11;
-const uint8_t GB_BA = 11;
-const uint8_t GB_11 = 12;
-const uint8_t GB_ST = 12;
-const uint8_t GB_12 = 13;
-const uint8_t GB_GU = 13;
-const uint8_t GB_13 = 14;
-const uint8_t GB_L3 = 14;
-const uint8_t GB_14 = 15;
-const uint8_t GB_R3 = 15;
-const uint8_t GB_15 = 16;
-const uint8_t GB_16 = 17;
-const uint8_t GB_17 = 18;
-const uint8_t GB_18 = 19;
-const uint8_t GB_19 = 20;
-const uint8_t GB_20 = 21;
-const uint8_t GB_21 = 22;
-const uint8_t GB_22 = 23;
-const uint8_t GB_23 = 24;
-const uint8_t GB_24 = 25;
-const uint8_t GB_25 = 26;
-const uint8_t GB_26 = 27;
-const uint8_t GB_27 = 28;
-const uint8_t GB_28 = 29;
-const uint8_t GB_29 = 30;
-const uint8_t GB_30 = 31;
-const uint8_t GB_31 = 32;
-const uint8_t GB_32 = 33;
-const uint8_t GB_33 = 34;
-const uint8_t GB_34 = 35;
-const uint8_t GB_35 = 36;
-const uint8_t GB_36 = 37;
-const uint8_t GB_37 = 38;
-const uint8_t GB_38 = 39;
-const uint8_t GB_39 = 40;
-const uint8_t GB_40 = 41;
-const uint8_t GB_41 = 42;
-const uint8_t GB_42 = 43;
-const uint8_t GB_43 = 44;
-const uint8_t GB_44 = 45;
-const uint8_t GB_45 = 46;
-const uint8_t GB_46 = 47;
-const uint8_t GB_47 = 48;
-const uint8_t GB_48 = 49;
-const uint8_t GB_49 = 50;
-const uint8_t GB_50 = 51;
-const uint8_t GB_51 = 52;
-const uint8_t GB_52 = 53;
-const uint8_t GB_53 = 54;
-const uint8_t GB_54 = 55;
-const uint8_t GB_55 = 56;
-const uint8_t GB_56 = 57;
-const uint8_t GB_57 = 58;
-const uint8_t GB_58 = 59;
-const uint8_t GB_59 = 60;
-const uint8_t GB_60 = 61;
-const uint8_t GB_61 = 62;
-const uint8_t GB_62 = 63;
-const uint8_t GB_63 = 64;
+const int8_t GB_00 = 1;
+const int8_t GB_SO = 1;
+const int8_t GB_01 = 2;
+const int8_t GB_EA = 2;
+const int8_t GB_02 = 3;
+const int8_t GB_03 = 4;
+const int8_t GB_WE = 4;
+const int8_t GB_04 = 5;
+const int8_t GB_NO = 5;
+const int8_t GB_05 = 6;
+const int8_t GB_06 = 7;
+const int8_t GB_L1 = 7;
+const int8_t GB_07 = 8;
+const int8_t GB_R1 = 8;
+const int8_t GB_08 = 9;
+const int8_t GB_09 = 10;
+const int8_t GB_10 = 11;
+const int8_t GB_BA = 11;
+const int8_t GB_11 = 12;
+const int8_t GB_ST = 12;
+const int8_t GB_12 = 13;
+const int8_t GB_GU = 13;
+const int8_t GB_13 = 14;
+const int8_t GB_L3 = 14;
+const int8_t GB_14 = 15;
+const int8_t GB_R3 = 15;
+const int8_t GB_15 = 16;
+const int8_t GB_16 = 17;
+const int8_t GB_17 = 18;
+const int8_t GB_18 = 19;
+const int8_t GB_19 = 20;
+const int8_t GB_20 = 21;
+const int8_t GB_21 = 22;
+const int8_t GB_22 = 23;
+const int8_t GB_23 = 24;
+const int8_t GB_24 = 25;
+const int8_t GB_25 = 26;
+const int8_t GB_26 = 27;
+const int8_t GB_27 = 28;
+const int8_t GB_28 = 29;
+const int8_t GB_29 = 30;
+const int8_t GB_30 = 31;
+const int8_t GB_31 = 32;
+const int8_t GB_32 = 33;
+const int8_t GB_33 = 34;
+const int8_t GB_34 = 35;
+const int8_t GB_35 = 36;
+const int8_t GB_36 = 37;
+const int8_t GB_37 = 38;
+const int8_t GB_38 = 39;
+const int8_t GB_39 = 40;
+const int8_t GB_40 = 41;
+const int8_t GB_41 = 42;
+const int8_t GB_42 = 43;
+const int8_t GB_43 = 44;
+const int8_t GB_44 = 45;
+const int8_t GB_45 = 46;
+const int8_t GB_46 = 47;
+const int8_t GB_47 = 48;
+const int8_t GB_48 = 49;
+const int8_t GB_49 = 50;
+const int8_t GB_50 = 51;
+const int8_t GB_51 = 52;
+const int8_t GB_52 = 53;
+const int8_t GB_53 = 54;
+const int8_t GB_54 = 55;
+const int8_t GB_55 = 56;
+const int8_t GB_56 = 57;
+const int8_t GB_57 = 58;
+const int8_t GB_58 = 59;
+const int8_t GB_59 = 60;
+const int8_t GB_60 = 61;
+const int8_t GB_61 = 62;
+const int8_t GB_62 = 63;
+const int8_t GB_63 = 64;
 
-const uint8_t AXIS_LX = 0;  // Left stick X
-const uint8_t AXIS_LY = 1;  // Left stick Y
-const uint8_t AXIS_RX = 2;  // Right stick X
-const uint8_t AXIS_RY = 3;  // Right stick Y
-const uint8_t AXIS_LT = 4;  // Left trigger
-const uint8_t AXIS_RT = 5;  // Right trigger
+const int8_t AXIS_LX = 0;  // Left stick X
+const int8_t AXIS_LY = 1;  // Left stick Y
+const int8_t AXIS_RX = 2;  // Right stick X
+const int8_t AXIS_RY = 3;  // Right stick Y
+const int8_t AXIS_LT = 4;  // Left trigger
+const int8_t AXIS_RT = 5;  // Right trigger
 
-const uint8_t GA_LX = 0;
-const uint8_t GA_LY = 1;
-const uint8_t GA_RX = 2;
-const uint8_t GA_RY = 3;
-const uint8_t GA_LT = 4;
-const uint8_t GA_RT = 5;
+const int8_t GA_LX = 0;
+const int8_t GA_LY = 1;
+const int8_t GA_RX = 2;
+const int8_t GA_RY = 3;
+const int8_t GA_LT = 4;
+const int8_t GA_RT = 5;
 
-const uint8_t HAT_CENTER = 0x08;
-const uint8_t HAT_UP = 0x00;
-const uint8_t HAT_UP_RIGHT = 0x01;
-const uint8_t HAT_RIGHT = 0x02;
-const uint8_t HAT_DOWN_RIGHT = 0x03;
-const uint8_t HAT_DOWN = 0x04;
-const uint8_t HAT_DOWN_LEFT = 0x05;
-const uint8_t HAT_LEFT = 0x06;
-const uint8_t HAT_UP_LEFT = 0x07;
+const int8_t HAT_CENTER = 0x08;
+const int8_t HAT_UP = 0x00;
+const int8_t HAT_UP_RIGHT = 0x01;
+const int8_t HAT_RIGHT = 0x02;
+const int8_t HAT_DOWN_RIGHT = 0x03;
+const int8_t HAT_DOWN = 0x04;
+const int8_t HAT_DOWN_LEFT = 0x05;
+const int8_t HAT_LEFT = 0x06;
+const int8_t HAT_UP_LEFT = 0x07;
 
-const uint8_t GB_UP = 65;
-const uint8_t GB_RI = 66;
-const uint8_t GB_DO = 67;
-const uint8_t GB_LE = 68;
+const int8_t GB_UP = 65;
+const int8_t GB_RI = 66;
+const int8_t GB_DO = 67;
+const int8_t GB_LE = 68;
+
+static const int8_t hatPress[4][9] = {
+  { 0x00, 0x01, 0x01, 0x01, 0x00, 0x07, 0x07, 0x07, 0x00 }, // UP
+  { 0x01, 0x01, 0x02, 0x03, 0x03, 0x03, 0x02, 0x01, 0x02 }, // RIGHT
+  { 0x04, 0x03, 0x03, 0x03, 0x04, 0x05, 0x05, 0x05, 0x04 }, // DOWN
+  { 0x07, 0x07, 0x06, 0x05, 0x05, 0x05, 0x06, 0x07, 0x06 }  // LEFT
+};
+  
+static const int8_t hatRelease[4][9] = {
+  { 0x08, 0x02, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06, 0x08}, // UP
+  { 0x00, 0x00, 0x08, 0x04, 0x04, 0x05, 0x06, 0x07, 0x08}, // RIGHT
+  { 0x00, 0x01, 0x02, 0x02, 0x08, 0x06, 0x06, 0x07, 0x08}, // DOWN
+  { 0x00, 0x01, 0x02, 0x03, 0x04, 0x04, 0x08, 0x00, 0x08}  // LEFT
+};
 
 class BleKeyboard : public Print
 #if !defined(USE_NIMBLE)
@@ -787,7 +801,7 @@ private:
   std::string        deviceManufacturer;
   std::string        securityPin;
   uint8_t            batteryLevel;
-  bool isPinSecurityEnabled() const;
+  bool               isPinSecurityEnabled() const;
   bool               connected = false;
   uint32_t           _delay_ms = 7;
   bool               _useNKRO = true;  // Default to NKRO
@@ -821,16 +835,13 @@ public:
   
   void setSecurityPin(const std::string& pin);
   void clearSecurityPin();
-#if defined(USE_NIMBLE)
   uint32_t onPassKeyRequest();
   void onPassKeyNotify(uint32_t pass_key);
   bool onConfirmPIN(uint32_t pass_key);
+#if defined(USE_NIMBLE)
   void onAuthenticationComplete(ble_gap_conn_desc* desc);
 #else
-  uint32_t onPassKeyRequest();
-  void onPassKeyNotify(uint32_t pass_key);
   bool onSecurityRequest();
-  bool onConfirmPIN(uint32_t pass_key);
   void onAuthenticationComplete(esp_ble_auth_cmpl_t cmpl);
 #endif
   
@@ -838,15 +849,26 @@ public:
   // The library differentiates between keys, modifiers, and media keys by storing them using 3 different integer types
   size_t press(uint8_t k);           // I went with uint8_t for normal keycodes
   size_t press(int16_t modifier);    // I chose int16_t for modifiers
-  size_t press(uint16_t mediaKey);   // Lastly, I picked uint16_t for media keys
+  size_t press(uint16_t mediaKey);   // I picked uint16_t for media keys
+  void   press(int8_t button);       // Next, int8_t is for the gamepad buttons
+  void   press(char b = MOUSE_LEFT); // Finally, char is for mouse clicks
+  void   press(uint16_t x, uint16_t y, char b = MOUSE_LEFT);  // Feeding in coordinates makes it assume you're trying to use absolute pointer mode
+  
   size_t release(uint8_t k);
   size_t release(int16_t modifier);
   size_t release(uint16_t mediaKey);
+  void   release(int8_t button);
+  void   release(char b = MOUSE_LEFT);
+  void   release(uint16_t x, uint16_t y, char b = MOUSE_LEFT);
+  
   size_t write(uint8_t c);
   size_t write(int16_t modifier);
   size_t write(uint16_t mediaKey);
   size_t write(const uint8_t *buffer, size_t size);
+  
   void releaseAll(void);
+  void gamepadReleaseAll(void);
+  void mouseReleaseAll();
   
   // NKRO/6KRO mode switching
   void useNKRO(bool state = enabled);
@@ -876,16 +898,11 @@ public:
   void removeMediaKey(uint16_t mediaKey);
 
   // Pointer helper functions (Duplicates are so the same commands can support relative or absolute depending upon whether you feed in coordinates)
-  void mouseClick(uint8_t b = MOUSE_LEFT);
-  void mouseClick(uint16_t x, uint16_t y, uint8_t b = MOUSE_LEFT);
+  void mouseClick(char b = MOUSE_LEFT);
+  void mouseClick(uint16_t x, uint16_t y, char b = MOUSE_LEFT);
   void mouseMove(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
   void mouseMoveTo(uint16_t x, uint16_t y, signed char wheel = 0, signed char hWheel = 0);
-  void mousePress(uint8_t b = MOUSE_LEFT);
-  void mousePress(uint16_t x, uint16_t y, uint8_t b = MOUSE_LEFT);
-  void mouseRelease(uint8_t b = MOUSE_LEFT);
-  void mouseRelease(uint16_t x, uint16_t y, uint8_t b = MOUSE_LEFT);
-  bool mouseIsPressed(uint8_t b = MOUSE_LEFT);
-  void mouseReleaseAll();
+  bool mouseIsPressed(char b = MOUSE_LEFT);
   
   // Absolute pointer helpers
   void useAbsolute(bool enable = true);
@@ -904,20 +921,15 @@ public:
   void setPressure(uint16_t pressure);  // Pressure values are 0-1023
   void setTipSwitch(bool state);
   
-  // Gamepad button helpers
-  void gamepadPress(uint8_t button);
-  void gamepadRelease(uint8_t button);
-  bool gamepadIsPressed(uint8_t button);
-  void gamepadReleaseAll();
-  
-  // Gamepad axis helpers
+  // Gamepad helpers
+  bool gamepadIsPressed(int8_t button);
   void gamepadSetLeftStick(int16_t x, int16_t y);
   void gamepadSetRightStick(int16_t x, int16_t y);
   void gamepadSetTriggers(int16_t left, int16_t right);
   void gamepadGetLeftStick(int16_t &x, int16_t &y);
   void gamepadGetRightStick(int16_t &x, int16_t &y);
-  void gamepadSetAxis(uint8_t axis, int16_t value);
-  int16_t gamepadGetAxis(uint8_t axis);
+  void gamepadSetAxis(int8_t axis, int16_t value);
+  int16_t gamepadGetAxis(int8_t axis);
   void gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
   
 protected:
