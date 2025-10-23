@@ -1,5 +1,5 @@
 // uncomment the following line to use NimBLE library
-// #define USE_NIMBLE
+#define USE_NIMBLE
 
 #ifndef ESP32_BLE_KEYBOARD_H
 #define ESP32_BLE_KEYBOARD_H
@@ -13,6 +13,7 @@
 #include "NimBLECharacteristic.h"
 #include "NimBLEAdvertising.h"
 #include "NimBLEServer.h"
+#include "NimBLEUUID.h"
 
 #define BLEDevice                  NimBLEDevice
 #define BLEServerCallbacks         NimBLEServerCallbacks
@@ -50,12 +51,18 @@
 //  NKRO report structure
 typedef struct
 {
+#if defined(USE_NIMBLE)
+  uint8_t reportID;
+#endif
   uint8_t modifiers;
   uint8_t reserved;
   uint8_t keys_bitmask[(NKRO_KEY_COUNT + 7) / 8];  // Bitmask for keys
 } KeyReportNKRO;
 // Mouse report structure
 typedef struct {
+#if defined(USE_NIMBLE)
+  uint8_t reportID;
+#endif
   uint8_t buttons;
   int8_t x;
   int8_t y;
@@ -64,6 +71,9 @@ typedef struct {
 } MouseReport;
 // Digitizer report structure
 typedef struct {
+#if defined(USE_NIMBLE)
+  uint8_t reportID;
+#endif
   uint8_t buttons;
   uint16_t x;
   uint16_t y;
@@ -75,6 +85,9 @@ typedef struct {
 } AbsoluteReport;
 // Gamepad report structure
 typedef struct {
+#if defined(USE_NIMBLE)
+  uint8_t reportID;
+#endif
   uint32_t buttons[2];
   int16_t axes[GAMEPAD_AXIS_COUNT];
   uint8_t hat;
@@ -776,12 +789,10 @@ class BleKeyboard : public Print
 #else
     , public NimBLEServerCallbacks
     , public NimBLECharacteristicCallbacks
+//    , public BLESecurityCallbacks
 #endif
 {
 private:
-#if defined(USE_NIMBLE)
-  void               setPnpInfo();
-#endif
   BLEHIDDevice*      hid;
   uint16_t           appearance = HID_KEYBOARD;
   std::string        devicePurpose = "Keyboard";
@@ -877,6 +888,8 @@ public:
   bool isNKROEnabled();
   
   // BLE helper functions
+  bool checkConnectionStatus();
+  void debugConnectionStatus(void);
   bool isConnected(void);
   void setBatteryLevel(uint8_t level);
   void setName(std::string deviceName);  
@@ -941,9 +954,9 @@ protected:
   virtual void onDisconnect(BLEServer* pServer) override;
   virtual void onWrite(BLECharacteristic* me) override;
 #else
-  virtual void onConnect(BLEServer* pServer);
-  virtual void onDisconnect(BLEServer* pServer);
-  virtual void onWrite(BLECharacteristic* me);
+  virtual void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc);
+  virtual void onDisconnect(NimBLEServer *pServer); 
+  virtual void onWrite(NimBLECharacteristic* me);
 #endif
 };
 
