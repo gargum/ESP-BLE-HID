@@ -5,6 +5,7 @@
 #include <NimBLEServer.h>
 #include <NimBLEUtils.h>
 #include <NimBLEHIDDevice.h>
+#include <NimBLEUUID.h>
 #else
 #include <BLEDevice.h>
 #include <BLEUtils.h>
@@ -301,6 +302,13 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
   memset(&_absoluteReport, 0, sizeof(_absoluteReport));
   memset(&_gamepadReport, 0, sizeof(_gamepadReport));
   _gamepadReport.hat = HAT_CENTER; // Initialize hat to center position
+  
+#if defined(USE_NIMBLE)
+  _keyReportNKRO.reportID = NKRO_KEYBOARD_ID; 
+  _mouseReport.reportID = MOUSE_ID;           
+  _absoluteReport.reportID = DIGITIZER_ID;   
+  _gamepadReport.reportID = GAMEPAD_ID;      
+#endif
 }
 // This is a "destructor". It takes objects the contructor made, and destroys them whenever you tell it to. 
 BleKeyboard::~BleKeyboard() {}
@@ -337,7 +345,6 @@ void BleKeyboard::begin(void) {
      // Manufacturer / PnP / HID-info
 #if defined(USE_NIMBLE)
     hid->setManufacturer(std::string(deviceManufacturer.c_str()));
-    setPnpInfo();                      // local helper for NimBLE
     hid->setHidInfo(0x00, 0x01);
 #else
     hid->manufacturer()->setValue(String(deviceManufacturer.c_str()));
@@ -446,6 +453,10 @@ void BleKeyboard::begin(void) {
     ESP_LOGI(LOG_TAG, "Using %s mode by default", _useNKRO ? "NKRO" : "6KRO");
 }
 
+#if defined(USE_NIMBLE)
+
+#endif
+
 void BleKeyboard::setAppearance(uint16_t newAppearance) {
   this->appearance = newAppearance;
   ESP_LOGI(LOG_TAG, "Appearance set to: 0x%04X", newAppearance);
@@ -456,7 +467,52 @@ void BleKeyboard::setDevicePurpose(const std::string& purpose) {
   ESP_LOGI(LOG_TAG, "Device purpose set to: %s", devicePurpose.c_str());
 }
 
+bool BleKeyboard::checkConnectionStatus() {
+#if defined(USE_NIMBLE)
+    if (NimBLEDevice::getServer()) {
+        int connectedClients = NimBLEDevice::getServer()->getConnectedCount();
+        bool actuallyConnected = (connectedClients > 0);
+        
+        if (actuallyConnected != this->connected) {
+            ESP_LOGI(LOG_TAG, "Connection status mismatch: actually=%d, flag=%d", 
+                     actuallyConnected, this->connected);
+            this->connected = actuallyConnected;
+        }
+        
+        return actuallyConnected;
+    }
+#endif
+    return this->connected;
+}
+
+void BleKeyboard::debugConnectionStatus() {
+#if defined(USE_NIMBLE)
+    if (NimBLEDevice::getServer()) {
+        int clients = NimBLEDevice::getServer()->getConnectedCount();
+        ESP_LOGI(LOG_TAG, "=== DEBUG: Server has %d connected clients", clients);
+        ESP_LOGI(LOG_TAG, "=== DEBUG: connected flag = %d", this->connected);
+        
+        // List all connected clients - getPeerDevices() returns connection handles
+        auto peerList = NimBLEDevice::getServer()->getPeerDevices();
+        for (auto peerHandle : peerList) {
+            ESP_LOGI(LOG_TAG, "=== DEBUG: Peer connected, handle=%d", peerHandle);  // ← Changed from peer.getConnHandle() to just peerHandle
+        }
+    } else {
+        ESP_LOGI(LOG_TAG, "=== DEBUG: Server is null");
+    }
+#else
+    ESP_LOGI(LOG_TAG, "=== DEBUG: connected flag = %d", this->connected);
+#endif
+}
+
+
 bool BleKeyboard::isConnected(void) {
+#if defined(USE_NIMBLE)
+  if (NimBLEDevice::getServer()) {
+        int connectedClients = NimBLEDevice::getServer()->getConnectedCount();
+        this->connected = (connectedClients > 0);
+  }
+#endif
   return this->connected;
 }
 
@@ -1415,27 +1471,43 @@ void BleKeyboard::sendGamepadReport() {
   }
 }
 
+#if defined(USE_NIMBLE)
+void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
+  this->connected = true;
+  connected = true;
+  ESP_LOGV(LOG_TAG, "NimBLE connected");
+  
+  // Start notifications for NimBLE
+  if (inputNKRO) {
+    inputNKRO->notify();
+  }
+  if (inputMediaKeys) {
+    inputMediaKeys->notify(); 
+  }
+  
+  ESP_LOGI(LOG_TAG, "Client connected");
+}
+
+void BleKeyboard::onDisconnect(NimBLEServer *pServer) {
+  this->connected = false;
+  connected = false;
+  ESP_LOGV(LOG_TAG, "NimBLE disconnected");
+  advertising->start();
+}
+#else
 void BleKeyboard::onConnect(BLEServer* pServer) {
   this->connected = true;
-
-#if !defined(USE_NIMBLE)
   this->inputNKRO->notify();
   this->inputMediaKeys->notify();
-#endif
-
 }
 
 void BleKeyboard::onDisconnect(BLEServer* pServer) {
   this->connected = false;
-
-#if !defined(USE_NIMBLE)
   this->inputNKRO->notify();
   this->inputMediaKeys->notify();
-  
   advertising->start();
-#endif
-
 }
+#endif
 
 void BleKeyboard::onWrite(BLECharacteristic* me) {
   uint8_t* value = (uint8_t*)(me->getValue().c_str());
