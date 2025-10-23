@@ -898,10 +898,10 @@ public:
   void removeMediaKey(uint16_t mediaKey);
 
   // Pointer helper functions (Duplicates are so the same commands can support relative or absolute depending upon whether you feed in coordinates)
-  void mouseClick(char b = MOUSE_LEFT);
-  void mouseClick(uint16_t x, uint16_t y, char b = MOUSE_LEFT);
-  void mouseMove(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
-  void mouseMoveTo(uint16_t x, uint16_t y, signed char wheel = 0, signed char hWheel = 0);
+  void click(char b = MOUSE_LEFT);
+  void click(uint16_t x, uint16_t y, char b = MOUSE_LEFT);
+  void move(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
+  void moveTo(uint16_t x, uint16_t y, signed char wheel = 0, signed char hWheel = 0);
   bool mouseIsPressed(char b = MOUSE_LEFT);
   
   // Absolute pointer helpers
