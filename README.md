@@ -28,11 +28,11 @@ All development/testing is performed on boards *without* USB host mode, like the
 
 ## Features Currently in Development
 
-- [] Matrix support - Developing the system for defining key matrices and encoder pins
-- [] Keymap support - Developing the system to create keymaps corresponding to a user-defined matrix
-- [] Split communication - Figuring out ESP-NOW wireless support for the full 20 board maximum
-- [] Rumble support - Developing the system for supporting gamepad haptic feedback
-- [] Documentation - Writing the docs for ESP-BLE-HID 
+- [ ] Matrix support - Developing the system for defining key matrices and encoder pins
+- [ ] Keymap support - Developing the system to create keymaps corresponding to a user-defined matrix
+- [ ] Split communication - Figuring out ESP-NOW wireless support for the full 20 board maximum
+- [ ] Rumble support - Developing the system for supporting gamepad haptic feedback
+- [ ] Documentation - Writing the docs for ESP-BLE-HID 
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
