@@ -19,8 +19,7 @@ KeyReport	KEYWORD1
 begin	             KEYWORD2
 end	             KEYWORD2
 
-setSecurityPin       KEYWORD2
-clearSecurityPin     KEYWORD2
+setPIN               KEYWORD2
 
 write	             KEYWORD2
 press                KEYWORD2
