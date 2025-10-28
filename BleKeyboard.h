@@ -765,7 +765,7 @@ class BleKeyboard : public Print
 private:
   BLEHIDDevice*      hid;
   uint16_t           appearance = HID_KEYBOARD;
-  std::string        devicePurpose = "Keyboard";
+  uint32_t           passkey = 0;           // PIN code (0 = no security)
   BLECharacteristic* outputKeyboard;
   BLECharacteristic* inputMediaKeys;
   BLECharacteristic* inputNKRO;
@@ -793,6 +793,7 @@ private:
   uint16_t pid       = 0x820a;
   uint16_t version   = 0x0210;
   
+  static void securityCallback(uint32_t passkey); 
   void delay_ms(uint64_t ms);
   uint32_t mediaKeyToBitmask(uint16_t usageCode);
   void sendNKROReport();
@@ -809,8 +810,13 @@ public:
   void begin(void);
   void end(void);
   
+ // Security methods
+  void setPIN(const char* pin);                 // Set 6-digit PIN like "123456"
+  void setPIN(uint32_t pin);                    // Set numeric PIN
+  void disableSecurity(bool enable = true);      // Enable/disable security
+  bool isSecurityEnabled() const;               // Check if security is enabled
+  
   void setAppearance(uint16_t newAppearance);
-  void setDevicePurpose(const std::string& purpose);
   
   void sendReport();
   // The library differentiates between keys, modifiers, and media keys by storing them using 3 different integer types
@@ -905,6 +911,9 @@ public:
   
 protected:
   virtual void onStarted(BLEServer *pServer) { };
+  virtual uint32_t onPassKeyRequest();
+  virtual void onAuthenticationComplete(ble_gap_conn_desc* desc);
+  virtual bool onSecurityRequest();
   virtual void onMouseStarted(BLEServer *pServer) { };
   virtual void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc);
   virtual void onDisconnect(NimBLEServer *pServer); 
