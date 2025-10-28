@@ -1,28 +1,17 @@
 #include "BleKeyboard.h"
 
-#if defined(USE_NIMBLE)
 #include <NimBLEDevice.h>
 #include <NimBLEServer.h>
 #include <NimBLEUtils.h>
 #include <NimBLEHIDDevice.h>
 #include <NimBLEUUID.h>
-#else
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEServer.h>
-#include "BLE2902.h"
-#include "BLEHIDDevice.h"
-#endif // USE_NIMBLE
 #include "HIDTypes.h"
 #include "esp_timer.h"
 #include "esp_mac.h"
 #include "sdkconfig.h"
 #include "esp_log.h"
 static const char* LOG_TAG = "BleKeyboard";
-
-#if defined(USE_NIMBLE)
 bool getInitialized = false;
-#endif
 
 // Report IDs:
 #define KEYBOARD_ID 0x01
@@ -282,7 +271,19 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_SIZE(1),      0x04,            // REPORT_SIZE (4)
   REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
   HIDINPUT(1),         0x03,            // INPUT (Constant, Variable, Absolute)
+  
+  // Haptics - left and right motor vibration
+  USAGE_PAGE(1),       0x0F,            // USAGE_PAGE (Physical Interface Device)
+  LOGICAL_MINIMUM(1),  0x00,            // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1),  0xFF,            // LOGICAL_MAXIMUM (255)
+  REPORT_SIZE(1),      0x08,            // REPORT_SIZE (8)
+  REPORT_COUNT(1),     0x02,            // REPORT_COUNT (2) - Left and right motor
+  USAGE(1),            0x97,            // USAGE (Magnitude) - Left motor
+  USAGE(1),            0x97,            // USAGE (Magnitude) - Right motor  
+  HIDOUTPUT(1),        0x02,            // OUTPUT (Data, Variable, Absolute)
+  
   END_COLLECTION(0),                      // END_COLLECTION (Application)
+
 
 };
 // This is a "constructor". It takes that class from the BleKeyboard.h file, and turns it into "objects" that can actually be used.
@@ -291,24 +292,17 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
     , deviceName(std::string(deviceName).substr(0, 15))
     , deviceManufacturer(std::string(deviceManufacturer).substr(0,15))
     , batteryLevel(batteryLevel) 
-    , securityPin("") 
     , _mediaKeyBitmask(0) 
     , _useNKRO(true)
     , _mouseButtons(0)
-    , _useAbsolute(false) {
+    , _useAbsolute(false)
+    , _onVibrateCallback(nullptr) {
   // Initialize reports
   memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
   memset(&_mouseReport, 0, sizeof(_mouseReport));
   memset(&_absoluteReport, 0, sizeof(_absoluteReport));
   memset(&_gamepadReport, 0, sizeof(_gamepadReport));
-  _gamepadReport.hat = HAT_CENTER; // Initialize hat to center position
-  
-#if defined(USE_NIMBLE)
-  _keyReportNKRO.reportID = NKRO_KEYBOARD_ID; 
-  _mouseReport.reportID = MOUSE_ID;           
-  _absoluteReport.reportID = DIGITIZER_ID;   
-  _gamepadReport.reportID = GAMEPAD_ID;      
-#endif
+  _gamepadReport.hat = HAT_CENTER; // Initialize hat to center position 
 }
 // This is a "destructor". It takes objects the contructor made, and destroys them whenever you tell it to. 
 BleKeyboard::~BleKeyboard() {}
@@ -316,12 +310,8 @@ BleKeyboard::~BleKeyboard() {}
 void BleKeyboard::begin(void) {
   
     // Initialise BLE stack only once
-#if defined(USE_NIMBLE)
-    if (!getInitialized)
-#else
-    if (!BLEDevice::getInitialized())
-#endif
-    {BLEDevice::init(deviceName.c_str());}
+    if (!getInitialized){
+    BLEDevice::init(deviceName.c_str());}
 
      // Create server & install callbacks
     BLEServer *pServer = BLEDevice::createServer();
@@ -331,82 +321,31 @@ void BleKeyboard::begin(void) {
     hid = new BLEHIDDevice(pServer);
 
      // Obtain report-characteristic pointers
-#if defined(USE_NIMBLE)
     outputKeyboard = hid->getOutputReport(KEYBOARD_ID);
     inputMediaKeys = hid->getInputReport(MEDIA_KEYS_ID);
     inputNKRO      = hid->getInputReport(NKRO_KEYBOARD_ID);
-#else
-    outputKeyboard = hid->outputReport(KEYBOARD_ID);
-    inputMediaKeys = hid->inputReport(MEDIA_KEYS_ID);
-    inputNKRO      = hid->inputReport(NKRO_KEYBOARD_ID);
-#endif
     outputKeyboard->setCallbacks(this);
 
      // Manufacturer / PnP / HID-info
-#if defined(USE_NIMBLE)
     hid->setManufacturer(std::string(deviceManufacturer.c_str()));
     hid->setHidInfo(0x00, 0x01);
-#else
-    hid->manufacturer()->setValue(String(deviceManufacturer.c_str()));
-    hid->pnp(0x02, vid, pid, version);
-    hid->hidInfo(0x00, 0x01);
-#endif
 
      // Mouse / Digitizer / Gamepad reports
-#if defined(USE_NIMBLE)
     inputMouse    = hid->getInputReport(0x04);
     inputAbsolute = hid->getInputReport(0x05);
     inputGamepad  = hid->getInputReport(0x06);
-#else
-    inputMouse    = hid->inputReport(0x04);
-    inputAbsolute = hid->inputReport(0x05);
-    inputGamepad  = hid->inputReport(0x06);
-#endif
-
-     // Static pass-key (if user enabled it)
-    if (isPinSecurityEnabled())
-        setStaticPasskey();
-
-     // Security manager setup
-#if defined(USE_NIMBLE)
-    if (securityPin.empty()) {
-        ESP_LOGI(LOG_TAG, "Using Just Works security mode");
-        NimBLEDevice::setSecurityAuth(true, true, true);
-        NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
-    } else {
-        ESP_LOGI(LOG_TAG, "Using PIN security mode: %s", securityPin.c_str());
-        NimBLEDevice::setSecurityAuth(true, true, true);
-        NimBLEDevice::setSecurityIOCap(BLE_HS_IO_KEYBOARD_ONLY);
+    if (inputGamepad) {
+    inputGamepad->setCallbacks(this);
     }
-#else
-    BLESecurity *pSecurity = new BLESecurity();
-    if (securityPin.empty()) {
-        ESP_LOGI(LOG_TAG, "Using Just Works security mode");
-        pSecurity->setAuthenticationMode(ESP_LE_AUTH_BOND);
-        pSecurity->setCapability(ESP_IO_CAP_NONE);
-        pSecurity->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
-    } else {
-        ESP_LOGI(LOG_TAG, "Using PIN security mode: %s", securityPin.c_str());
-        pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_MITM_BOND);
-        pSecurity->setCapability(ESP_IO_CAP_IN);
-        pSecurity->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
-        BLEDevice::setSecurityCallbacks(this);
-    }
-#endif
 
      // Publish HID report map and start services
-#if defined(USE_NIMBLE)
     hid->setReportMap((uint8_t *)_hidReportDescriptor, sizeof(_hidReportDescriptor));
-#else
-    hid->reportMap((uint8_t *)_hidReportDescriptor, sizeof(_hidReportDescriptor));
-#endif
     hid->startServices();
 
      // Advertising setup
     advertising = pServer->getAdvertising();
     BLEAdvertisementData adv, scan;
 
-#if defined(USE_NIMBLE)
     advertising->addServiceUUID(hid->getHidService()->getUUID());
     scan.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
     scan.setName(deviceName.c_str());
@@ -416,15 +355,6 @@ void BleKeyboard::begin(void) {
     adv.setCompleteServices(BLEUUID(hid->getHidService()->getUUID()));
     scan.setCompleteServices(BLEUUID(hid->getHidService()->getUUID()));
     BLEUUID hidUuid = hid->getHidService()->getUUID();
-#else
-    advertising->addServiceUUID(hid->hidService()->getUUID());
-    advertising->setScanResponse(true);
-
-    adv.setFlags(ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT);
-    adv.setCompleteServices(BLEUUID(hid->hidService()->getUUID()));
-    scan.setCompleteServices(BLEUUID(hid->hidService()->getUUID()));
-    BLEUUID hidUuid = hid->hidService()->getUUID();
-#endif
 
     adv.setName(deviceName.c_str());
     adv.setAppearance(this->appearance);
@@ -444,18 +374,22 @@ void BleKeyboard::begin(void) {
 
     ESP_LOGI(LOG_TAG, "Advertising started!");
     ESP_LOGI(LOG_TAG, "Device name: %s", deviceName.c_str());
-#if defined(USE_NIMBLE)
     ESP_LOGI(LOG_TAG, "Service UUID: %s", hid->getHidService()->getUUID().toString().c_str());
-    getInitialized = true;
-#else
-    ESP_LOGI(LOG_TAG, "Service UUID: %s", hid->hidService()->getUUID().toString().c_str());
-#endif
     ESP_LOGI(LOG_TAG, "Using %s mode by default", _useNKRO ? "NKRO" : "6KRO");
+    
+    getInitialized = true;
 }
 
-#if defined(USE_NIMBLE)
-
-#endif
+void BleKeyboard::end(void) {
+  if (hid != 0) {
+    delete hid;
+    hid = 0;
+  }
+  BLEDevice::deinit(true);
+  getInitialized = false;
+  this->connected = false;
+  ESP_LOGI(LOG_TAG, "BLE Keyboard stopped");
+}
 
 void BleKeyboard::setAppearance(uint16_t newAppearance) {
   this->appearance = newAppearance;
@@ -468,7 +402,6 @@ void BleKeyboard::setDevicePurpose(const std::string& purpose) {
 }
 
 bool BleKeyboard::checkConnectionStatus() {
-#if defined(USE_NIMBLE)
     if (NimBLEDevice::getServer()) {
         int connectedClients = NimBLEDevice::getServer()->getConnectedCount();
         bool actuallyConnected = (connectedClients > 0);
@@ -481,12 +414,10 @@ bool BleKeyboard::checkConnectionStatus() {
         
         return actuallyConnected;
     }
-#endif
     return this->connected;
 }
 
 void BleKeyboard::debugConnectionStatus() {
-#if defined(USE_NIMBLE)
     if (NimBLEDevice::getServer()) {
         int clients = NimBLEDevice::getServer()->getConnectedCount();
         ESP_LOGI(LOG_TAG, "=== DEBUG: Server has %d connected clients", clients);
@@ -500,19 +431,14 @@ void BleKeyboard::debugConnectionStatus() {
     } else {
         ESP_LOGI(LOG_TAG, "=== DEBUG: Server is null");
     }
-#else
-    ESP_LOGI(LOG_TAG, "=== DEBUG: connected flag = %d", this->connected);
-#endif
 }
 
 
 bool BleKeyboard::isConnected(void) {
-#if defined(USE_NIMBLE)
   if (NimBLEDevice::getServer()) {
         int connectedClients = NimBLEDevice::getServer()->getConnectedCount();
         this->connected = (connectedClients > 0);
   }
-#endif
   return this->connected;
 }
 
@@ -549,175 +475,6 @@ void BleKeyboard::set_version(uint16_t version) {
 	this->version = version; 
 }
 
-void BleKeyboard::setStaticPasskey() {
-    if (!isPinSecurityEnabled()) {
-        return;
-    }
-    
-    // Convert the user-set PIN to integer
-    uint32_t pin = std::stoi(securityPin);
-    
-#if defined(USE_NIMBLE)
-    // For NimBLE - set the static passkey
-    // Note: ble_sm_set_static_passkey doesn't exist in Arduino NimBLE
-    // We'll handle this through the security callbacks instead
-    ESP_LOGI(LOG_TAG, "NimBLE static passkey configured: %06d", pin);
-#else
-    // For ESP-IDF BLE - set the static passkey
-    esp_ble_gap_set_security_param(ESP_BLE_SM_SET_STATIC_PASSKEY, &pin, sizeof(uint32_t));
-    
-    // Also set the IO capability to indicate we provide the PIN
-    esp_ble_io_cap_t iocap = ESP_IO_CAP_OUT;
-    esp_ble_gap_set_security_param(ESP_BLE_SM_IOCAP_MODE, &iocap, sizeof(uint8_t));
-    
-    ESP_LOGI(LOG_TAG, "ESP-IDF static passkey set to: %06d", pin);
-#endif
-}
-
-void BleKeyboard::setSecurityPin(const std::string& pin) {
-    // Validate PIN format (6 digits for BLE)
-    if (pin.length() == 6) {
-        bool valid = true;
-        for (char c : pin) {
-            if (!isdigit(c)) {
-                valid = false;
-                break;
-            }
-        }
-        if (valid) {
-            // Ensure PIN is exactly 6 digits with leading zeros if needed
-            this->securityPin = pin;
-            ESP_LOGI(LOG_TAG, "Security PIN set: %s (will use PIN pairing)", securityPin.c_str());
-            
-            // Re-configure security with new PIN if BLE is already initialized
-            #if !defined(USE_NIMBLE)
-            if (BLEDevice::getInitialized()) {
-                setStaticPasskey();
-            }
-            #else
-            if (getInitialized = true) {
-                setStaticPasskey();
-            }
-            #endif
-            return;
-        }
-    }
-    
-    // Invalid PIN - fall back to Just Works
-    ESP_LOGW(LOG_TAG, "Invalid PIN format: '%s'. Must be 6 digits. Using Just Works mode.", pin.c_str());
-    this->securityPin = "";
-}
-
-void BleKeyboard::clearSecurityPin() {
-    this->securityPin = "";
-    ESP_LOGI(LOG_TAG, "Security PIN cleared - using Just Works mode");
-}
-
-bool BleKeyboard::isPinSecurityEnabled() const {
-    return !securityPin.empty();
-}
-
-#if defined(USE_NIMBLE)
-
-uint32_t BleKeyboard::onPassKeyRequest() {
-    if (isPinSecurityEnabled()) {
-        ESP_LOGI(LOG_TAG, "PassKeyRequest - Using user-set PIN: %s", securityPin.c_str());
-        // Convert the user-set string PIN to integer
-        return std::stoi(securityPin);
-    } else {
-        ESP_LOGI(LOG_TAG, "PassKeyRequest - Just Works mode, no PIN required");
-        return 0; // For Just Works mode
-    }
-}
-
-void BleKeyboard::onPassKeyNotify(uint32_t pass_key) {
-    // This should NOT be called in our desired flow - we want PassKeyRequest instead
-    ESP_LOGW(LOG_TAG, "Unexpected PassKeyNotify: %06d - This indicates wrong security flow!", pass_key);
-}
-
-bool BleKeyboard::onConfirmPIN(uint32_t pass_key) {
-    if (!isPinSecurityEnabled()) {
-        ESP_LOGI(LOG_TAG, "ConfirmPIN - Just Works mode, auto-accept");
-        return true;
-    }
-    
-    // Convert expected PIN to integer for direct comparison
-    uint32_t expected_pin = std::stoi(securityPin);
-    ESP_LOGI(LOG_TAG, "ConfirmPIN - Entered: %06d, Expected: %06d", pass_key, expected_pin);
-    
-    bool match = (pass_key == expected_pin);
-    ESP_LOGI(LOG_TAG, "PIN %s", match ? "MATCH" : "MISMATCH");
-    
-    if (!match) {
-        ESP_LOGE(LOG_TAG, "PIN verification failed: entered=%06d, expected=%06d", 
-                 pass_key, expected_pin);
-    }
-    
-    return match;
-}
-
-void BleKeyboard::onAuthenticationComplete(ble_gap_conn_desc* desc) {
-    ESP_LOGI(LOG_TAG, "Authentication complete - encrypted: %d, authenticated: %d, bonded: %d",
-             desc->sec_state.encrypted, desc->sec_state.authenticated, desc->sec_state.bonded);
-}
-
-#else
-
-uint32_t BleKeyboard::onPassKeyRequest() {
-    if (isPinSecurityEnabled()) {
-        ESP_LOGI(LOG_TAG, "PassKeyRequest - Using user-set PIN: %s", securityPin.c_str());
-        // Convert the user-set string PIN to integer
-        return std::stoi(securityPin);
-    } else {
-        ESP_LOGI(LOG_TAG, "PassKeyRequest - Just Works mode, no PIN required");
-        return 0; // For Just Works mode
-    }
-}
-
-void BleKeyboard::onPassKeyNotify(uint32_t pass_key) {
-    // This should NOT be called in our desired flow - we want PassKeyRequest instead
-    ESP_LOGW(LOG_TAG, "Unexpected PassKeyNotify: %06d - This indicates wrong security flow!", pass_key);
-}
-
-bool BleKeyboard::onSecurityRequest() {
-    ESP_LOGI(LOG_TAG, "SecurityRequest");
-    return true;
-}
-
-bool BleKeyboard::onConfirmPIN(uint32_t pass_key) {
-    if (!isPinSecurityEnabled()) {
-        ESP_LOGI(LOG_TAG, "ConfirmPIN - Just Works mode, auto-accept");
-        return true;
-    }
-    
-    // Convert expected PIN to integer for direct comparison
-    uint32_t expected_pin = std::stoi(securityPin);
-    ESP_LOGI(LOG_TAG, "ConfirmPIN - Entered: %06d, Expected: %06d", pass_key, expected_pin);
-    
-    bool match = (pass_key == expected_pin);
-    ESP_LOGI(LOG_TAG, "PIN %s", match ? "MATCH" : "MISMATCH");
-    
-    if (!match) {
-        ESP_LOGE(LOG_TAG, "PIN verification failed: entered=%06d, expected=%06d", 
-                 pass_key, expected_pin);
-    }
-    
-    return match;
-}
-
-void BleKeyboard::onAuthenticationComplete(esp_ble_auth_cmpl_t cmpl) {
-    ESP_LOGI(LOG_TAG, "Authentication complete: %s", 
-             cmpl.success ? "SUCCESS" : "FAILED");
-    if (cmpl.success) {
-        ESP_LOGI(LOG_TAG, "Auth Mode: %d, Key Present: %d, Key Type: %d",
-                 cmpl.auth_mode, cmpl.key_present, cmpl.key_type);
-    } else {
-        ESP_LOGE(LOG_TAG, "Authentication failed, reason: %d", cmpl.fail_reason);
-    }
-}
-
-#endif
-
 void BleKeyboard::sendReport()
 {
   if (this->isConnected())
@@ -725,9 +482,7 @@ void BleKeyboard::sendReport()
     // Send the current media key bitmask
     this->inputMediaKeys->setValue((uint8_t*)&_mediaKeyBitmask, sizeof(uint32_t));
     this->inputMediaKeys->notify();
-#if defined(USE_NIMBLE)        
     this->delay_ms(_delay_ms);
-#endif // USE_NIMBLE
   }	
 }
 
@@ -735,9 +490,7 @@ void BleKeyboard::sendNKROReport() {
   if (this->isConnected() && inputNKRO) {
     inputNKRO->setValue((uint8_t*)&_keyReportNKRO, sizeof(KeyReportNKRO));
     inputNKRO->notify();
-#if defined(USE_NIMBLE)        
     this->delay_ms(_delay_ms);
-#endif // USE_NIMBLE
   }
 }
 
@@ -1232,9 +985,7 @@ void BleKeyboard::move(signed char x, signed char y, signed char wheel, signed c
     inputMouse->setValue((uint8_t*)&_mouseReport, sizeof(_mouseReport));
     inputMouse->notify();
     
-#if defined(USE_NIMBLE)        
     this->delay_ms(_delay_ms);
-#endif // USE_NIMBLE
   }
 }
 
@@ -1260,9 +1011,7 @@ void BleKeyboard::moveTo(uint16_t x, uint16_t y, signed char wheel, signed char 
     inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
     inputAbsolute->notify();
     
-#if defined(USE_NIMBLE)        
     this->delay_ms(_delay_ms);
-#endif // USE_NIMBLE
   }
 }
 
@@ -1325,9 +1074,7 @@ void BleKeyboard::moveToWithPressure(uint16_t x, uint16_t y, uint16_t pressure, 
     inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
     inputAbsolute->notify();
     
-#if defined(USE_NIMBLE)        
     this->delay_ms(_delay_ms);
-#endif // USE_NIMBLE
   }
 }
 
@@ -1348,9 +1095,7 @@ void BleKeyboard::clickWithPressure(uint16_t x, uint16_t y, uint16_t pressure, u
     inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
     inputAbsolute->notify();
     
-#if defined(USE_NIMBLE)        
     this->delay_ms(_delay_ms);
-#endif // USE_NIMBLE
   }
   
   // Release
@@ -1362,9 +1107,7 @@ void BleKeyboard::clickWithPressure(uint16_t x, uint16_t y, uint16_t pressure, u
     inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
     inputAbsolute->notify();
     
-#if defined(USE_NIMBLE)        
     this->delay_ms(_delay_ms);
-#endif // USE_NIMBLE
   }
 }
 
@@ -1460,59 +1203,61 @@ void BleKeyboard::gamepadGetRightStick(int16_t &x, int16_t &y) {
     y = gamepadGetAxis(AXIS_RY);
 }
 
+void BleKeyboard::onVibrate(void (*callback)(uint8_t leftMotor, uint8_t rightMotor)) {
+  _onVibrateCallback = callback;
+  ESP_LOGI(LOG_TAG, "Vibrate callback registered");
+}
+
+bool BleKeyboard::isHapticsSupported() const {
+  return (inputGamepad != nullptr) && (_onVibrateCallback != nullptr);
+}
+
 void BleKeyboard::sendGamepadReport() {
     if (this->isConnected() && inputGamepad) {
     inputGamepad->setValue((uint8_t*)&_gamepadReport, sizeof(_gamepadReport));
     inputGamepad->notify();
     
-#if defined(USE_NIMBLE)        
     this->delay_ms(_delay_ms);
-#endif // USE_NIMBLE
   }
 }
 
-#if defined(USE_NIMBLE)
 void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
-  this->connected = true;
-  connected = true;
+  this->connected = true;  // Only set once
   ESP_LOGV(LOG_TAG, "NimBLE connected");
   
-  // Start notifications for NimBLE
-  if (inputNKRO) {
-    inputNKRO->notify();
-  }
-  if (inputMediaKeys) {
-    inputMediaKeys->notify(); 
-  }
+  if (inputNKRO) inputNKRO->notify();
+  if (inputMediaKeys) inputMediaKeys->notify(); 
   
   ESP_LOGI(LOG_TAG, "Client connected");
 }
 
 void BleKeyboard::onDisconnect(NimBLEServer *pServer) {
-  this->connected = false;
-  connected = false;
+  this->connected = false;  // Only set once
   ESP_LOGV(LOG_TAG, "NimBLE disconnected");
-  advertising->start();
-}
-#else
-void BleKeyboard::onConnect(BLEServer* pServer) {
-  this->connected = true;
-  this->inputNKRO->notify();
-  this->inputMediaKeys->notify();
+  if (advertising) advertising->start();
 }
 
-void BleKeyboard::onDisconnect(BLEServer* pServer) {
-  this->connected = false;
-  this->inputNKRO->notify();
-  this->inputMediaKeys->notify();
-  advertising->start();
-}
-#endif
-
-void BleKeyboard::onWrite(BLECharacteristic* me) {
+void BleKeyboard::onWrite(NimBLECharacteristic* me) {
   uint8_t* value = (uint8_t*)(me->getValue().c_str());
-  (void)value;
-  ESP_LOGI(LOG_TAG, "special keys: %d", *value);
+  size_t length = me->getValue().length();
+  
+  // Check if this is haptic data from the gamepad characteristic
+  if (me == inputGamepad && length >= 2) {
+    // Gamepad output report format for haptics: [LeftMotor, RightMotor]
+    // Most systems send 2 bytes for dual motor vibration
+    uint8_t leftMotor = value[0];
+    uint8_t rightMotor = (length > 1) ? value[1] : value[0]; // Fallback to single motor
+    
+    ESP_LOGI(LOG_TAG, "Haptic feedback received: left=%d, right=%d", leftMotor, rightMotor);
+    
+    // Call user callback if registered
+    if (_onVibrateCallback) {
+      _onVibrateCallback(leftMotor, rightMotor);
+    }
+  } else {
+    // Handle other characteristics (existing code)
+    ESP_LOGI(LOG_TAG, "special keys: %d", *value);
+  }
 }
 
 void BleKeyboard::delay_ms(uint64_t ms) {
