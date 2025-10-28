@@ -12,6 +12,8 @@ BleKeyboard jig("MiniMed 780G", "Medtronic", 100); // Setting name, manufacturer
 
 void setup() {
   jig.setAppearance(INSULIN_PUMP);
+  // You can uncomment this line to intentionally prevent smartphones from being able to pair with the ESP32 at all
+  //jig.setPIN("913379"); // Setting a PIN to connect, commented out by default for compatibility on mobile
   jig.begin();
 }
 
