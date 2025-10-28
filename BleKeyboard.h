@@ -1,6 +1,10 @@
 #ifndef ESP32_BLE_KEYBOARD_H
 #define ESP32_BLE_KEYBOARD_H
 #include "sdkconfig.h"
+#include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
 #if defined(CONFIG_BT_ENABLED)
 
 #include "NimBLEDevice.h"
@@ -766,6 +770,7 @@ private:
   BLEHIDDevice*      hid;
   uint16_t           appearance = HID_KEYBOARD;
   uint32_t           passkey = 0;           // PIN code (0 = no security)
+  bool               bonding_enabled = true; 
   BLECharacteristic* outputKeyboard;
   BLECharacteristic* inputMediaKeys;
   BLECharacteristic* inputNKRO;
@@ -782,7 +787,6 @@ private:
   std::string        deviceName;
   std::string        deviceManufacturer;
   uint8_t            batteryLevel;
-  bool               connected = false;
   uint32_t           _delay_ms = 7;
   bool               _useNKRO = true;  // Default to NKRO
   bool               _useAbsolute = false;
@@ -793,6 +797,9 @@ private:
   uint16_t pid       = 0x820a;
   uint16_t version   = 0x0210;
   
+  friend void pollConnection(void * arg);
+  uint8_t  last_connected_count = 0;   // previous poll result
+  esp_timer_handle_t poll_timer = nullptr;
   static void securityCallback(uint32_t passkey); 
   void delay_ms(uint64_t ms);
   uint32_t mediaKeyToBitmask(uint16_t usageCode);
@@ -815,6 +822,10 @@ public:
   void setPIN(uint32_t pin);                    // Set numeric PIN
   void disableSecurity(bool enable = true);      // Enable/disable security
   bool isSecurityEnabled() const;               // Check if security is enabled
+  
+  void enableBonding(bool enable = true);
+  void clearBonds();
+  bool isBonded() const;
   
   void setAppearance(uint16_t newAppearance);
   
@@ -849,8 +860,6 @@ public:
   bool isNKROEnabled();
   
   // BLE helper functions
-  bool checkConnectionStatus();
-  void debugConnectionStatus(void);
   bool isConnected(void);
   void setBatteryLevel(uint8_t level);
   void setName(std::string deviceName);  
@@ -916,7 +925,7 @@ protected:
   virtual bool onSecurityRequest();
   virtual void onMouseStarted(BLEServer *pServer) { };
   virtual void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc);
-  virtual void onDisconnect(NimBLEServer *pServer); 
+  virtual void onDisconnect(NimBLEServer* pServer);
   virtual void onWrite(NimBLECharacteristic* me);
 };
 
