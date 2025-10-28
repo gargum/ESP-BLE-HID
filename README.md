@@ -32,7 +32,6 @@ All development/testing is performed on boards *without* USB host mode, like the
 - [ ] Keymap support - Developing the system to create keymaps corresponding to a user-defined matrix
 - [ ] Split communication - Figuring out ESP-NOW wireless support for the full 20 board maximum
 - [ ] Documentation - Writing the docs for ESP-BLE-HID
-- [ ] Deprecating Bluedroid - Needs to happen to support more over-the-top stuff, I'm sorry
 - [ ] Migrating from Arduino IDE/PlatformIO to Standalone - I enjoy making life harder for myself unneccesarily 
 
 ## Installation
