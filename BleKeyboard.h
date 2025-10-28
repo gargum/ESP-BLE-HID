@@ -1,12 +1,7 @@
-// uncomment the following line to use NimBLE library
-//#define USE_NIMBLE
-
 #ifndef ESP32_BLE_KEYBOARD_H
 #define ESP32_BLE_KEYBOARD_H
 #include "sdkconfig.h"
 #if defined(CONFIG_BT_ENABLED)
-
-#if defined(USE_NIMBLE)
 
 #include "NimBLEDevice.h"
 #include "NimBLEHIDDevice.h"
@@ -22,13 +17,6 @@
 #define BLECharacteristic          NimBLECharacteristic
 #define BLEAdvertising             NimBLEAdvertising
 #define BLEServer                  NimBLEServer
-
-#else
-
-#include "BLEHIDDevice.h"
-#include "BLECharacteristic.h"
-
-#endif // USE_NIMBLE
 
 #include "Print.h"
 
@@ -48,46 +36,37 @@
 #define GAMEPAD_BUTTON_COUNT 64
 #define GAMEPAD_AXIS_COUNT 6
 
-//  NKRO report structure
+// NKRO report structure
 typedef struct
 {
-#if defined(USE_NIMBLE)
-  uint8_t reportID;
-#endif
   uint8_t modifiers;
   uint8_t reserved;
-  uint8_t keys_bitmask[(NKRO_KEY_COUNT + 7) / 8];  // Bitmask for keys
+  uint8_t keys_bitmask[(NKRO_KEY_COUNT + 7) / 8];
 } KeyReportNKRO;
+
 // Mouse report structure
 typedef struct {
-#if defined(USE_NIMBLE)
-  uint8_t reportID;
-#endif
   uint8_t buttons;
   int8_t x;
   int8_t y;
   int8_t wheel;
   int8_t hWheel;
 } MouseReport;
-// Digitizer report structure
+
+// Digitizer report structure  
 typedef struct {
-#if defined(USE_NIMBLE)
-  uint8_t reportID;
-#endif
   uint8_t buttons;
   uint16_t x;
   uint16_t y;
-  uint16_t pressure;         // Pressure value (0 = min, 1023 = max)
-  uint8_t tipSwitch : 1;     // 1 = touching, 0 = not touching
-  uint8_t padding : 7;       // Padding for remaining bits
+  uint16_t pressure;
+  uint8_t tipSwitch : 1;
+  uint8_t padding : 7;
   int8_t wheel;
   int8_t hWheel;
 } AbsoluteReport;
+
 // Gamepad report structure
 typedef struct {
-#if defined(USE_NIMBLE)
-  uint8_t reportID;
-#endif
   uint32_t buttons[2];
   int16_t axes[GAMEPAD_AXIS_COUNT];
   uint8_t hat;
@@ -768,29 +747,20 @@ const int8_t GB_DO = 67;
 const int8_t GB_LE = 68;
 
 static const int8_t hatPress[4][9] = {
-  { 0x00, 0x01, 0x01, 0x01, 0x00, 0x07, 0x07, 0x07, 0x00 }, // UP
-  { 0x01, 0x01, 0x02, 0x03, 0x03, 0x03, 0x02, 0x01, 0x02 }, // RIGHT
-  { 0x04, 0x03, 0x03, 0x03, 0x04, 0x05, 0x05, 0x05, 0x04 }, // DOWN
-  { 0x07, 0x07, 0x06, 0x05, 0x05, 0x05, 0x06, 0x07, 0x06 }  // LEFT
-};
+  { 0x00, 0x01, 0x01, 0x01, 0x00, 0x07, 0x07, 0x07, 0x00 }, // UP     |  UP     UP-RIGHT  RIGHT  DOWN-RIGHT  DOWN  DOWN-LEFT   LEFT   UP-LEFT   CENTER
+  { 0x01, 0x01, 0x02, 0x03, 0x03, 0x03, 0x02, 0x01, 0x02 }, // RIGHT  |  0x00     0x01     0x02     0x03     0x04     0x05     0x06     0x07     0x08
+  { 0x04, 0x03, 0x03, 0x03, 0x04, 0x05, 0x05, 0x05, 0x04 }, // DOWN   |  The numbers in both these arrays are in this order. This means, for the hatPress array,
+  { 0x07, 0x07, 0x06, 0x05, 0x05, 0x05, 0x06, 0x07, 0x06 }};// LEFT   |  the very last number says "When holding CENTER, pressing LEFT results in direction 0x06 (LEFT)						
   
 static const int8_t hatRelease[4][9] = {
-  { 0x08, 0x02, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06, 0x08}, // UP
-  { 0x00, 0x00, 0x08, 0x04, 0x04, 0x05, 0x06, 0x07, 0x08}, // RIGHT
-  { 0x00, 0x01, 0x02, 0x02, 0x08, 0x06, 0x06, 0x07, 0x08}, // DOWN
-  { 0x00, 0x01, 0x02, 0x03, 0x04, 0x04, 0x08, 0x00, 0x08}  // LEFT
-};
+  { 0x08, 0x02, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06, 0x08}, // UP      |  { 0x08, 0x02, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06, 0x08 } // UP
+  { 0x00, 0x00, 0x08, 0x04, 0x04, 0x05, 0x06, 0x07, 0x08}, // RIGHT   |     ^
+  { 0x00, 0x01, 0x02, 0x02, 0x08, 0x06, 0x06, 0x07, 0x08}, // DOWN    |     This means, "If you're pressing UP and you release UP, the result is 0x08 (CENTER)
+  { 0x00, 0x01, 0x02, 0x03, 0x04, 0x04, 0x08, 0x00, 0x08}};// LEFT    |     First value, so "If pressing UP", first row of hatRelease so "and UP is released", code is the result.
 
 class BleKeyboard : public Print
-#if !defined(USE_NIMBLE)
-    , public BLEServerCallbacks
-    , public BLECharacteristicCallbacks
-    , public BLESecurityCallbacks
-#else
     , public NimBLEServerCallbacks
     , public NimBLECharacteristicCallbacks
-//    , public BLESecurityCallbacks
-#endif
 {
 private:
   BLEHIDDevice*      hid;
@@ -811,9 +781,7 @@ private:
   uint32_t           _mediaKeyBitmask;
   std::string        deviceName;
   std::string        deviceManufacturer;
-  std::string        securityPin;
   uint8_t            batteryLevel;
-  bool               isPinSecurityEnabled() const;
   bool               connected = false;
   uint32_t           _delay_ms = 7;
   bool               _useNKRO = true;  // Default to NKRO
@@ -824,8 +792,6 @@ private:
   uint16_t vid       = 0x05ac;
   uint16_t pid       = 0x820a;
   uint16_t version   = 0x0210;
- 
-  void setStaticPasskey();
   
   void delay_ms(uint64_t ms);
   uint32_t mediaKeyToBitmask(uint16_t usageCode);
@@ -833,6 +799,7 @@ private:
   void updateNKROBitmask(uint8_t k, bool pressed);
   uint8_t countPressedKeys();
   void sendGamepadReport();
+  void (*_onVibrateCallback)(uint8_t leftMotor, uint8_t rightMotor) = nullptr;
 
 public:
   BleKeyboard(std::string deviceName = "ESP32 Keyboard", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
@@ -844,18 +811,6 @@ public:
   
   void setAppearance(uint16_t newAppearance);
   void setDevicePurpose(const std::string& purpose);
-  
-  void setSecurityPin(const std::string& pin);
-  void clearSecurityPin();
-  uint32_t onPassKeyRequest();
-  void onPassKeyNotify(uint32_t pass_key);
-  bool onConfirmPIN(uint32_t pass_key);
-#if defined(USE_NIMBLE)
-  void onAuthenticationComplete(ble_gap_conn_desc* desc);
-#else
-  bool onSecurityRequest();
-  void onAuthenticationComplete(esp_ble_auth_cmpl_t cmpl);
-#endif
   
   void sendReport();
   // The library differentiates between keys, modifiers, and media keys by storing them using 3 different integer types
@@ -945,19 +900,15 @@ public:
   void gamepadSetAxis(int8_t axis, int16_t value);
   int16_t gamepadGetAxis(int8_t axis);
   void gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
+  void onVibrate(void (*callback)(uint8_t leftMotor, uint8_t rightMotor));
+  bool isHapticsSupported() const;
   
 protected:
   virtual void onStarted(BLEServer *pServer) { };
   virtual void onMouseStarted(BLEServer *pServer) { };
-#if !defined(USE_NIMBLE)
-  virtual void onConnect(BLEServer* pServer) override;
-  virtual void onDisconnect(BLEServer* pServer) override;
-  virtual void onWrite(BLECharacteristic* me) override;
-#else
   virtual void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc);
   virtual void onDisconnect(NimBLEServer *pServer); 
   virtual void onWrite(NimBLECharacteristic* me);
-#endif
 };
 
 #endif // CONFIG_BT_ENABLED
