@@ -21,6 +21,8 @@ bool getInitialized = false;
 #define DIGITIZER_ID 0x05
 #define GAMEPAD_ID 0x06
 
+void pollConnection(void * arg);
+
 // This "HID Report Descriptor" tells your computer or phone what the ESP32 you've just connected is supposed to do
 static const uint8_t _hidReportDescriptor[] = {
   // NKRO Report Descriptor (6KRO is emulated)
@@ -294,7 +296,8 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
     , _useNKRO(true)
     , _mouseButtons(0)
     , _useAbsolute(false)
-    , _onVibrateCallback(nullptr) {
+    , _onVibrateCallback(nullptr) 
+{
   // Initialize reports
   memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
   memset(&_mouseReport, 0, sizeof(_mouseReport));
@@ -303,34 +306,51 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
   _gamepadReport.hat = HAT_CENTER; // Initialize hat to center position 
 }
 // This is a "destructor". It takes objects the contructor made, and destroys them whenever you tell it to. 
-BleKeyboard::~BleKeyboard() {}
+BleKeyboard::~BleKeyboard() { }
 
 void BleKeyboard::begin(void) {
   
     // Initialise BLE stack only once
-    if (!getInitialized){
-    BLEDevice::init(deviceName.c_str());}
+    if (getInitialized) {
+        ESP_LOGW(LOG_TAG, "BLE already initialized, cleaning up first...");
+        end();
+        vTaskDelay(pdMS_TO_TICKS(100));
+    } else { NimBLEDevice::init(deviceName.c_str()); }
     
     // Configure security if enabled
     if (isSecurityEnabled()) {
-        // Set security parameters BEFORE server creation
+        // Enhanced security configuration for bonding
         NimBLEDevice::setSecurityAuth(true, true, true); // Bonding, MITM, Secure Connections
         NimBLEDevice::setSecurityPasskey(passkey);
         NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
         
-        ESP_LOGI(LOG_TAG, "Security configured with PIN: %06lu", passkey);
+        // Configure bonding parameters
+        if (bonding_enabled) {
+            NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+            NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+        }
+        
+        ESP_LOGI(LOG_TAG, "Security configured with PIN: %06lu, Bonding: %s", 
+                 passkey, bonding_enabled ? "enabled" : "disabled");
     } else {
-        // Explicitly disable security
-        NimBLEDevice::setSecurityAuth(false, false, false);
-        ESP_LOGI(LOG_TAG, "Running without security (Just Works)");
+        // For "Just Works" pairing, still enable bonding if requested
+        if (bonding_enabled) {
+            NimBLEDevice::setSecurityAuth(true, false, false); // Bonding only, no MITM
+            NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC);
+            NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC);
+            ESP_LOGI(LOG_TAG, "Just Works pairing with bonding enabled");
+        } else {
+            NimBLEDevice::setSecurityAuth(false, false, false);
+            ESP_LOGI(LOG_TAG, "Running without security (Just Works)");
+        }
     }
     
     // Create server & install callbacks
-    BLEServer *pServer = BLEDevice::createServer();
+    NimBLEServer *pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(this);
 
      // Create HID device object
-    hid = new BLEHIDDevice(pServer);
+    hid = new NimBLEHIDDevice(pServer);
 
      // Obtain report-characteristic pointers
     outputKeyboard = hid->getOutputReport(KEYBOARD_ID);
@@ -360,18 +380,21 @@ void BleKeyboard::begin(void) {
     
     scan.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
     scan.setName(deviceName.c_str());
-    advertising->setScanResponseData(scan);
+    scan.setShortName(deviceName.substr(0, 8).c_str());
+    scan.setAppearance(this->appearance);
+    scan.addServiceUUID(hid->getHidService()->getUUID());
+    scan.setManufacturerData((deviceManufacturer).c_str());
 
     adv.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
     adv.setName(deviceName.c_str());
+    adv.setShortName(deviceName.substr(0, 8).c_str());
     adv.setAppearance(this->appearance);
-    adv.addServiceUUID(hid->getHidService()->getUUID());
+    adv.setCompleteServices(hid->getHidService()->getUUID());
+//    adv.addServiceUUID(hid->getHidService()->getUUID());
     adv.setManufacturerData((deviceManufacturer).c_str());
 
-    scan.setName(deviceName.c_str());
-    scan.setShortName(deviceName.substr(0, 8).c_str());
-    scan.addServiceUUID(hid->getHidService()->getUUID());
-
+    advertising->setMinInterval(32);    // 20ms in 0.625ms units
+    advertising->setMaxInterval(160);   // 100ms in 0.625ms units  
     advertising->setAdvertisementData(adv);
     advertising->setScanResponseData(scan);
 
@@ -379,6 +402,13 @@ void BleKeyboard::begin(void) {
     onStarted(pServer);
     advertising->start();
     hid->setBatteryLevel(batteryLevel);
+    
+    esp_timer_create_args_t poll_args = {};
+    poll_args.callback = &pollConnection;
+    poll_args.arg = this;
+    poll_args.name = "ble_poll";
+    esp_timer_create(&poll_args, &poll_timer);
+    esp_timer_start_periodic(poll_timer, 1'000'000);   // 1 s
 
     ESP_LOGI(LOG_TAG, "Advertising started!");
     ESP_LOGI(LOG_TAG, "Device name: %s", deviceName.c_str());
@@ -395,7 +425,11 @@ void BleKeyboard::end(void) {
   }
   BLEDevice::deinit(true);
   getInitialized = false;
-  this->connected = false;
+  if (poll_timer) {
+        esp_timer_stop(poll_timer);
+        esp_timer_delete(poll_timer);
+        poll_timer = nullptr;
+    }
   ESP_LOGI(LOG_TAG, "BLE Keyboard stopped");
 }
 
@@ -469,46 +503,33 @@ void BleKeyboard::setAppearance(uint16_t newAppearance) {
   ESP_LOGI(LOG_TAG, "Appearance set to: 0x%04X", newAppearance);
 }
 
-bool BleKeyboard::checkConnectionStatus() {
-    if (NimBLEDevice::getServer()) {
-        int connectedClients = NimBLEDevice::getServer()->getConnectedCount();
-        bool actuallyConnected = (connectedClients > 0);
-        
-        if (actuallyConnected != this->connected) {
-            ESP_LOGI(LOG_TAG, "Connection status mismatch: actually=%d, flag=%d", 
-                     actuallyConnected, this->connected);
-            this->connected = actuallyConnected;
-        }
-        
-        return actuallyConnected;
-    }
-    return this->connected;
-}
-
-void BleKeyboard::debugConnectionStatus() {
-    if (NimBLEDevice::getServer()) {
-        int clients = NimBLEDevice::getServer()->getConnectedCount();
-        ESP_LOGI(LOG_TAG, "=== DEBUG: Server has %d connected clients", clients);
-        ESP_LOGI(LOG_TAG, "=== DEBUG: connected flag = %d", this->connected);
-        
-        // List all connected clients - getPeerDevices() returns connection handles
-        auto peerList = NimBLEDevice::getServer()->getPeerDevices();
-        for (auto peerHandle : peerList) {
-            ESP_LOGI(LOG_TAG, "=== DEBUG: Peer connected, handle=%d", peerHandle);  // ← Changed from peer.getConnHandle() to just peerHandle
-        }
-    } else {
-        ESP_LOGI(LOG_TAG, "=== DEBUG: Server is null");
-    }
-}
-
-
 bool BleKeyboard::isConnected(void) {
+    // Always check the actual BLE state - never rely on cached flags
     if (NimBLEDevice::getServer()) {
         int connectedClients = NimBLEDevice::getServer()->getConnectedCount();
-        this->connected = (connectedClients > 0);
-        return this->connected;
+        
+        // Debug logging (every 10 seconds)
+        static uint64_t lastLogTime = 0;
+        uint64_t currentTime = esp_timer_get_time();
+        
+        if (currentTime - lastLogTime > 10000000) { // 10 seconds in microseconds
+            ESP_LOGI(LOG_TAG, "BLE Status - Connected clients: %d, Advertising: %s", 
+                    connectedClients,
+                    advertising ? (advertising->isAdvertising() ? "Yes" : "No") : "Null");
+            lastLogTime = currentTime;
+        }
+        
+        return (connectedClients > 0);
     }
-    this->connected = false;
+    
+    static uint64_t lastLogTime = 0;
+    uint64_t currentTime = esp_timer_get_time();
+    
+    if (currentTime - lastLogTime > 10000000) {
+        ESP_LOGI(LOG_TAG, "BLE Status: No server instance available");
+        lastLogTime = currentTime;
+    }
+    
     return false;
 }
 
@@ -545,10 +566,8 @@ void BleKeyboard::set_version(uint16_t version) {
 	this->version = version; 
 }
 
-void BleKeyboard::sendReport()
-{
-  if (this->isConnected())
-  {
+void BleKeyboard::sendReport() {
+  if (this->isConnected()) {
     // Send the current media key bitmask
     this->inputMediaKeys->setValue((uint8_t*)&_mediaKeyBitmask, sizeof(uint32_t));
     this->inputMediaKeys->notify();
@@ -1054,7 +1073,6 @@ void BleKeyboard::move(signed char x, signed char y, signed char wheel, signed c
     
     inputMouse->setValue((uint8_t*)&_mouseReport, sizeof(_mouseReport));
     inputMouse->notify();
-    
     this->delay_ms(_delay_ms);
   }
 }
@@ -1080,7 +1098,6 @@ void BleKeyboard::moveTo(uint16_t x, uint16_t y, signed char wheel, signed char 
   if (this->isConnected() && inputAbsolute) {
     inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
     inputAbsolute->notify();
-    
     this->delay_ms(_delay_ms);
   }
 }
@@ -1143,7 +1160,6 @@ void BleKeyboard::moveToWithPressure(uint16_t x, uint16_t y, uint16_t pressure, 
   if (this->isConnected() && inputAbsolute) {
     inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
     inputAbsolute->notify();
-    
     this->delay_ms(_delay_ms);
   }
 }
@@ -1164,7 +1180,6 @@ void BleKeyboard::clickWithPressure(uint16_t x, uint16_t y, uint16_t pressure, u
   if (this->isConnected() && inputAbsolute) {
     inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
     inputAbsolute->notify();
-    
     this->delay_ms(_delay_ms);
   }
   
@@ -1176,7 +1191,6 @@ void BleKeyboard::clickWithPressure(uint16_t x, uint16_t y, uint16_t pressure, u
   if (this->isConnected() && inputAbsolute) {
     inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
     inputAbsolute->notify();
-    
     this->delay_ms(_delay_ms);
   }
 }
@@ -1286,56 +1300,46 @@ void BleKeyboard::sendGamepadReport() {
     if (this->isConnected() && inputGamepad) {
     inputGamepad->setValue((uint8_t*)&_gamepadReport, sizeof(_gamepadReport));
     inputGamepad->notify();
-    
     this->delay_ms(_delay_ms);
   }
 }
 
 void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
-  if (isSecurityEnabled()) {
-    // Start pairing process if security is required
-    if (!desc->sec_state.encrypted) {
-      ESP_LOGI(LOG_TAG, "Initiating pairing for secure connection");
-      NimBLEDevice::startSecurity(desc->conn_handle);
+    ESP_LOGI(LOG_TAG, "ESP-HID onConnect callback triggered - Security: %s, Encrypted: %s", 
+             isSecurityEnabled() ? "Enabled" : "Disabled", 
+             desc->sec_state.encrypted ? "Yes" : "No");
+    
+    if (isSecurityEnabled()) {
+        if (!desc->sec_state.encrypted) {
+            ESP_LOGI(LOG_TAG, "Initiating pairing for secure connection");
+            NimBLEDevice::startSecurity(desc->conn_handle);
+        }
     }
-  }
-  
-  this->connected = true;
-  ESP_LOGV(LOG_TAG, "NimBLE connected - Security: %s, Encrypted: %s", isSecurityEnabled() ? "Enabled" : "Disabled", desc->sec_state.encrypted ? "Yes" : "No");
-  
-  if (inputNKRO) inputNKRO->notify();
-  if (inputMediaKeys) inputMediaKeys->notify(); 
-  
-  ESP_LOGI(LOG_TAG, "Client connected");
+    
+    if (inputNKRO) inputNKRO->notify();
+    if (inputMediaKeys) inputMediaKeys->notify(); 
+    
+    ESP_LOGI(LOG_TAG, "Client connected - Actual connection count: %d", 
+             NimBLEDevice::getServer()->getConnectedCount());
 }
 
-void BleKeyboard::onDisconnect(NimBLEServer* pServer) {
-    ESP_LOGI(LOG_TAG, "Client disconnected");
-    
-    // Update connection state first
-    this->connected = false;
-    
-    // Give the stack a moment to clean up
-    delay(100);
-    
-    // Restart advertising
+void BleKeyboard::onDisconnect(NimBLEServer* pServer)
+{
+    ESP_LOGI(LOG_TAG, "ESP-HID onDisconnect – restarting advertising");
+
     if (advertising) {
-        ESP_LOGI(LOG_TAG, "Restarting advertising...");
-        advertising->start();
-        
-        // Verify advertising started successfully
-        if (advertising->isAdvertising()) {
-            ESP_LOGI(LOG_TAG, "Advertising restarted successfully");
+        advertising->stop();
+        vTaskDelay(pdMS_TO_TICKS(50));
+        if (advertising->start()) {
+            ESP_LOGI(LOG_TAG, "Advertising restarted");
         } else {
-            ESP_LOGE(LOG_TAG, "Failed to restart advertising");
-            // Force reinitialization if advertising fails
-            end();
-            begin();
+            ESP_LOGE(LOG_TAG, "advertising->start() failed");
         }
     }
 }
 
 void BleKeyboard::onWrite(NimBLECharacteristic* me) {
+  ESP_LOGI(LOG_TAG, "ESP-HID onWrite callback triggered!");
   uint8_t* value = (uint8_t*)(me->getValue().c_str());
   size_t length = me->getValue().length();
   
@@ -1367,4 +1371,33 @@ void BleKeyboard::delay_ms(uint64_t ms) {
     }
     while(esp_timer_get_time() < e) {}
   }
+}
+
+void pollConnection(void * arg)
+{
+    BleKeyboard * kb = static_cast<BleKeyboard*>(arg);
+    /*  call through the namespace, not through the object  */
+    uint8_t cnt = NimBLEDevice::getServer()->getConnectedCount();
+
+    if (kb->last_connected_count && !cnt) {   // just dropped
+        ESP_LOGI(LOG_TAG, "Poller: link lost – restarting advertising");
+        kb->advertising->stop();
+        vTaskDelay(pdMS_TO_TICKS(50));
+        kb->advertising->start();
+    }
+    kb->last_connected_count = cnt;
+}
+
+void BleKeyboard::enableBonding(bool enable) {
+    bonding_enabled = enable;
+    ESP_LOGI(LOG_TAG, "Bonding %s", bonding_enabled ? "enabled" : "disabled");
+}
+
+void BleKeyboard::clearBonds() {
+    NimBLEDevice::deleteAllBonds();
+    ESP_LOGI(LOG_TAG, "All bonds cleared");
+}
+
+bool BleKeyboard::isBonded() const {
+    return NimBLEDevice::getNumBonds() > 0;
 }
