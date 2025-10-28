@@ -15,7 +15,6 @@ All development/testing is performed on boards *without* USB host mode, like the
 | Gamepad emulation                   | *64 buttons + 1 D-pad, 2 analogue sticks & 2 analogue triggers*     | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                             |
 | Digitizer emulation                 | *Pressure sensitivity + tip-switch support*                         | *Programmable brushstroke macro support with variable pressure all throughout*                                       |
 | Set the PID, VID, and version       | *Set the name, manufacturer, and the battery level*                 | *Set what type of device the ESP32 advertises itself as. Choose anything from keyboard to keyring to insulin pump!*  | 
-| 6-Digit PIN (Optional)              | *Hotswap between using a PIN to connect & Just Works no-PIN mode*   | *Change your PIN, even after you've already flashed and connected to the device!*                                    |
 | ESP32s with BLE are all supported   | *Compatible with boards that have no HID capabilities whatsoever*   | *Optimized for the ESP32s with the worst specs. If your ESP32 has BLE, it **will** work with this library!*          |
 
 ## Compatibility
@@ -32,7 +31,9 @@ All development/testing is performed on boards *without* USB host mode, like the
 - [ ] Keymap support - Developing the system to create keymaps corresponding to a user-defined matrix
 - [ ] Split communication - Figuring out ESP-NOW wireless support for the full 20 board maximum
 - [ ] Rumble support - Developing the system for supporting gamepad haptic feedback
-- [ ] Documentation - Writing the docs for ESP-BLE-HID 
+- [ ] Documentation - Writing the docs for ESP-BLE-HID
+- [ ] Deprecating Bluedroid - Needs to happen to support more over-the-top stuff, I'm sorry
+- [ ] Migrating from Arduino IDE/PlatformIO to Standalone - I enjoy making life harder for myself unneccesarily 
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
