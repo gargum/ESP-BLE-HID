@@ -1,6 +1,6 @@
 # ESP-BLE-HID
 
-This library allows you to make the ESP32 act as a Bluetooth Keyboard, Mouse, Gamepad, or other [HID device](https://en.wikipedia.org/wiki/Human_interface_device).
+This NimBLE-based library allows you to make the ESP32 act as a Bluetooth Keyboard, Mouse, Gamepad, or other [HID device](https://en.wikipedia.org/wiki/Human_interface_device).
 
 ESP-BLE-HID is intended to serve as an ESP32-based alternative to tools like QMK and ZMK with added support for advanced features.
 
@@ -8,14 +8,14 @@ All development/testing is performed on boards *without* USB host mode, like the
 
 ## Features
 
-| CORE FEATURES                       | EXTENDED FUNCTIONS                                                  | QOL & ADVANCED FUNCTIONS                                                                                             |
-| ----------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------                                                      |
-| Keyboard emulation                  | *NKRO + 6KRO with full support for modifiers & media keys*          | *Send full text strings, press/release keys, and send full keystrokes*                                               |
-| Mouse emulation                     | *Absolute & Relative pointers you can hotswap between*              | *Automatic context-aware switching between both pointer modes*                                                       |
-| Gamepad emulation                   | *64 buttons + 1 D-pad, 2 analogue sticks & 2 analogue triggers*     | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                             |
-| Digitizer emulation                 | *Pressure sensitivity + tip-switch support*                         | *Programmable brushstroke macro support with variable pressure all throughout*                                       |
-| Set the PID, VID, and version       | *Set the name, manufacturer, and the battery level*                 | *Set what type of device the ESP32 advertises itself as. Choose anything from keyboard to keyring to insulin pump!*  | 
-| ESP32s with BLE are all supported   | *Compatible with boards that have no HID capabilities whatsoever*   | *Optimized for the ESP32s with the worst specs. If your ESP32 has BLE, it **will** work with this library!*          |
+| CORE FEATURES                       | EXTENDED FUNCTIONS                                                        | QOL & ADVANCED FUNCTIONS                                                                                             |
+| ----------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------                                                      |
+| Keyboard emulation                  | *NKRO + 6KRO with full support for modifiers & media keys*                | *Send full text strings, press/release keys, and send full keystrokes*                                               |
+| Mouse emulation                     | *Absolute & Relative pointers you can hotswap between*                    | *Automatic context-aware switching between both pointer modes*                                                       |
+| Gamepad emulation                   | *64 buttons + 1 D-pad, 2 analogue sticks, 2 analogue triggers, + haptics* | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                             |
+| Digitizer emulation                 | *Pressure sensitivity + tip-switch support*                               | *Programmable brushstroke macro support with variable pressure all throughout*                                       |
+| Set the PID, VID, and version       | *Set the name, manufacturer, and the battery level*                       | *Set what type of device the ESP32 advertises itself as. Choose anything from keyboard to keyring to insulin pump!*  | 
+| ESP32s with BLE are all supported   | *Compatible with boards that have no HID capabilities whatsoever*         | *Optimized for the ESP32s with the worst specs. If your ESP32 has BLE, it **will** work with this library!*          |
 
 ## Compatibility
 
@@ -30,7 +30,6 @@ All development/testing is performed on boards *without* USB host mode, like the
 - [ ] Matrix support - Developing the system for defining key matrices and encoder pins
 - [ ] Keymap support - Developing the system to create keymaps corresponding to a user-defined matrix
 - [ ] Split communication - Figuring out ESP-NOW wireless support for the full 20 board maximum
-- [ ] Rumble support - Developing the system for supporting gamepad haptic feedback
 - [ ] Documentation - Writing the docs for ESP-BLE-HID
 - [ ] Deprecating Bluedroid - Needs to happen to support more over-the-top stuff, I'm sorry
 - [ ] Migrating from Arduino IDE/PlatformIO to Standalone - I enjoy making life harder for myself unneccesarily 
@@ -164,32 +163,11 @@ By default the battery level will be set to 100%, the device name will be `ESP32
 
 There is also a `setDelay` method to set a delay between each key event. E.g. `bleKeyboard.setDelay(10)` (10 milliseconds). The default is `8`. The `setDelay` feature is to maximize compatibility between any devices created using this library, and any underpowered hardware or legacy applications one may wish to use.
 
-## NimBLE-Mode
-The NimBLE mode enables a significant saving of RAM and FLASH memory.
+## NimBLE Support
+NimBLE saves a significant amount of RAM and FLASH, plus Bluedroid is not supported by some microcontrollers with BLE such as Nordic nRF series microcontrollers.
 
-The ESP32-C3 Super Mini was used for these tests and comparisons, which are now up-to-date!
-
-### Comparison (SendKeyStrokes.ino)
-
-**Standard**
-```
-RAM:   [=         ]   12% (used 40088 bytes out of the 327680 bytes in total)
-Flash: [========  ]   83% (used 1097410 bytes out of the 1310720 bytes in total)
-```
-
-**NimBLE mode**
-```
-RAM:   [=         ]   7% (used 23568 bytes out of the 327680 bytes in total)
-Flash: [====      ]  46% (used 612884 bytes out of the 1310720 bytes in total)
-```
-
-## How to activate NimBLE mode?
-
-### ArduinoIDE: 
-Uncomment the first line in BleKeyboard.h
-```C++
-#define USE_NIMBLE
-```
+For these reasons, this library requries the use of NimBLE, at this time the [Arduino-NimBLE](https://github.com/h2zero/NimBLE-Arduino) library to be specific.
 
 ## Credits
+
 Credits to [T-vK](https://github.com/T-vK) and [the authors of the USB keyboard library](https://github.com/arduino-libraries/Keyboard/), whose work this project is a fork of!
