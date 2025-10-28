@@ -283,8 +283,6 @@ static const uint8_t _hidReportDescriptor[] = {
   HIDOUTPUT(1),        0x02,            // OUTPUT (Data, Variable, Absolute)
   
   END_COLLECTION(0),                      // END_COLLECTION (Application)
-
-
 };
 // This is a "constructor". It takes that class from the BleKeyboard.h file, and turns it into "objects" that can actually be used.
 BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer, uint8_t batteryLevel) 
@@ -312,8 +310,22 @@ void BleKeyboard::begin(void) {
     // Initialise BLE stack only once
     if (!getInitialized){
     BLEDevice::init(deviceName.c_str());}
-
-     // Create server & install callbacks
+    
+    // Configure security if enabled
+    if (isSecurityEnabled()) {
+        // Set security parameters BEFORE server creation
+        NimBLEDevice::setSecurityAuth(true, true, true); // Bonding, MITM, Secure Connections
+        NimBLEDevice::setSecurityPasskey(passkey);
+        NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
+        
+        ESP_LOGI(LOG_TAG, "Security configured with PIN: %06lu", passkey);
+    } else {
+        // Explicitly disable security
+        NimBLEDevice::setSecurityAuth(false, false, false);
+        ESP_LOGI(LOG_TAG, "Running without security (Just Works)");
+    }
+    
+    // Create server & install callbacks
     BLEServer *pServer = BLEDevice::createServer();
     pServer->setCallbacks(this);
 
@@ -345,24 +357,20 @@ void BleKeyboard::begin(void) {
      // Advertising setup
     advertising = pServer->getAdvertising();
     BLEAdvertisementData adv, scan;
-
-    advertising->addServiceUUID(hid->getHidService()->getUUID());
+    
     scan.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
     scan.setName(deviceName.c_str());
     advertising->setScanResponseData(scan);
 
     adv.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
-    adv.setCompleteServices(BLEUUID(hid->getHidService()->getUUID()));
-    scan.setCompleteServices(BLEUUID(hid->getHidService()->getUUID()));
-    BLEUUID hidUuid = hid->getHidService()->getUUID();
-
     adv.setName(deviceName.c_str());
     adv.setAppearance(this->appearance);
-    adv.setManufacturerData((deviceManufacturer + "|" + devicePurpose).c_str());
+    adv.addServiceUUID(hid->getHidService()->getUUID());
+    adv.setManufacturerData((deviceManufacturer).c_str());
 
     scan.setName(deviceName.c_str());
     scan.setShortName(deviceName.substr(0, 8).c_str());
-    scan.setServiceData(hidUuid, devicePurpose.c_str());
+    scan.addServiceUUID(hid->getHidService()->getUUID());
 
     advertising->setAdvertisementData(adv);
     advertising->setScanResponseData(scan);
@@ -391,14 +399,74 @@ void BleKeyboard::end(void) {
   ESP_LOGI(LOG_TAG, "BLE Keyboard stopped");
 }
 
+// Security callback - displays PIN to user
+void BleKeyboard::securityCallback(uint32_t passkey) {
+  ESP_LOGI(LOG_TAG, "Pairing PIN: %06lu", passkey);
+  // You could add display output here if you have an LCD/OLED
+}
+
+void BleKeyboard::onAuthenticationComplete(ble_gap_conn_desc* desc) {
+    ESP_LOGI(LOG_TAG, "Authentication complete - encrypted: %s, authenticated: %s",
+             desc->sec_state.encrypted ? "yes" : "no",
+             desc->sec_state.authenticated ? "yes" : "no");
+}
+
+void BleKeyboard::setPIN(const char* pin) {
+  if (pin == nullptr) {
+    disableSecurity();
+    return;
+  }
+  
+  if (strlen(pin) == 6) {
+    this->passkey = atoi(pin);
+    ESP_LOGI(LOG_TAG, "Security enabled with PIN: %s", pin);
+  } else {
+    ESP_LOGE(LOG_TAG, "PIN must be 6 digits, security disabled");
+    this->passkey = 0;
+  }
+}
+
+void BleKeyboard::setPIN(uint32_t pin) {
+  if (pin >= 1 && pin <= 999999) {  // 0 means no security
+    this->passkey = pin;
+    ESP_LOGI(LOG_TAG, "Security enabled with PIN: %06lu", pin);
+  } else {
+    ESP_LOGE(LOG_TAG, "PIN must be between 000001 and 999999, security disabled");
+    this->passkey = 0;
+  }
+}
+
+void BleKeyboard::disableSecurity(bool enable) {
+  if (!enable) {
+    this->passkey = 0;
+    ESP_LOGI(LOG_TAG, "Security disabled");
+  } else {
+    ESP_LOGI(LOG_TAG, "Security remains enabled (call setPIN to enable)");
+  }
+}
+
+bool BleKeyboard::isSecurityEnabled() const {
+  return passkey != 0;
+}
+
+// Update the security callbacks to check passkey directly
+uint32_t BleKeyboard::onPassKeyRequest() {
+  ESP_LOGI(LOG_TAG, "PassKeyRequest received");
+  if (isSecurityEnabled()) {
+    securityCallback(passkey);
+    return passkey;
+  }
+  return 0; // No PIN = Just Works
+}
+
+bool BleKeyboard::onSecurityRequest() {
+  ESP_LOGI(LOG_TAG, "Security request received");
+  return isSecurityEnabled(); // Only require auth if we have a PIN
+}
+
 void BleKeyboard::setAppearance(uint16_t newAppearance) {
   this->appearance = newAppearance;
   ESP_LOGI(LOG_TAG, "Appearance set to: 0x%04X", newAppearance);
-}
-
-void BleKeyboard::setDevicePurpose(const std::string& purpose) {
-  this->devicePurpose = purpose.substr(0, 31);  // Limit length
-  ESP_LOGI(LOG_TAG, "Device purpose set to: %s", devicePurpose.c_str());
 }
 
 bool BleKeyboard::checkConnectionStatus() {
@@ -435,11 +503,13 @@ void BleKeyboard::debugConnectionStatus() {
 
 
 bool BleKeyboard::isConnected(void) {
-  if (NimBLEDevice::getServer()) {
+    if (NimBLEDevice::getServer()) {
         int connectedClients = NimBLEDevice::getServer()->getConnectedCount();
         this->connected = (connectedClients > 0);
-  }
-  return this->connected;
+        return this->connected;
+    }
+    this->connected = false;
+    return false;
 }
 
 void BleKeyboard::setBatteryLevel(uint8_t level) {
@@ -1222,8 +1292,16 @@ void BleKeyboard::sendGamepadReport() {
 }
 
 void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
-  this->connected = true;  // Only set once
-  ESP_LOGV(LOG_TAG, "NimBLE connected");
+  if (isSecurityEnabled()) {
+    // Start pairing process if security is required
+    if (!desc->sec_state.encrypted) {
+      ESP_LOGI(LOG_TAG, "Initiating pairing for secure connection");
+      NimBLEDevice::startSecurity(desc->conn_handle);
+    }
+  }
+  
+  this->connected = true;
+  ESP_LOGV(LOG_TAG, "NimBLE connected - Security: %s, Encrypted: %s", isSecurityEnabled() ? "Enabled" : "Disabled", desc->sec_state.encrypted ? "Yes" : "No");
   
   if (inputNKRO) inputNKRO->notify();
   if (inputMediaKeys) inputMediaKeys->notify(); 
@@ -1231,10 +1309,30 @@ void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
   ESP_LOGI(LOG_TAG, "Client connected");
 }
 
-void BleKeyboard::onDisconnect(NimBLEServer *pServer) {
-  this->connected = false;  // Only set once
-  ESP_LOGV(LOG_TAG, "NimBLE disconnected");
-  if (advertising) advertising->start();
+void BleKeyboard::onDisconnect(NimBLEServer* pServer) {
+    ESP_LOGI(LOG_TAG, "Client disconnected");
+    
+    // Update connection state first
+    this->connected = false;
+    
+    // Give the stack a moment to clean up
+    delay(100);
+    
+    // Restart advertising
+    if (advertising) {
+        ESP_LOGI(LOG_TAG, "Restarting advertising...");
+        advertising->start();
+        
+        // Verify advertising started successfully
+        if (advertising->isAdvertising()) {
+            ESP_LOGI(LOG_TAG, "Advertising restarted successfully");
+        } else {
+            ESP_LOGE(LOG_TAG, "Failed to restart advertising");
+            // Force reinitialization if advertising fails
+            end();
+            begin();
+        }
+    }
 }
 
 void BleKeyboard::onWrite(NimBLECharacteristic* me) {
