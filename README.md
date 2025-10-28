@@ -14,7 +14,8 @@ All development/testing is performed on boards *without* USB host mode, like the
 | Mouse emulation                     | *Absolute & Relative pointers you can hotswap between*                    | *Automatic context-aware switching between both pointer modes*                                                       |
 | Gamepad emulation                   | *64 buttons + 1 D-pad, 2 analogue sticks, 2 analogue triggers, + haptics* | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                             |
 | Digitizer emulation                 | *Pressure sensitivity + tip-switch support*                               | *Programmable brushstroke macro support with variable pressure all throughout*                                       |
-| Set the PID, VID, and version       | *Set the name, manufacturer, and the battery level*                       | *Set what type of device the ESP32 advertises itself as. Choose anything from keyboard to keyring to insulin pump!*  | 
+| Set the PID, VID, and version       | *Set the name, manufacturer, and the battery level*                       | *Set what type of device the ESP32 advertises itself as. Choose anything from keyboard to keyring to insulin pump!*  |
+| 6-Digit PIN (Optional)              | *Hotswap between using a PIN to connect & Just Works no-PIN mode*         | *Change your PIN, even after you've already flashed and connected to the device!*                                    |
 | ESP32s with BLE are all supported   | *Compatible with boards that have no HID capabilities whatsoever*         | *Optimized for the ESP32s with the worst specs. If your ESP32 has BLE, it **will** work with this library!*          |
 
 ## Compatibility
