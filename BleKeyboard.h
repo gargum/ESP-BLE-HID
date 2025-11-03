@@ -1,6 +1,15 @@
-#ifndef ESP32_BLE_KEYBOARD_H
-#define ESP32_BLE_KEYBOARD_H
-#include "sdkconfig.h"
+#ifndef BLE_KEYBOARD_H_ 
+#define BLE_KEYBOARD_H_
+#if defined(CONFIG_BT_ENABLED)          // ESP32s with sdkconfig bundled
+#elif defined(ARDUINO_ARCH_ESP32)       // ESP32s without sdkconfig bundled
+  #define CONFIG_BT_ENABLED 
+#elif defined(ARDUINO_ARCH_NRF52)       // Adafruit / Seeed nRF52
+  #define CONFIG_BT_ENABLED
+#elif defined(ARDUINO_ARCH_MBED)        // mbed-based (Nano 33 BLE …)
+  #define CONFIG_BT_ENABLED
+#elif defined(ARDUINO_ARCH_STM32)       // STM32duino + NimBLE
+  #define CONFIG_BT_ENABLED
+#endif
 #if defined(CONFIG_BT_ENABLED)
 
 #include "NimBLEDevice.h"
