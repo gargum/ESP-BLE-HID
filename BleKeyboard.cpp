@@ -6,10 +6,8 @@
 #include <NimBLEHIDDevice.h>
 #include <NimBLEUUID.h>
 #include "HIDTypes.h"
-#include "esp_timer.h"
 #include "esp_mac.h"
 #include "sdkconfig.h"
-#include "esp_log.h"
 static const char* LOG_TAG = "BleKeyboard";
 bool getInitialized = false;
 
@@ -312,9 +310,9 @@ void BleKeyboard::begin(void) {
   
     // Initialise BLE stack only once
     if (getInitialized) {
-        ESP_LOGW(LOG_TAG, "BLE already initialized, cleaning up first...");
+        Serial.printf("[%s] BLE already initialized, cleaning up first...\n", LOG_TAG);
         end();
-        vTaskDelay(pdMS_TO_TICKS(100));
+        delay(100);
     } else { NimBLEDevice::init(deviceName.c_str()); }
     
     // Configure security if enabled
@@ -551,7 +549,7 @@ void BleKeyboard::setManufacturer(std::string deviceManufacturer) {
 
 // Sets the waiting time (in milliseconds) between multiple keystrokes in NimBLE mode.
 void BleKeyboard::setDelay(uint32_t ms) {
-  this->_delay_ms = ms;
+  delay(_delay_ms);
 }
 
 void BleKeyboard::set_vendor_id(uint16_t vid) { 
@@ -571,7 +569,7 @@ void BleKeyboard::sendReport() {
     // Send the current media key bitmask
     this->inputMediaKeys->setValue((uint8_t*)&_mediaKeyBitmask, sizeof(uint32_t));
     this->inputMediaKeys->notify();
-    this->delay_ms(_delay_ms);
+    delay(_delay_ms);
   }	
 }
 
@@ -579,7 +577,7 @@ void BleKeyboard::sendNKROReport() {
   if (this->isConnected() && inputNKRO) {
     inputNKRO->setValue((uint8_t*)&_keyReportNKRO, sizeof(KeyReportNKRO));
     inputNKRO->notify();
-    this->delay_ms(_delay_ms);
+    delay(_delay_ms);
   }
 }
 
@@ -1073,7 +1071,7 @@ void BleKeyboard::move(signed char x, signed char y, signed char wheel, signed c
     
     inputMouse->setValue((uint8_t*)&_mouseReport, sizeof(_mouseReport));
     inputMouse->notify();
-    this->delay_ms(_delay_ms);
+    delay(_delay_ms);
   }
 }
 
@@ -1098,7 +1096,7 @@ void BleKeyboard::moveTo(uint16_t x, uint16_t y, signed char wheel, signed char 
   if (this->isConnected() && inputAbsolute) {
     inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
     inputAbsolute->notify();
-    this->delay_ms(_delay_ms);
+    delay(_delay_ms);
   }
 }
 
@@ -1160,7 +1158,7 @@ void BleKeyboard::moveToWithPressure(uint16_t x, uint16_t y, uint16_t pressure, 
   if (this->isConnected() && inputAbsolute) {
     inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
     inputAbsolute->notify();
-    this->delay_ms(_delay_ms);
+    delay(_delay_ms);
   }
 }
 
@@ -1180,7 +1178,7 @@ void BleKeyboard::clickWithPressure(uint16_t x, uint16_t y, uint16_t pressure, u
   if (this->isConnected() && inputAbsolute) {
     inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
     inputAbsolute->notify();
-    this->delay_ms(_delay_ms);
+    delay(_delay_ms);
   }
   
   // Release
@@ -1191,7 +1189,7 @@ void BleKeyboard::clickWithPressure(uint16_t x, uint16_t y, uint16_t pressure, u
   if (this->isConnected() && inputAbsolute) {
     inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
     inputAbsolute->notify();
-    this->delay_ms(_delay_ms);
+    delay(_delay_ms);
   }
 }
 
@@ -1300,7 +1298,7 @@ void BleKeyboard::sendGamepadReport() {
     if (this->isConnected() && inputGamepad) {
     inputGamepad->setValue((uint8_t*)&_gamepadReport, sizeof(_gamepadReport));
     inputGamepad->notify();
-    this->delay_ms(_delay_ms);
+    delay(_delay_ms);
   }
 }
 
@@ -1328,7 +1326,7 @@ void BleKeyboard::onDisconnect(NimBLEServer* pServer)
 
     if (advertising) {
         advertising->stop();
-        vTaskDelay(pdMS_TO_TICKS(50));
+        delay(50);
         if (advertising->start()) {
             Serial.printf("[%s] Advertising restarted\n", LOG_TAG);
         } else {
@@ -1361,17 +1359,6 @@ void BleKeyboard::onWrite(NimBLECharacteristic* me) {
   }
 }
 
-void BleKeyboard::delay_ms(uint64_t ms) {
-  uint64_t m = esp_timer_get_time();
-  if(ms){
-    uint64_t e = (m + (ms * 1000));
-    if(m > e){ //overflow
-        while(esp_timer_get_time() > e) { }
-    }
-    while(esp_timer_get_time() < e) {}
-  }
-}
-
 void pollConnection(void * arg)
 {
     BleKeyboard * kb = static_cast<BleKeyboard*>(arg);
@@ -1381,7 +1368,7 @@ void pollConnection(void * arg)
     if (kb->last_connected_count && !cnt) {   // just dropped
         Serial.printf("[%s] Poller: link lost – restarting advertising\n", LOG_TAG);
         kb->advertising->stop();
-        vTaskDelay(pdMS_TO_TICKS(50));
+        delay(50);
         kb->advertising->start();
     }
     kb->last_connected_count = cnt;
