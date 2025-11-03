@@ -6,7 +6,6 @@
 #include <NimBLEHIDDevice.h>
 #include <NimBLEUUID.h>
 #include "HIDTypes.h"
-#include "sdkconfig.h"
 static const char* LOG_TAG = "BleKeyboard";
 bool getInitialized = false;
 
@@ -23,12 +22,12 @@ void pollConnection(void * arg);
 // Global instance tracking
 static BleKeyboard* _activeBleKeyboardInstance = nullptr;
 
-// Simple automatic update function
+// Automatic update/polling function
 void _bleKeyboardAutoUpdate() {
   static uint32_t lastUpdateTime = 0;
   uint32_t currentTime = millis();
   
-  // Update every 10ms
+  // Updating every 10ms currently
   if (currentTime - lastUpdateTime >= 10) {
     lastUpdateTime = currentTime;
     
@@ -38,10 +37,10 @@ void _bleKeyboardAutoUpdate() {
   }
 }
 
-// Hook into Arduino's main loop
+// We're hooking into Arduino IDE's main loop here
 __attribute__((weak)) void loop() {
   _bleKeyboardAutoUpdate();
-  delay(1); // Small delay to prevent overwhelming the CPU
+  delay(1); // Small delay was added to prevent overwhelming the CPU
 }
 
 // This "HID Report Descriptor" tells your computer or phone what the ESP32 you've just connected is supposed to do
@@ -377,20 +376,20 @@ void BleKeyboard::begin(void) {
     NimBLEServer *pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(this);
 
-     // Create HID device object
+    // Create HID device object
     hid = new NimBLEHIDDevice(pServer);
 
-     // Obtain report-characteristic pointers
+    // Obtain report-characteristic pointers
     outputKeyboard = hid->getOutputReport(KEYBOARD_ID);
     inputMediaKeys = hid->getInputReport(MEDIA_KEYS_ID);
     inputNKRO      = hid->getInputReport(NKRO_KEYBOARD_ID);
     outputKeyboard->setCallbacks(this);
 
-     // Manufacturer / PnP / HID-info
+    // Manufacturer / PnP / HID-info
     hid->setManufacturer(std::string(deviceManufacturer.c_str()));
     hid->setHidInfo(0x00, 0x01);
 
-     // Mouse / Digitizer / Gamepad reports
+    // Mouse / Digitizer / Gamepad reports
     inputMouse    = hid->getInputReport(0x04);
     inputAbsolute = hid->getInputReport(0x05);
     inputGamepad  = hid->getInputReport(0x06);
@@ -398,11 +397,11 @@ void BleKeyboard::begin(void) {
     inputGamepad->setCallbacks(this);
     }
 
-     // Publish HID report map and start services
+    // Publish HID report map and start services
     hid->setReportMap((uint8_t *)_hidReportDescriptor, sizeof(_hidReportDescriptor));
     hid->startServices();
 
-     // Advertising setup
+    // Advertising setup
     advertising = pServer->getAdvertising();
     BLEAdvertisementData adv, scan;
     
@@ -426,7 +425,7 @@ void BleKeyboard::begin(void) {
     advertising->setAdvertisementData(adv);
     advertising->setScanResponseData(scan);
 
-     // Start advertising & finish
+    // Start advertising & finish
     onStarted(pServer);
     advertising->start();
     hid->setBatteryLevel(batteryLevel);
@@ -537,7 +536,7 @@ void BleKeyboard::setAppearance(uint16_t newAppearance) {
 }
 
 bool BleKeyboard::isConnected(void) {
-    // Always check the actual BLE state - never rely on cached flags
+    // Always check the actual BLE state - relying on cached flags kept breaking for some reason
     if (NimBLEDevice::getServer()) {
         int connectedClients = NimBLEDevice::getServer()->getConnectedCount();
         
@@ -545,7 +544,7 @@ bool BleKeyboard::isConnected(void) {
         static uint64_t lastLogTime = 0;
         uint64_t currentTime = esp_timer_get_time();
         
-        if (currentTime - lastLogTime > 10000000) { // 10 seconds in microseconds
+        if (currentTime - lastLogTime > 10000000) { // This is just 10 seconds in microseconds
             Serial.printf("[%s] BLE Status - Connected clients: %d, Advertising: %s\n", LOG_TAG,
                     connectedClients,
                     advertising ? (advertising->isAdvertising() ? "Yes" : "No") : "Null");
@@ -1405,7 +1404,6 @@ void pollConnection(void * arg)
             delay(50);
             if (!kb->advertising->start()) {
                 Serial.printf("[%s] Poller: Failed to restart advertising, will retry\n", LOG_TAG);
-                // The onDisconnect should handle the retry
             }
         }
     }
