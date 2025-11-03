@@ -542,7 +542,7 @@ bool BleKeyboard::isConnected(void) {
         
         // Debug logging (every 10 seconds)
         static uint64_t lastLogTime = 0;
-        uint64_t currentTime = esp_timer_get_time();
+        uint64_t currentTime = micros();
         
         if (currentTime - lastLogTime > 10000000) { // This is just 10 seconds in microseconds
             Serial.printf("[%s] BLE Status - Connected clients: %d, Advertising: %s\n", LOG_TAG,
@@ -555,7 +555,7 @@ bool BleKeyboard::isConnected(void) {
     }
     
     static uint64_t lastLogTime = 0;
-    uint64_t currentTime = esp_timer_get_time();
+    uint64_t currentTime = micros();
     
     if (currentTime - lastLogTime > 10000000) {
         Serial.printf("[%s] BLE Status: No server instance available\n", LOG_TAG);
