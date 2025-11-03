@@ -6,7 +6,6 @@
 #include <NimBLEHIDDevice.h>
 #include <NimBLEUUID.h>
 #include "HIDTypes.h"
-#include "esp_mac.h"
 #include "sdkconfig.h"
 static const char* LOG_TAG = "BleKeyboard";
 bool getInitialized = false;
@@ -20,6 +19,30 @@ bool getInitialized = false;
 #define GAMEPAD_ID 0x06
 
 void pollConnection(void * arg);
+
+// Global instance tracking
+static BleKeyboard* _activeBleKeyboardInstance = nullptr;
+
+// Simple automatic update function
+void _bleKeyboardAutoUpdate() {
+  static uint32_t lastUpdateTime = 0;
+  uint32_t currentTime = millis();
+  
+  // Update every 10ms
+  if (currentTime - lastUpdateTime >= 10) {
+    lastUpdateTime = currentTime;
+    
+    if (_activeBleKeyboardInstance) {
+      _activeBleKeyboardInstance->_update();
+    }
+  }
+}
+
+// Hook into Arduino's main loop - this is the key!
+__attribute__((weak)) void loop() {
+  _bleKeyboardAutoUpdate();
+  delay(1); // Small delay to prevent overwhelming the CPU
+}
 
 // This "HID Report Descriptor" tells your computer or phone what the ESP32 you've just connected is supposed to do
 static const uint8_t _hidReportDescriptor[] = {
@@ -295,6 +318,7 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
     , _mouseButtons(0)
     , _useAbsolute(false)
     , _onVibrateCallback(nullptr) 
+    , lastPollTime(0) 
 {
   // Initialize reports
   memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
@@ -302,9 +326,15 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
   memset(&_absoluteReport, 0, sizeof(_absoluteReport));
   memset(&_gamepadReport, 0, sizeof(_gamepadReport));
   _gamepadReport.hat = HAT_CENTER; // Initialize hat to center position 
+  _activeBleKeyboardInstance = this;
 }
 // This is a "destructor". It takes objects the contructor made, and destroys them whenever you tell it to. 
-BleKeyboard::~BleKeyboard() { }
+BleKeyboard::~BleKeyboard() { 
+  // Unregister this instance
+  if (_activeBleKeyboardInstance == this) {
+    _activeBleKeyboardInstance = nullptr;
+  }
+}
 
 void BleKeyboard::begin(void) {
   
@@ -401,12 +431,7 @@ void BleKeyboard::begin(void) {
     advertising->start();
     hid->setBatteryLevel(batteryLevel);
     
-    esp_timer_create_args_t poll_args = {};
-    poll_args.callback = &pollConnection;
-    poll_args.arg = this;
-    poll_args.name = "ble_poll";
-    esp_timer_create(&poll_args, &poll_timer);
-    esp_timer_start_periodic(poll_timer, 1'000'000);   // 1 s
+    lastPollTime = millis();
 
     Serial.printf("[%s] Advertising started!\n", LOG_TAG);
     Serial.printf("[%s] Device name: %s\n", LOG_TAG, deviceName.c_str());
@@ -423,12 +448,22 @@ void BleKeyboard::end(void) {
   }
   BLEDevice::deinit(true);
   getInitialized = false;
-  if (poll_timer) {
-        esp_timer_stop(poll_timer);
-        esp_timer_delete(poll_timer);
-        poll_timer = nullptr;
-    }
   Serial.printf("[%s] BLE Keyboard stopped\n", LOG_TAG);
+}
+
+void BleKeyboard::_update() {
+  uint32_t currentTime = millis();
+  
+  // Handle millis() rollover
+  if (currentTime < lastPollTime) {
+    lastPollTime = currentTime;
+    return;
+  }
+  
+  if (currentTime - lastPollTime >= POLL_INTERVAL) {
+    lastPollTime = currentTime;
+    pollConnection(this);
+  }
 }
 
 // Security callback - displays PIN to user
@@ -1320,19 +1355,14 @@ void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
     Serial.printf("[%s] Client connected - Actual connection count: %d\n", LOG_TAG, NimBLEDevice::getServer()->getConnectedCount());
 }
 
-void BleKeyboard::onDisconnect(NimBLEServer* pServer)
-{
-    Serial.printf("[%s] ESP-HID onDisconnect – restarting advertising\n", LOG_TAG);
-
-    if (advertising) {
-        advertising->stop();
-        delay(50);
-        if (advertising->start()) {
-            Serial.printf("[%s] Advertising restarted\n", LOG_TAG);
-        } else {
-            Serial.printf("[%s] advertising->start() failed\n", LOG_TAG);
-        }
-    }
+void BleKeyboard::onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) {
+  NimBLEServerCallbacks::onDisconnect(pServer, connInfo, reason);
+  
+  // Restart advertising immediately when disconnected
+  if (advertising) {
+    advertising->start();
+    Serial.printf("[%s] Advertising restarted after disconnect (reason: %d)\n", LOG_TAG, reason);
+  }
 }
 
 void BleKeyboard::onWrite(NimBLECharacteristic* me) {
@@ -1362,14 +1392,22 @@ void BleKeyboard::onWrite(NimBLECharacteristic* me) {
 void pollConnection(void * arg)
 {
     BleKeyboard * kb = static_cast<BleKeyboard*>(arg);
-    /*  call through the namespace, not through the object  */
     uint8_t cnt = NimBLEDevice::getServer()->getConnectedCount();
 
-    if (kb->last_connected_count && !cnt) {   // just dropped
-        Serial.printf("[%s] Poller: link lost – restarting advertising\n", LOG_TAG);
-        kb->advertising->stop();
-        delay(50);
-        kb->advertising->start();
+    if (kb->last_connected_count && !cnt) {   // Connection just dropped
+        Serial.printf("[%s] Poller: link lost - restarting advertising\n", LOG_TAG);
+        
+        // Small delay to ensure BLE stack is ready
+        delay(100);
+        
+        if (kb->advertising) {
+            kb->advertising->stop();
+            delay(50);
+            if (!kb->advertising->start()) {
+                Serial.printf("[%s] Poller: Failed to restart advertising, will retry\n", LOG_TAG);
+                // The onDisconnect should handle the retry
+            }
+        }
     }
     kb->last_connected_count = cnt;
 }
