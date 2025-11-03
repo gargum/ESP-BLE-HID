@@ -330,18 +330,18 @@ void BleKeyboard::begin(void) {
             NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
         }
         
-        ESP_LOGI(LOG_TAG, "Security configured with PIN: %06lu, Bonding: %s", 
-                 passkey, bonding_enabled ? "enabled" : "disabled");
+        Serial.printf("[%s] Security configured with PIN: %06lu, Bonding: %s\n", 
+                 LOG_TAG, passkey, bonding_enabled ? "enabled" : "disabled");
     } else {
         // For "Just Works" pairing, still enable bonding if requested
         if (bonding_enabled) {
             NimBLEDevice::setSecurityAuth(true, false, false); // Bonding only, no MITM
             NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC);
             NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC);
-            ESP_LOGI(LOG_TAG, "Just Works pairing with bonding enabled");
+            Serial.printf("[%s] Just Works pairing with bonding enabled\n", LOG_TAG);
         } else {
             NimBLEDevice::setSecurityAuth(false, false, false);
-            ESP_LOGI(LOG_TAG, "Running without security (Just Works)");
+            Serial.printf("[%s] Running without security (Just Works)\n", LOG_TAG);
         }
     }
     
@@ -410,10 +410,10 @@ void BleKeyboard::begin(void) {
     esp_timer_create(&poll_args, &poll_timer);
     esp_timer_start_periodic(poll_timer, 1'000'000);   // 1 s
 
-    ESP_LOGI(LOG_TAG, "Advertising started!");
-    ESP_LOGI(LOG_TAG, "Device name: %s", deviceName.c_str());
-    ESP_LOGI(LOG_TAG, "Service UUID: %s", hid->getHidService()->getUUID().toString().c_str());
-    ESP_LOGI(LOG_TAG, "Using %s mode by default", _useNKRO ? "NKRO" : "6KRO");
+    Serial.printf("[%s] Advertising started!\n", LOG_TAG);
+    Serial.printf("[%s] Device name: %s\n", LOG_TAG, deviceName.c_str());
+    Serial.printf("[%s] Service UUID: %s\n", LOG_TAG, hid->getHidService()->getUUID().toString().c_str());
+    Serial.printf("[%s] Using %s mode by default\n", LOG_TAG, _useNKRO ? "NKRO" : "6KRO");
     
     getInitialized = true;
 }
@@ -430,17 +430,17 @@ void BleKeyboard::end(void) {
         esp_timer_delete(poll_timer);
         poll_timer = nullptr;
     }
-  ESP_LOGI(LOG_TAG, "BLE Keyboard stopped");
+  Serial.printf("[%s] BLE Keyboard stopped\n", LOG_TAG);
 }
 
 // Security callback - displays PIN to user
 void BleKeyboard::securityCallback(uint32_t passkey) {
-  ESP_LOGI(LOG_TAG, "Pairing PIN: %06lu", passkey);
+  Serial.printf("[%s] Pairing PIN: %06lu\n", LOG_TAG, passkey);
   // You could add display output here if you have an LCD/OLED
 }
 
 void BleKeyboard::onAuthenticationComplete(ble_gap_conn_desc* desc) {
-    ESP_LOGI(LOG_TAG, "Authentication complete - encrypted: %s, authenticated: %s",
+    Serial.printf("[%s] Authentication complete - encrypted: %s, authenticated: %s\n", LOG_TAG,
              desc->sec_state.encrypted ? "yes" : "no",
              desc->sec_state.authenticated ? "yes" : "no");
 }
@@ -453,9 +453,9 @@ void BleKeyboard::setPIN(const char* pin) {
   
   if (strlen(pin) == 6) {
     this->passkey = atoi(pin);
-    ESP_LOGI(LOG_TAG, "Security enabled with PIN: %s", pin);
+    Serial.printf("[%s] Security enabled with PIN: %s\n", LOG_TAG, pin);
   } else {
-    ESP_LOGE(LOG_TAG, "PIN must be 6 digits, security disabled");
+    Serial.printf("[%s] PIN must be 6 digits, security disabled\n", LOG_TAG);
     this->passkey = 0;
   }
 }
@@ -463,9 +463,9 @@ void BleKeyboard::setPIN(const char* pin) {
 void BleKeyboard::setPIN(uint32_t pin) {
   if (pin >= 1 && pin <= 999999) {  // 0 means no security
     this->passkey = pin;
-    ESP_LOGI(LOG_TAG, "Security enabled with PIN: %06lu", pin);
+    Serial.printf("[%s] Security enabled with PIN: %06lu\n", LOG_TAG, pin);
   } else {
-    ESP_LOGE(LOG_TAG, "PIN must be between 000001 and 999999, security disabled");
+    Serial.printf("[%s] PIN must be between 000001 and 999999, security disabled\n", LOG_TAG);
     this->passkey = 0;
   }
 }
@@ -473,9 +473,9 @@ void BleKeyboard::setPIN(uint32_t pin) {
 void BleKeyboard::disableSecurity(bool enable) {
   if (!enable) {
     this->passkey = 0;
-    ESP_LOGI(LOG_TAG, "Security disabled");
+    Serial.printf("[%s] Security disabled\n", LOG_TAG);
   } else {
-    ESP_LOGI(LOG_TAG, "Security remains enabled (call setPIN to enable)");
+    Serial.printf("[%s] Security remains enabled (call setPIN to enable)\n", LOG_TAG);
   }
 }
 
@@ -485,7 +485,7 @@ bool BleKeyboard::isSecurityEnabled() const {
 
 // Update the security callbacks to check passkey directly
 uint32_t BleKeyboard::onPassKeyRequest() {
-  ESP_LOGI(LOG_TAG, "PassKeyRequest received");
+  Serial.printf("[%s] PassKeyRequest received\n", LOG_TAG);
   if (isSecurityEnabled()) {
     securityCallback(passkey);
     return passkey;
@@ -494,13 +494,13 @@ uint32_t BleKeyboard::onPassKeyRequest() {
 }
 
 bool BleKeyboard::onSecurityRequest() {
-  ESP_LOGI(LOG_TAG, "Security request received");
+  Serial.printf("[%s] Security request received\n", LOG_TAG);
   return isSecurityEnabled(); // Only require auth if we have a PIN
 }
 
 void BleKeyboard::setAppearance(uint16_t newAppearance) {
   this->appearance = newAppearance;
-  ESP_LOGI(LOG_TAG, "Appearance set to: 0x%04X", newAppearance);
+  Serial.printf("[%s] Appearance set to: 0x%04X\n", LOG_TAG, newAppearance);
 }
 
 bool BleKeyboard::isConnected(void) {
@@ -513,7 +513,7 @@ bool BleKeyboard::isConnected(void) {
         uint64_t currentTime = esp_timer_get_time();
         
         if (currentTime - lastLogTime > 10000000) { // 10 seconds in microseconds
-            ESP_LOGI(LOG_TAG, "BLE Status - Connected clients: %d, Advertising: %s", 
+            Serial.printf("[%s] BLE Status - Connected clients: %d, Advertising: %s\n", LOG_TAG,
                     connectedClients,
                     advertising ? (advertising->isAdvertising() ? "Yes" : "No") : "Null");
             lastLogTime = currentTime;
@@ -526,7 +526,7 @@ bool BleKeyboard::isConnected(void) {
     uint64_t currentTime = esp_timer_get_time();
     
     if (currentTime - lastLogTime > 10000000) {
-        ESP_LOGI(LOG_TAG, "BLE Status: No server instance available");
+        Serial.printf("[%s] BLE Status: No server instance available\n", LOG_TAG);
         lastLogTime = currentTime;
     }
     
@@ -600,12 +600,12 @@ void BleKeyboard::updateNKROBitmask(uint8_t k, bool pressed)
 // NKRO/6KRO mode switching functions
 void BleKeyboard::useNKRO(bool state) {
   _useNKRO = state; // state = enabled, therefore _useNKRO = true/enabled
-  ESP_LOGI(LOG_TAG, "Switched to %s mode", _useNKRO ? "NKRO" : "6KRO");
+  Serial.printf("[%s] Switched to %s mode\n", LOG_TAG, _useNKRO ? "NKRO" : "6KRO");
 }
 
 void BleKeyboard::use6KRO(bool state) {
   _useNKRO = !state; // state = enabled, therefore _useNKRO = not true/enabled = false
-  ESP_LOGI(LOG_TAG, "Switched to %s mode", _useNKRO ? "NKRO" : "6KRO");
+  Serial.printf("[%s] Switched to %s mode\n", LOG_TAG, _useNKRO ? "NKRO" : "6KRO");
 }
 
 bool BleKeyboard::isNKROEnabled() {
@@ -1122,17 +1122,17 @@ void BleKeyboard::mouseReleaseAll() {
 
 void BleKeyboard::useAbsolute(bool enable) {
   _useAbsolute = enable;
-  ESP_LOGI(LOG_TAG, "Switched to %s pointer mode", _useAbsolute ? "absolute" : "relative");
+  Serial.printf("[%s] Switched to %s pointer mode\n", LOG_TAG, _useAbsolute ? "absolute" : "relative");
 }
 
 void BleKeyboard::useRelative(bool enable) {
   _useAbsolute = !enable;
-  ESP_LOGI(LOG_TAG, "Switched to %s pointer mode", _useAbsolute ? "absolute" : "relative");
+  Serial.printf("[%s] Switched to %s pointer mode\n", LOG_TAG, _useAbsolute ? "absolute" : "relative");
 }
 
 void BleKeyboard::setAbsoluteRange(uint16_t minVal, uint16_t maxVal) {
   // This is just to scale your coordinates - the actual range is fixed to 32767 on both axes
-  ESP_LOGI(LOG_TAG, "Absolute pointer range set to %d-%d", minVal, maxVal);
+  Serial.printf("[%s] Absolute pointer range set to %d-%d\n", LOG_TAG, minVal, maxVal);
 }
 
 bool BleKeyboard::isAbsoluteEnabled() {
@@ -1289,7 +1289,7 @@ void BleKeyboard::gamepadGetRightStick(int16_t &x, int16_t &y) {
 
 void BleKeyboard::onVibrate(void (*callback)(uint8_t leftMotor, uint8_t rightMotor)) {
   _onVibrateCallback = callback;
-  ESP_LOGI(LOG_TAG, "Vibrate callback registered");
+  Serial.printf("[%s] Vibrate callback registered\n", LOG_TAG);
 }
 
 bool BleKeyboard::isHapticsSupported() const {
@@ -1305,13 +1305,13 @@ void BleKeyboard::sendGamepadReport() {
 }
 
 void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
-    ESP_LOGI(LOG_TAG, "ESP-HID onConnect callback triggered - Security: %s, Encrypted: %s", 
+    Serial.printf("[%s] ESP-HID onConnect callback triggered - Security: %s, Encrypted: %s\n", LOG_TAG,
              isSecurityEnabled() ? "Enabled" : "Disabled", 
              desc->sec_state.encrypted ? "Yes" : "No");
     
     if (isSecurityEnabled()) {
         if (!desc->sec_state.encrypted) {
-            ESP_LOGI(LOG_TAG, "Initiating pairing for secure connection");
+            Serial.printf("[%s] Initiating pairing for secure connection\n", LOG_TAG);
             NimBLEDevice::startSecurity(desc->conn_handle);
         }
     }
@@ -1319,27 +1319,26 @@ void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
     if (inputNKRO) inputNKRO->notify();
     if (inputMediaKeys) inputMediaKeys->notify(); 
     
-    ESP_LOGI(LOG_TAG, "Client connected - Actual connection count: %d", 
-             NimBLEDevice::getServer()->getConnectedCount());
+    Serial.printf("[%s] Client connected - Actual connection count: %d\n", LOG_TAG, NimBLEDevice::getServer()->getConnectedCount());
 }
 
 void BleKeyboard::onDisconnect(NimBLEServer* pServer)
 {
-    ESP_LOGI(LOG_TAG, "ESP-HID onDisconnect – restarting advertising");
+    Serial.printf("[%s] ESP-HID onDisconnect – restarting advertising\n", LOG_TAG);
 
     if (advertising) {
         advertising->stop();
         vTaskDelay(pdMS_TO_TICKS(50));
         if (advertising->start()) {
-            ESP_LOGI(LOG_TAG, "Advertising restarted");
+            Serial.printf("[%s] Advertising restarted\n", LOG_TAG);
         } else {
-            ESP_LOGE(LOG_TAG, "advertising->start() failed");
+            Serial.printf("[%s] advertising->start() failed\n", LOG_TAG);
         }
     }
 }
 
 void BleKeyboard::onWrite(NimBLECharacteristic* me) {
-  ESP_LOGI(LOG_TAG, "ESP-HID onWrite callback triggered!");
+  Serial.printf("[%s] ESP-HID onWrite callback triggered!\n", LOG_TAG);
   uint8_t* value = (uint8_t*)(me->getValue().c_str());
   size_t length = me->getValue().length();
   
@@ -1350,7 +1349,7 @@ void BleKeyboard::onWrite(NimBLECharacteristic* me) {
     uint8_t leftMotor = value[0];
     uint8_t rightMotor = (length > 1) ? value[1] : value[0]; // Fallback to single motor
     
-    ESP_LOGI(LOG_TAG, "Haptic feedback received: left=%d, right=%d", leftMotor, rightMotor);
+    Serial.printf("[%s] Haptic feedback received: left=%d, right=%d\n", LOG_TAG, leftMotor, rightMotor);
     
     // Call user callback if registered
     if (_onVibrateCallback) {
@@ -1358,7 +1357,7 @@ void BleKeyboard::onWrite(NimBLECharacteristic* me) {
     }
   } else {
     // Handle other characteristics (existing code)
-    ESP_LOGI(LOG_TAG, "special keys: %d", *value);
+    Serial.printf("[%s] special keys: %d\n", LOG_TAG, *value);
   }
 }
 
@@ -1380,7 +1379,7 @@ void pollConnection(void * arg)
     uint8_t cnt = NimBLEDevice::getServer()->getConnectedCount();
 
     if (kb->last_connected_count && !cnt) {   // just dropped
-        ESP_LOGI(LOG_TAG, "Poller: link lost – restarting advertising");
+        Serial.printf("[%s] Poller: link lost – restarting advertising\n", LOG_TAG);
         kb->advertising->stop();
         vTaskDelay(pdMS_TO_TICKS(50));
         kb->advertising->start();
@@ -1390,12 +1389,12 @@ void pollConnection(void * arg)
 
 void BleKeyboard::enableBonding(bool enable) {
     bonding_enabled = enable;
-    ESP_LOGI(LOG_TAG, "Bonding %s", bonding_enabled ? "enabled" : "disabled");
+    Serial.printf("[%s] Bonding %s\n", LOG_TAG, bonding_enabled ? "enabled" : "disabled");
 }
 
 void BleKeyboard::clearBonds() {
     NimBLEDevice::deleteAllBonds();
-    ESP_LOGI(LOG_TAG, "All bonds cleared");
+    Serial.printf("[%s] All bonds cleared\n", LOG_TAG);
 }
 
 bool BleKeyboard::isBonded() const {
