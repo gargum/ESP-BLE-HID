@@ -38,7 +38,7 @@ void _bleKeyboardAutoUpdate() {
   }
 }
 
-// Hook into Arduino's main loop - this is the key!
+// Hook into Arduino's main loop
 __attribute__((weak)) void loop() {
   _bleKeyboardAutoUpdate();
   delay(1); // Small delay to prevent overwhelming the CPU
@@ -418,7 +418,7 @@ void BleKeyboard::begin(void) {
     adv.setShortName(deviceName.substr(0, 8).c_str());
     adv.setAppearance(this->appearance);
     adv.setCompleteServices(hid->getHidService()->getUUID());
-//    adv.addServiceUUID(hid->getHidService()->getUUID());
+    adv.addServiceUUID(hid->getHidService()->getUUID());
     adv.setManufacturerData((deviceManufacturer).c_str());
 
     advertising->setMinInterval(32);    // 20ms in 0.625ms units
