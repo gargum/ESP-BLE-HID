@@ -767,6 +767,8 @@ private:
   uint16_t           appearance = HID_KEYBOARD;
   uint32_t           passkey = 0;           // PIN code (0 = no security)
   bool               bonding_enabled = true; 
+  void               _update();
+  friend void        _bleKeyboardAutoUpdate(void);
   BLECharacteristic* outputKeyboard;
   BLECharacteristic* inputMediaKeys;
   BLECharacteristic* inputNKRO;
@@ -795,7 +797,8 @@ private:
   
   friend void pollConnection(void * arg);
   uint8_t  last_connected_count = 0;   // previous poll result
-  esp_timer_handle_t poll_timer = nullptr;
+  uint32_t lastPollTime = 0;
+  static const uint32_t POLL_INTERVAL = 1000; // 1 second in milliseconds
   static void securityCallback(uint32_t passkey); 
   uint32_t mediaKeyToBitmask(uint16_t usageCode);
   void sendNKROReport();
@@ -815,7 +818,7 @@ public:
  // Security methods
   void setPIN(const char* pin);                 // Set 6-digit PIN like "123456"
   void setPIN(uint32_t pin);                    // Set numeric PIN
-  void disableSecurity(bool enable = true);      // Enable/disable security
+  void disableSecurity(bool enable = true);     // Enable/disable security
   bool isSecurityEnabled() const;               // Check if security is enabled
   
   void enableBonding(bool enable = true);
@@ -920,7 +923,7 @@ protected:
   virtual bool onSecurityRequest();
   virtual void onMouseStarted(BLEServer *pServer) { };
   virtual void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc);
-  virtual void onDisconnect(NimBLEServer* pServer);
+  virtual void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason);
   virtual void onWrite(NimBLECharacteristic* me);
 };
 
