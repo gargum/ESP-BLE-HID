@@ -5,6 +5,8 @@
   #define CONFIG_BT_ENABLED 
 #elif defined(ARDUINO_ARCH_NRF52)       // Adafruit / Seeed nRF52
   #define CONFIG_BT_ENABLED
+#elif defined(NRF52_SERIES)             // n-able Arduino core
+#  define CONFIG_BT_ENABLED
 #elif defined(ARDUINO_ARCH_MBED)        // mbed-based (Nano 33 BLE …)
   #define CONFIG_BT_ENABLED
 #elif defined(ARDUINO_ARCH_STM32)       // STM32duino + NimBLE
