@@ -1,10 +1,6 @@
 #ifndef ESP32_BLE_KEYBOARD_H
 #define ESP32_BLE_KEYBOARD_H
 #include "sdkconfig.h"
-#include "esp_timer.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/queue.h"
 #if defined(CONFIG_BT_ENABLED)
 
 #include "NimBLEDevice.h"
@@ -801,7 +797,6 @@ private:
   uint8_t  last_connected_count = 0;   // previous poll result
   esp_timer_handle_t poll_timer = nullptr;
   static void securityCallback(uint32_t passkey); 
-  void delay_ms(uint64_t ms);
   uint32_t mediaKeyToBitmask(uint16_t usageCode);
   void sendNKROReport();
   void updateNKROBitmask(uint8_t k, bool pressed);
