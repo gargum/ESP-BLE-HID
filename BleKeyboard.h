@@ -936,7 +936,7 @@ public:
   
   void setAppearance(uint16_t newAppearance);
   
-  void sendReport();
+  void sendMediaReport();
   // The library differentiates between keys, modifiers, and media keys by storing them using 3 different integer types
   size_t press(uint8_t k);           // I went with uint8_t for normal keycodes
   size_t press(int16_t modifier);    // I chose int16_t for modifiers
@@ -960,7 +960,6 @@ public:
   size_t write(const uint8_t *buffer, size_t size);
   
   void releaseAll();
-  void gamepadReleaseAll(void);
   void mouseReleaseAll();
   
   // NKRO/6KRO mode switching
@@ -1030,7 +1029,6 @@ public:
   // GeminiPR methods
   void sendGeminiPRReport();
   void geminiStroke(const int32_t* keys, size_t count);
-  void geminiStrokeFromString(const char* stenoString);
   
   // Helper to convert steno notation to key codes
   uint8_t stenoCharToKey(char c);
