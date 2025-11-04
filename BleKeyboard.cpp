@@ -150,7 +150,7 @@ static const uint8_t _hidReportDescriptor[] = {
   HIDINPUT(1),        0x06,             // INPUT (Data,Var,Rel)
   // Horizontal Wheel
   USAGE_PAGE(1),      0x0C,             // USAGE_PAGE (Consumer)
-  USAGE(2),      0x38, 0x02,            // USAGE (AC Pan)
+  USAGE(2),           0x38, 0x02,            // USAGE (AC Pan)
   LOGICAL_MINIMUM(1), 0x81,             // LOGICAL_MINIMUM (-127)
   LOGICAL_MAXIMUM(1), 0x7F,             // LOGICAL_MAXIMUM (127)
   REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
@@ -562,7 +562,7 @@ void BleKeyboard::set_version(uint16_t version) {
 	this->version = version; 
 }
 
-void BleKeyboard::sendReport() {
+void BleKeyboard::sendMediaReport() {
   if (this->isConnected()) {
     // Send the current media key bitmask
     this->inputMediaKeys->setValue((uint8_t*)&_mediaKeyBitmask, sizeof(uint32_t));
@@ -669,10 +669,6 @@ static uint8_t charToKeyCode(char c, bool *needShift)
     }
 }
 
-// press() adds the specified key (printing, non-printing, or modifier)
-// to the persistent key report and sends the report.  Because of the way
-// USB HID works, the host acts like the key remains pressed until we
-// call release(), releaseAll(), or otherwise clear the report and resend.
 size_t BleKeyboard::press(uint8_t k) {
   // This function ONLY handles regular keycodes (uint8_t)
   if (k >= 136) { 
@@ -849,22 +845,16 @@ size_t BleKeyboard::release(int32_t stenoKey) {
 }
 
 void BleKeyboard::releaseAll() {
-  // Release keyboard
   memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
   sendNKROReport();
   _mediaKeyBitmask = 0;
-  sendReport();
+  sendMediaReport();
+  _gamepadReport.buttons[0] = 0;
+  _gamepadReport.buttons[1] = 0;
+  _gamepadReport.hat = HAT_CENTER;
+  sendGamepadReport();
   memset(&_geminiReport, 0, sizeof(_geminiReport));
   sendGeminiPRReport();
-}
-
-void BleKeyboard::gamepadReleaseAll(void)
-{
-    // Release gamepad
-    _gamepadReport.buttons[0] = 0;
-    _gamepadReport.buttons[1] = 0;
-    _gamepadReport.hat = HAT_CENTER;
-    sendGamepadReport();
 }
 
 size_t BleKeyboard::write(uint8_t c)
@@ -911,7 +901,7 @@ uint8_t BleKeyboard::getModifiers() {
 
 void BleKeyboard::setMediaKeyBitmask(uint32_t bitmask) {
     _mediaKeyBitmask = bitmask;
-    sendReport(); // Send the updated bitmask
+    sendMediaReport(); // Send the updated bitmask
 }
 
 uint32_t BleKeyboard::getMediaKeyBitmask() {
@@ -955,13 +945,13 @@ uint32_t BleKeyboard::mediaKeyToBitmask(uint16_t usageCode) {
 void BleKeyboard::addMediaKey(uint16_t mediaKey) {
     uint32_t keyBitmask = mediaKeyToBitmask(mediaKey);
     _mediaKeyBitmask |= keyBitmask;
-    sendReport();
+    sendMediaReport();
 }
 
 void BleKeyboard::removeMediaKey(uint16_t mediaKey) {
     uint32_t keyBitmask = mediaKeyToBitmask(mediaKey);
     _mediaKeyBitmask &= ~keyBitmask;
-    sendReport();
+    sendMediaReport();
 }
 
 uint8_t BleKeyboard::countPressedKeys() {
@@ -1293,41 +1283,6 @@ uint8_t BleKeyboard::stenoCharToKey(char c) {
     case 'N': return GEMINI_FN;
     default: return 0;
   }
-}
-
-void BleKeyboard::geminiStrokeFromString(const char* stenoString) {
-  if (!stenoString) return;
-  
-  releaseAll();
-  
-  for (size_t i = 0; stenoString[i] != '\0'; i++) {
-    uint8_t key = 0;
-    char current = stenoString[i];
-    
-    // Handle multi-character sequences if needed
-    if (current == 'S' && stenoString[i+1] == '2') {
-      key = GEMINI_S2;
-      i++; // Skip next character
-    } else if (current == 'R' && stenoString[i+1] == '2') {
-      key = GEMINI_R2;
-      i++; // Skip next character
-    } else if (current == 'P' && stenoString[i+1] == '2') {
-      key = GEMINI_P2;
-      i++; // Skip next character
-    } else if (current == 'T' && stenoString[i+1] == '2') {
-      key = GEMINI_T2;
-      i++; // Skip next character
-    } else {
-      key = stenoCharToKey(current);
-    }
-    
-    if (key != 0) {
-      press(key);
-    }
-  }
-  
-  sendGeminiPRReport();
-  releaseAll();
 }
 
 void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
