@@ -16,6 +16,7 @@ bool getInitialized = false;
 #define MOUSE_ID 0x04
 #define DIGITIZER_ID 0x05
 #define GAMEPAD_ID 0x06
+#define GEMINIPR_ID 0x07  
 
 void pollConnection(void * arg);
 
@@ -231,6 +232,19 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
   HIDINPUT(1),         0x06,            // INPUT (Data, Var, Rel)
   END_COLLECTION(0),                      // END_COLLECTION (Application)
+  // ------------------------------------------------- GeminiPR Steno Protocol
+  USAGE_PAGE(1),       0xFF, 0x00,       // USAGE_PAGE (Vendor Defined)
+  USAGE(1),            0x01,             // USAGE (Vendor Usage 1)
+  COLLECTION(1),       0x01,             // COLLECTION (Application)
+  REPORT_ID(1),        GEMINIPR_ID,      // REPORT_ID (7) - GeminiPR report
+  // 6-byte GeminiPR packet (48 bits)
+  LOGICAL_MINIMUM(1),  0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1),  0x01,             // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),      0x01,             // REPORT_SIZE (1)
+  REPORT_COUNT(1),     0x30,             // REPORT_COUNT (48) - 48 bits
+  USAGE(1),            0x01,             // USAGE (Vendor Usage 1)
+  HIDINPUT(1),         0x02,             // INPUT (Data, Variable, Absolute)
+  END_COLLECTION(0),                      // END_COLLECTION
   // ------------------------------------------------- Gamepad
   USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
   USAGE(1),            0x05,            // USAGE (Game Pad)
@@ -324,6 +338,7 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
   memset(&_mouseReport, 0, sizeof(_mouseReport));
   memset(&_absoluteReport, 0, sizeof(_absoluteReport));
   memset(&_gamepadReport, 0, sizeof(_gamepadReport));
+  memset(&_geminiReport, 0, sizeof(_geminiReport));
   _gamepadReport.hat = HAT_CENTER; // Initialize hat to center position 
   _activeBleKeyboardInstance = this;
 }
@@ -383,6 +398,7 @@ void BleKeyboard::begin(void) {
     outputKeyboard = hid->getOutputReport(KEYBOARD_ID);
     inputMediaKeys = hid->getInputReport(MEDIA_KEYS_ID);
     inputNKRO      = hid->getInputReport(NKRO_KEYBOARD_ID);
+    inputGeminiPR  = hid->getInputReport(GEMINIPR_ID);
     outputKeyboard->setCallbacks(this);
 
     // Manufacturer / PnP / HID-info
@@ -789,6 +805,23 @@ void BleKeyboard::press(uint16_t x, uint16_t y, char b) {
   moveTo(x, y);
 }
 
+size_t BleKeyboard::press(int32_t stenoKey) {
+  // Remove the _useGeminiPR check and auto-enable logic
+  // Convert int32_t to uint8_t (safe since steno keys are 0-255)
+  uint8_t key = (uint8_t)(stenoKey & 0xFF);
+  
+  // Set the appropriate bit in the GeminiPR packet
+  if (key & 0x80) _geminiReport.byte0 |= (key & 0xC0);
+  else if (key & 0x40) _geminiReport.byte1 |= key;
+  else if (key & 0x20) _geminiReport.byte2 |= key;
+  else if (key & 0x10) _geminiReport.byte3 |= key;
+  else if (key & 0x08) _geminiReport.byte4 |= key;
+  else if (key & 0x04) _geminiReport.byte5 |= key;
+  
+  sendGeminiPRReport();
+  return 1;
+}
+
 // This just sends a keyup event/unpresses a given key
 size_t BleKeyboard::release(uint8_t k) {
   // This function ONLY handles regular keycodes
@@ -862,13 +895,30 @@ void BleKeyboard::release(uint16_t x, uint16_t y, char b) {
   moveTo(x, y);
 }
 
-void BleKeyboard::releaseAll(void)
-{
-    // Release keyboard
-    memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
-    sendNKROReport();
-    _mediaKeyBitmask = 0;
-    sendReport();
+size_t BleKeyboard::release(int32_t stenoKey) {
+  // Convert int32_t to uint8_t
+  uint8_t key = (uint8_t)(stenoKey & 0xFF);
+  
+  // Clear the appropriate bit in the GeminiPR packet
+  if (key & 0x80) _geminiReport.byte0 &= ~(key & 0xC0);
+  else if (key & 0x40) _geminiReport.byte1 &= ~key;
+  else if (key & 0x20) _geminiReport.byte2 &= ~key;
+  else if (key & 0x10) _geminiReport.byte3 &= ~key;
+  else if (key & 0x08) _geminiReport.byte4 &= ~key;
+  else if (key & 0x04) _geminiReport.byte5 &= ~key;
+  
+  sendGeminiPRReport();
+  return 1;
+}
+
+void BleKeyboard::releaseAll() {
+  // Release keyboard
+  memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
+  sendNKROReport();
+  _mediaKeyBitmask = 0;
+  sendReport();
+  memset(&_geminiReport, 0, sizeof(_geminiReport));
+  sendGeminiPRReport();
 }
 
 void BleKeyboard::gamepadReleaseAll(void)
@@ -1254,6 +1304,101 @@ void BleKeyboard::sendGamepadReport() {
     inputGamepad->notify();
     delay(_delay_ms);
   }
+}
+
+// GeminiPR implementation
+void BleKeyboard::sendGeminiPRReport() {
+  if (this->isConnected() && inputGeminiPR) {
+    inputGeminiPR->setValue((uint8_t*)&_geminiReport, sizeof(_geminiReport));
+    inputGeminiPR->notify();
+    delay(_delay_ms);
+  }
+}
+
+void BleKeyboard::geminiStroke(const int32_t* keys, size_t count) {
+  releaseAll();
+  for (size_t i = 0; i < count; i++) {
+    press(keys[i]);
+  }
+  sendGeminiPRReport();
+}
+
+uint8_t BleKeyboard::stenoCharToKey(char c) {
+  switch (toupper(c)) {
+    case 'Q': return GEMINI_S1;
+    case 'A': return GEMINI_S2;
+    case 'W': return GEMINI_T;
+    case 'S': return GEMINI_K;
+    case 'E': return GEMINI_P;
+    case 'D': return GEMINI_W;
+    case 'R': return GEMINI_H;
+    case 'F': return GEMINI_R;
+    case 'C': return GEMINI_A;
+    case 'V': return GEMINI_O;
+    case 'T': return GEMINI_STAR1;
+    case 'G': return GEMINI_STAR2;
+    case 'Y': return GEMINI_STAR3;
+    case 'H': return GEMINI_STAR4;
+    case ',': return GEMINI_E;
+    case 'M': return GEMINI_U;
+    case 'U': return GEMINI_F;
+    case 'J': return GEMINI_R2;
+    case 'I': return GEMINI_P2;
+    case 'K': return GEMINI_B;
+    case 'O': return GEMINI_L;
+    case 'L': return GEMINI_G;
+    case 'P': return GEMINI_T2;
+    case 'B': return GEMINI_S;
+    case 'X': return GEMINI_D;
+    case 'Z': return GEMINI_Z;
+    case '1': return GEMINI_NUM1;
+    case '2': return GEMINI_NUM7;
+    case '3': return GEMINI_NUM8;
+    case '4': return GEMINI_NUM9;
+    case '5': return GEMINI_NUM10;
+    case '6': return GEMINI_NUM11;
+    case '7': return GEMINI_NUM12;
+    case '8': return GEMINI_PWR;
+    case '9': return GEMINI_RES1;
+    case '0': return GEMINI_RES2;
+    case 'N': return GEMINI_FN;
+    default: return 0;
+  }
+}
+
+void BleKeyboard::geminiStrokeFromString(const char* stenoString) {
+  if (!stenoString) return;
+  
+  releaseAll();
+  
+  for (size_t i = 0; stenoString[i] != '\0'; i++) {
+    uint8_t key = 0;
+    char current = stenoString[i];
+    
+    // Handle multi-character sequences if needed
+    if (current == 'S' && stenoString[i+1] == '2') {
+      key = GEMINI_S2;
+      i++; // Skip next character
+    } else if (current == 'R' && stenoString[i+1] == '2') {
+      key = GEMINI_R2;
+      i++; // Skip next character
+    } else if (current == 'P' && stenoString[i+1] == '2') {
+      key = GEMINI_P2;
+      i++; // Skip next character
+    } else if (current == 'T' && stenoString[i+1] == '2') {
+      key = GEMINI_T2;
+      i++; // Skip next character
+    } else {
+      key = stenoCharToKey(current);
+    }
+    
+    if (key != 0) {
+      press(key);
+    }
+  }
+  
+  sendGeminiPRReport();
+  releaseAll();
 }
 
 void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
