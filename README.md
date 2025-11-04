@@ -33,7 +33,8 @@ All development/testing is performed on boards *without* USB host mode, like the
 - [ ] Keymap support - Developing the system to create keymaps corresponding to a user-defined matrix
 - [ ] Split communication - Figuring out ESP-NOW wireless support for the full 20 board maximum
 - [ ] Documentation - Writing the docs for ESP-BLE-HID
-- [ ] Migrating from Arduino IDE/PlatformIO to Standalone - I enjoy making life harder for myself unneccesarily 
+- [ ] Migrating from Arduino IDE/PlatformIO to Standalone - I enjoy making life harder for myself unneccesarily
+- [ ] nRF support - Developing an actually easy/user-friendly system for flashing Nordic chips with my firmware
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
