@@ -166,11 +166,6 @@ By default the battery level will be set to 100%, the device name will be `ESP32
 
 There is also a `setDelay` method to set a delay between each key event. E.g. `bleKeyboard.setDelay(10)` (10 milliseconds). The default is `8`. The `setDelay` feature is to maximize compatibility between any devices created using this library, and any underpowered hardware or legacy applications one may wish to use.
 
-## NimBLE Support
-NimBLE saves a significant amount of RAM and FLASH, plus Bluedroid is not supported by some microcontrollers with BLE such as Nordic nRF series microcontrollers.
-
-For these reasons, this library requries the use of NimBLE, at this time the [Arduino-NimBLE](https://github.com/h2zero/NimBLE-Arduino) library to be specific.
-
 ## Credits
 
 Credits to [T-vK](https://github.com/T-vK) and [the authors of the USB keyboard library](https://github.com/arduino-libraries/Keyboard/), whose work this project is a fork of!
