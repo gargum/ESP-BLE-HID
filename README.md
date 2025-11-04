@@ -35,6 +35,7 @@ All development/testing is performed on boards *without* USB host mode, like the
 - [ ] Documentation - Writing the docs for ESP-BLE-HID
 - [ ] Migrating from Arduino IDE/PlatformIO to Standalone - I enjoy making life harder for myself unneccesarily
 - [ ] nRF support - Developing an actually easy/user-friendly system for flashing Nordic chips with my firmware
+- [ ] PS/2 support - Developing the system for PS/2 to BLE so people can use older hardware wirelessly
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
