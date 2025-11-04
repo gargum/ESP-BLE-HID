@@ -31,7 +31,7 @@ All development/testing is performed on boards *without* USB host mode, like the
 
 - [ ] Matrix support - Developing the system for defining key matrices and encoder pins
 - [ ] Keymap support - Developing the system to create keymaps corresponding to a user-defined matrix
-- [ ] Split communication - Figuring out ESP-NOW wireless support for the full 20 board maximum
+- [ ] Split communication - Figuring out BLE mesh wireless support for the full 32,767 board maximum
 - [ ] Documentation - Writing the docs for ESP-BLE-HID
 - [ ] Migrating from Arduino IDE/PlatformIO to Standalone - I enjoy making life harder for myself unneccesarily
 - [ ] nRF support - Developing an actually easy/user-friendly system for flashing Nordic chips with my firmware
