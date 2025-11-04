@@ -14,9 +14,8 @@ bool getInitialized = false;
 #define MEDIA_KEYS_ID 0x02
 #define NKRO_KEYBOARD_ID 0x03
 #define MOUSE_ID 0x04
-#define DIGITIZER_ID 0x05
-#define GAMEPAD_ID 0x06
-#define GEMINIPR_ID 0x07  
+#define GAMEPAD_ID 0x05
+#define GEMINIPR_ID 0x06  
 
 void pollConnection(void * arg);
 
@@ -85,158 +84,113 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE(1),           0x01,             // USAGE (Consumer Control)
   COLLECTION(1),      0x01,             // COLLECTION (Application)
   REPORT_ID(1),       MEDIA_KEYS_ID,    // REPORT_ID (2)
-  USAGE_PAGE(1),      0x0C,             // USAGE_PAGE (Consumer)
+  USAGE(2),           0x30, 0x01,       // USAGE (System Power)
+  USAGE(2),           0x34, 0x01,       // USAGE (System Sleep)
+  USAGE(2),           0x35, 0x01,       // USAGE (System Wake)
+  USAGE(1),           0xB5,             // USAGE (Next Track)
+  USAGE(1),           0xB6,             // USAGE (Previous Track)
+  USAGE(1),           0xB7,             // USAGE (Stop)
+  USAGE(1),           0xCD,             // USAGE (Play/Pause)
+  USAGE(1),           0xB3,             // USAGE (Fast Forward)
+  USAGE(1),           0xB4,             // USAGE (Rewind)
+  USAGE(1),           0xB8,             // USAGE (Eject)
+  USAGE(1),           0xE2,             // USAGE (Mute)
+  USAGE(1),           0xE9,             // USAGE (Volume Up)
+  USAGE(1),           0xEA,             // USAGE (Volume Down)
+  USAGE(1),           0x6F,             // USAGE (Brightness Up)
+  USAGE(1),           0x70,             // USAGE (Brightness Down)
+  USAGE(2),           0x94, 0x01,       // USAGE (My Computer)
+  USAGE(2),           0x92, 0x01,       // USAGE (Calculator)
+  USAGE(2),           0x8A, 0x01,       // USAGE (Mail)
+  USAGE(2),           0x83, 0x01,       // USAGE (Media Selection)
+  USAGE(2),           0x86, 0x01,       // USAGE (Control Panel)
+  USAGE(2),           0x87, 0x01,       // USAGE (Launchpad)
+  USAGE(2),           0x23, 0x02,       // USAGE (WWW Home)
+  USAGE(2),           0x2A, 0x02,       // USAGE (WWW Favorites)
+  USAGE(2),           0x21, 0x02,       // USAGE (WWW Search)
+  USAGE(2),           0x26, 0x02,       // USAGE (WWW Stop)
+  USAGE(2),           0x24, 0x02,       // USAGE (WWW Back)
+  USAGE(2),           0x25, 0x02,       // USAGE (WWW Forward)
+  USAGE(2),           0x27, 0x02,       // USAGE (WWW Refresh)
   LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(2), 0xFF, 0x03,       // LOGICAL_MAXIMUM (0x03FF) - Maximum 16-bit usage code
-  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1) - One bit, one code
-  REPORT_COUNT(1),    0x1C,             // REPORT_COUNT (1C) - 28 codes, so 28 bits 
-  // System Controls
-  USAGE(2),           0x30, 0x01,       // USAGE (System Power - 0x0130)        [bit 1]
-  USAGE(2),           0x34, 0x01,       // USAGE (System Sleep - 0x0134)        [bit 2]
-  USAGE(2),           0x35, 0x01,       // USAGE (System Wake - 0x0135)         [bit 3] 
-  // Transport Controls
-  USAGE(1),           0xB5,             // USAGE (Scan Next Track - 0x00B5)     [bit 4]
-  USAGE(1),           0xB6,             // USAGE (Scan Previous Track - 0x00B6) [bit 5]
-  USAGE(1),           0xB7,             // USAGE (Stop - 0x00B7)                [bit 6]
-  USAGE(1),           0xCD,             // USAGE (Play/Pause - 0x00CD)          [bit 7]
-  USAGE(1),           0xB3,             // USAGE (Fast Forward - 0x00B3)        [bit 8]
-  USAGE(1),           0xB4,             // USAGE (Rewind - 0x00B4)              [bit 9]
-  USAGE(1),           0xB8,             // USAGE (Eject - 0x00B8)               [bit 10]
-  // Volume Controls
-  USAGE(1),           0xE2,             // USAGE (Mute - 0x00E2)                [bit 11]
-  USAGE(1),           0xE9,             // USAGE (Volume Increment - 0x00E9)    [bit 12]
-  USAGE(1),           0xEA,             // USAGE (Volume Decrement - 0x00EA)    [bit 13] 
-  // Display Controls
-  USAGE(1),           0x6F,             // USAGE (Brightness Up - 0x006F)       [bit 14]
-  USAGE(1),           0x70,             // USAGE (Brightness Down - 0x0070)     [bit 15] 
-  // Application Launch
-  USAGE(2),           0x94, 0x01,       // USAGE (My Computer - 0x0194)         [bit 16]
-  USAGE(2),           0x92, 0x01,       // USAGE (Calculator - 0x0192)          [bit 17]
-  USAGE(2),           0x8A, 0x01,       // USAGE (Mail - 0x018A)                [bit 18]
-  USAGE(2),           0x83, 0x01,       // USAGE (Media Selection - 0x0183)     [bit 19]
-  USAGE(2),           0x86, 0x01,       // USAGE (Control Panel - 0x0186)       [bit 20]
-  USAGE(2),           0x87, 0x01,       // USAGE (Launchpad - 0x0187)           [bit 21]
-  // Browser Controls
-  USAGE(2),           0x23, 0x02,       // USAGE (WWW Home - 0x0223)            [bit 22]
-  USAGE(2),           0x2A, 0x02,       // USAGE (WWW favorites - 0x022A)       [bit 23]
-  USAGE(2),           0x21, 0x02,       // USAGE (WWW search - 0x0221)          [bit 24]
-  USAGE(2),           0x26, 0x02,       // USAGE (WWW stop - 0x0226)            [bit 25]
-  USAGE(2),           0x24, 0x02,       // USAGE (WWW back - 0x0224)            [bit 26]
-  USAGE(2),           0x25, 0x02,       // USAGE (WWW forward - 0x0225)         [bit 27]
-  USAGE(2),           0x27, 0x02,       // USAGE (WWW refresh - 0x0227)         [bit 28]
-  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  END_COLLECTION(0),                      // END_COLLECTION
-  // ------------------------------------------------- Relative Pointer - Needed for Pointers on Android/iOS
-  USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
-  USAGE(1),            0x02,            // USAGE (Mouse)
-  COLLECTION(1),       0x01,            // COLLECTION (Application)
-  REPORT_ID(1),        MOUSE_ID,        // REPORT_ID (4) - Mouse report
-  USAGE(1),            0x01,            // USAGE (Pointer)
-  COLLECTION(1),       0x00,            // COLLECTION (Physical)
-  // Buttons (Left, Right, Middle, Back, Forward)
-  USAGE_PAGE(1),       0x09,            // USAGE_PAGE (Button)
-  USAGE_MINIMUM(1),    0x01,            // USAGE_MINIMUM (Button 1)
-  USAGE_MAXIMUM(1),    0x05,            // USAGE_MAXIMUM (Button 5)
-  LOGICAL_MINIMUM(1),  0x00,            // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1),  0x01,            // LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),      0x01,            // REPORT_SIZE (1)
-  REPORT_COUNT(1),     0x05,            // REPORT_COUNT (5)
-  HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
-  // Padding
-  REPORT_SIZE(1),      0x03,            // REPORT_SIZE (3)
-  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
-  HIDINPUT(1),         0x03,            // INPUT (Constant, Variable, Absolute)
-  // X/Y position, Wheel
-  USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
-  USAGE(1),            0x30,            // USAGE (X)
-  USAGE(1),            0x31,            // USAGE (Y)
-  USAGE(1),            0x38,            // USAGE (Wheel)
-  LOGICAL_MINIMUM(1),  0x81,            // LOGICAL_MINIMUM (-127)
-  LOGICAL_MAXIMUM(1),  0x7f,            // LOGICAL_MAXIMUM (127)
-  REPORT_SIZE(1),      0x08,            // REPORT_SIZE (8)
-  REPORT_COUNT(1),     0x03,            // REPORT_COUNT (3)
-  HIDINPUT(1),         0x06,            // INPUT (Data, Variable, Relative)
-  // Horizontal wheel
-  USAGE_PAGE(1),       0x0c,            // USAGE PAGE (Consumer Devices)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x03,       // LOGICAL_MAXIMUM (1023)
+  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x1C,             // REPORT_COUNT (28)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  END_COLLECTION(0),                    // END_COLLECTION
+  // ------------------------------------------------- Pointers - Relative & Absolute
+  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x02,             // USAGE (Mouse)
+  COLLECTION(1),      0x01,             // COLLECTION (Application)
+  REPORT_ID(1),       MOUSE_ID,         // REPORT_ID (4)
+  USAGE(1),           0x01,             // USAGE (Pointer)
+  COLLECTION(1),      0x00,             // COLLECTION (Physical)
+  // Buttons (5 bits)
+  USAGE_PAGE(1),      0x09,             // USAGE_PAGE (Button)
+  USAGE_MINIMUM(1),   0x01,             // USAGE_MINIMUM (Button 1)
+  USAGE_MAXIMUM(1),   0x05,             // USAGE_MAXIMUM (Button 5)
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x05,             // REPORT_COUNT (5)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Button padding (3 bits)
+  REPORT_SIZE(1),     0x03,             // REPORT_SIZE (3)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x03,             // INPUT (Constant)
+  // Relative X, Y, Wheel
+  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x30,             // USAGE (X)
+  USAGE(1),           0x31,             // USAGE (Y)
+  USAGE(1),           0x38,             // USAGE (Wheel)
+  LOGICAL_MINIMUM(1), 0x81,             // LOGICAL_MINIMUM (-127)
+  LOGICAL_MAXIMUM(1), 0x7F,             // LOGICAL_MAXIMUM (127)
+  REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
+  REPORT_COUNT(1),    0x03,             // REPORT_COUNT (3)
+  HIDINPUT(1),        0x06,             // INPUT (Data,Var,Rel)
+  // Horizontal Wheel
+  USAGE_PAGE(1),      0x0C,             // USAGE_PAGE (Consumer)
   USAGE(2),      0x38, 0x02,            // USAGE (AC Pan)
-  LOGICAL_MINIMUM(1),  0x81,            // LOGICAL_MINIMUM (-127)
-  LOGICAL_MAXIMUM(1),  0x7f,            // LOGICAL_MAXIMUM (127)
-  REPORT_SIZE(1),      0x08,            // REPORT_SIZE (8)
-  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
-  HIDINPUT(1),         0x06,            // INPUT (Data, Var, Rel)
-  END_COLLECTION(0),                      // END_COLLECTION (Physical)
-  END_COLLECTION(0),                      // END_COLLECTION (Application)
-  // ------------------------------------------------- Absolute Pointer - Only works on desktop
-  USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
-  USAGE(1),            0x02,            // USAGE (Mouse)
-  COLLECTION(1),       0x01,            // COLLECTION (Application)
-  REPORT_ID(1),        DIGITIZER_ID,    // REPORT_ID (5) - Absolute mouse report
-  // Buttons (Left, Right, Middle, Back, Forward)
-  USAGE_PAGE(1),       0x09,            // USAGE_PAGE (Button)
-  USAGE_MINIMUM(1),    0x01,            // USAGE_MINIMUM (Button 1)
-  USAGE_MAXIMUM(1),    0x05,            // USAGE_MAXIMUM (Button 5)
-  LOGICAL_MINIMUM(1),  0x00,            // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1),  0x01,            // LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),      0x01,            // REPORT_SIZE (1)
-  REPORT_COUNT(1),     0x05,            // REPORT_COUNT (5)
-  HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
-  // Padding
-  REPORT_SIZE(1),      0x03,            // REPORT_SIZE (3)
-  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
-  HIDINPUT(1),         0x03,            // INPUT (Constant, Variable, Absolute)
-  // Absolute X/Y position
-  USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
-  USAGE(1),            0x30,            // USAGE (X)
-  USAGE(1),            0x31,            // USAGE (Y)
-  LOGICAL_MINIMUM(2),  0x00, 0x00,      // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(2),  0xFF, 0x7F,      // LOGICAL_MAXIMUM (32767)
-  REPORT_SIZE(1),      0x10,            // REPORT_SIZE (16)
-  REPORT_COUNT(1),     0x02,            // REPORT_COUNT (2)
-  UNIT(1),             0x13,            // UNIT (Inch, EngLinear)
-  UNIT_EXPONENT(1),    0x0D,            // UNIT_EXPONENT (-3)
-  HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
-  // Pressure
-  USAGE_PAGE(1),       0xFF, 0x00,      // USAGE_PAGE (Vendor Defined 0xFF00)
-  USAGE(1),            0x01,            // USAGE (Vendor Usage 1 - Pressure)
-  LOGICAL_MINIMUM(2),  0x00, 0x00,      // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(2),  0xFF, 0x03,      // LOGICAL_MAXIMUM (1023)
-  REPORT_SIZE(1),      0x10,            // REPORT_SIZE (16)
-  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
-  HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
-  // Tip switch
-  USAGE_PAGE(1),       0xFF, 0x00,      // USAGE_PAGE (Vendor Defined 0xFF00)  
-  USAGE(1),            0x02,            // USAGE (Vendor Usage 2 - Tip Switch)
-  LOGICAL_MINIMUM(1),  0x00,            // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1),  0x01,            // LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),      0x01,            // REPORT_SIZE (1)
-  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
-  HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
-  // Padding for remaining 7 bits
-  REPORT_SIZE(1),      0x07,            // REPORT_SIZE (7)
-  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
-  HIDINPUT(1),         0x03,            // INPUT (Constant, Variable, Absolute)
-  // Wheel (relative) - kept for compatibility
-  USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
-  USAGE(1),            0x38,            // USAGE (Wheel)
-  LOGICAL_MINIMUM(1),  0x81,            // LOGICAL_MINIMUM (-127)
-  LOGICAL_MAXIMUM(1),  0x7f,            // LOGICAL_MAXIMUM (127)
-  REPORT_SIZE(1),      0x08,            // REPORT_SIZE (8)
-  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
-  HIDINPUT(1),         0x06,            // INPUT (Data, Variable, Relative)
-  // Horizontal wheel (relative) - kept for compatibility
-  USAGE_PAGE(1),       0x0c,            // USAGE PAGE (Consumer Devices)
-  USAGE(2),      0x38, 0x02,            // USAGE (AC Pan)
-  LOGICAL_MINIMUM(1),  0x81,            // LOGICAL_MINIMUM (-127)
-  LOGICAL_MAXIMUM(1),  0x7f,            // LOGICAL_MAXIMUM (127)
-  REPORT_SIZE(1),      0x08,            // REPORT_SIZE (8)
-  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
-  HIDINPUT(1),         0x06,            // INPUT (Data, Var, Rel)
-  END_COLLECTION(0),                      // END_COLLECTION (Application)
+  LOGICAL_MINIMUM(1), 0x81,             // LOGICAL_MINIMUM (-127)
+  LOGICAL_MAXIMUM(1), 0x7F,             // LOGICAL_MAXIMUM (127)
+  REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x06,             // INPUT (Data,Var,Rel)
+  // Absolute X, Y (16-bit)
+  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x30,             // USAGE (X)
+  USAGE(1),           0x31,             // USAGE (Y)
+  LOGICAL_MINIMUM(2), 0x00, 0x00,       // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
+  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Pressure (Vendor-defined)
+  USAGE_PAGE(2),      0xFF, 0x00,       // USAGE_PAGE (Vendor Defined)
+  USAGE(1),           0x01,             // USAGE (Vendor Usage 1)
+  LOGICAL_MINIMUM(2), 0x00, 0x00,       // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x03,       // LOGICAL_MAXIMUM (1023)
+  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Tip Switch (Vendor-defined)
+  USAGE(1),           0x02,             // USAGE (Vendor Usage 2)
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Tip Switch padding (7 bits)
+  REPORT_SIZE(1),     0x07,             // REPORT_SIZE (7)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x03,             // INPUT (Constant)
+  END_COLLECTION(0),                    // END_COLLECTION (Physical)
+  END_COLLECTION(0),                    // END_COLLECTION (Application)
   // ------------------------------------------------- GeminiPR Steno Protocol
   USAGE_PAGE(1),       0xFF, 0x00,       // USAGE_PAGE (Vendor Defined)
   USAGE(1),            0x01,             // USAGE (Vendor Usage 1)
   COLLECTION(1),       0x01,             // COLLECTION (Application)
-  REPORT_ID(1),        GEMINIPR_ID,      // REPORT_ID (7) - GeminiPR report
+  REPORT_ID(1),        GEMINIPR_ID,      // REPORT_ID (6) - GeminiPR report
   // 6-byte GeminiPR packet (48 bits)
   LOGICAL_MINIMUM(1),  0x00,             // LOGICAL_MINIMUM (0)
   LOGICAL_MAXIMUM(1),  0x01,             // LOGICAL_MAXIMUM (1)
@@ -246,80 +200,76 @@ static const uint8_t _hidReportDescriptor[] = {
   HIDINPUT(1),         0x02,             // INPUT (Data, Variable, Absolute)
   END_COLLECTION(0),                      // END_COLLECTION
   // ------------------------------------------------- Gamepad
-  USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
-  USAGE(1),            0x05,            // USAGE (Game Pad)
-  COLLECTION(1),       0x01,            // COLLECTION (Application)
-  REPORT_ID(1),        GAMEPAD_ID,      // REPORT_ID (6) - Gamepad report
-  // 64 buttons in two 32-bit fields
-  USAGE_PAGE(1),       0x09,            // USAGE_PAGE (Button)
-  LOGICAL_MINIMUM(1),  0x00,            // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1),  0x01,            // LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),      0x01,            // REPORT_SIZE (1)
-  REPORT_COUNT(1),     0x40,            // REPORT_COUNT (64) - All 64 buttons
-  USAGE_MINIMUM(1),    0x01,            // USAGE_MINIMUM (Button 1)
-  USAGE_MAXIMUM(1),    0x40,            // USAGE_MAXIMUM (Button 64)
-  HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
-  // Left analogue stick (X/Y) - Fully working
-  USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
-  USAGE(1),            0x01,            // USAGE (Pointer) - Important context
-  COLLECTION(1),       0x00,            // COLLECTION (Physical)
-  USAGE(1),            0x30,            // USAGE (X)
-  USAGE(1),            0x31,            // USAGE (Y)
-  LOGICAL_MINIMUM(2),  0x01, 0x80,      // LOGICAL_MINIMUM (-32767)
-  LOGICAL_MAXIMUM(2),  0xFF, 0x7F,      // LOGICAL_MAXIMUM (32767)
-  REPORT_SIZE(1),      0x10,            // REPORT_SIZE (16)
-  REPORT_COUNT(1),     0x02,            // REPORT_COUNT (2)
-  HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
-  END_COLLECTION(0),                      // END_COLLECTION (Physical)
-  // Right analogue stick (X/Y) - Fully working
-  USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
-  USAGE(1),            0x01,            // USAGE (Pointer)
-  COLLECTION(1),       0x00,            // COLLECTION (Physical)
-  USAGE(1),            0x33,            // USAGE (Rx)
-  USAGE(1),            0x34,            // USAGE (Ry)
-  LOGICAL_MINIMUM(2),  0x01, 0x80,      // LOGICAL_MINIMUM (-32767) 
-  LOGICAL_MAXIMUM(2),  0xFF, 0x7F,      // LOGICAL_MAXIMUM (32767)
-  REPORT_SIZE(1),      0x10,            // REPORT_SIZE (16)
-  REPORT_COUNT(1),     0x02,            // REPORT_COUNT (2)
-  HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
-  END_COLLECTION(0),                      // END_COLLECTION (Physical)
-  // Analogue triggers - Fully working
-  USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
-  USAGE(1),            0x32,            // USAGE (Z) - Left trigger
-  USAGE(1),            0x35,            // USAGE (Rz) - Right trigger
-  LOGICAL_MINIMUM(2),  0x00, 0x00,      // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(2),  0xFF, 0x7F,      // LOGICAL_MAXIMUM (32767)
-  REPORT_SIZE(1),      0x10,            // REPORT_SIZE (16)
-  REPORT_COUNT(1),     0x02,            // REPORT_COUNT (2)
-  HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
-  // Hat switch - Fully working
-  USAGE_PAGE(1),       0x01,            // USAGE_PAGE (Generic Desktop)
-  USAGE(1),            0x39,            // USAGE (Hat switch)
-  LOGICAL_MINIMUM(1),  0x00,            // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1),  0x07,            // LOGICAL_MAXIMUM (7) - 8 positions
-  PHYSICAL_MINIMUM(1), 0x00,            // PHYSICAL_MINIMUM (0)
-  PHYSICAL_MAXIMUM(2), 0x3B, 0x01,      // PHYSICAL_MAXIMUM (315 degrees)
-  UNIT(1),             0x14,            // UNIT (English Rotation, Degrees)
-  REPORT_SIZE(1),      0x04,            // REPORT_SIZE (4) - 4 bits for 8 values
-  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
-  HIDINPUT(1),         0x02,            // INPUT (Data, Variable, Absolute)
-  // Padding for the remaining 4 bits
-  REPORT_SIZE(1),      0x04,            // REPORT_SIZE (4)
-  REPORT_COUNT(1),     0x01,            // REPORT_COUNT (1)
-  HIDINPUT(1),         0x03,            // INPUT (Constant, Variable, Absolute)
-  
-  // Haptics - left and right motor vibration
-  USAGE_PAGE(1),       0x0F,            // USAGE_PAGE (Physical Interface Device)
-  LOGICAL_MINIMUM(1),  0x00,            // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1),  0xFF,            // LOGICAL_MAXIMUM (255)
-  REPORT_SIZE(1),      0x08,            // REPORT_SIZE (8)
-  REPORT_COUNT(1),     0x02,            // REPORT_COUNT (2) - Left and right motor
-  USAGE(1),            0x97,            // USAGE (Magnitude) - Left motor
-  USAGE(1),            0x97,            // USAGE (Magnitude) - Right motor  
-  HIDOUTPUT(1),        0x02,            // OUTPUT (Data, Variable, Absolute)
-  
-  END_COLLECTION(0),                      // END_COLLECTION (Application)
+  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x05,             // USAGE (Game Pad)
+  COLLECTION(1),      0x01,             // COLLECTION (Application)
+  REPORT_ID(1),       GAMEPAD_ID,       // REPORT_ID (5)
+  // 64 buttons in bitfield
+  USAGE_PAGE(1),      0x09,             // USAGE_PAGE (Button)
+  USAGE_MINIMUM(1),   0x01,             // USAGE_MINIMUM (Button 1)
+  USAGE_MAXIMUM(1),   0x40,             // USAGE_MAXIMUM (Button 64)
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x40,             // REPORT_COUNT (64)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Left Stick X/Y
+  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x01,             // USAGE (Pointer)
+  COLLECTION(1),      0x00,             // COLLECTION (Physical)
+  USAGE(1),           0x30,             // USAGE (X)
+  USAGE(1),           0x31,             // USAGE (Y)
+  LOGICAL_MINIMUM(2), 0x01, 0x80,       // LOGICAL_MINIMUM (-32767)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
+  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  END_COLLECTION(0),                    // END_COLLECTION (Physical)
+  // Right Stick X/Y
+  USAGE(1),           0x01,             // USAGE (Pointer)
+  COLLECTION(1),      0x00,             // COLLECTION (Physical)
+  USAGE(1),           0x33,             // USAGE (Rx)
+  USAGE(1),           0x34,             // USAGE (Ry)
+  LOGICAL_MINIMUM(2), 0x01, 0x80,       // LOGICAL_MINIMUM (-32767)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
+  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  END_COLLECTION(0),                    // END_COLLECTION (Physical)
+  // Triggers
+  USAGE(1),           0x32,             // USAGE (Z) - Left Trigger
+  USAGE(1),           0x35,             // USAGE (Rz) - Right Trigger
+  LOGICAL_MINIMUM(2), 0x00, 0x00,       // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
+  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Hat Switch
+  USAGE(1),           0x39,             // USAGE (Hat Switch)
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x07,             // LOGICAL_MAXIMUM (7)
+  PHYSICAL_MINIMUM(1),0x00,             // PHYSICAL_MINIMUM (0)
+  PHYSICAL_MAXIMUM(2),0x3B, 0x01,       // PHYSICAL_MAXIMUM (315)
+  UNIT(1),            0x14,             // UNIT (Degrees)
+  REPORT_SIZE(1),     0x04,             // REPORT_SIZE (4)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Hat padding (4 bits)
+  REPORT_SIZE(1),     0x04,             // REPORT_SIZE (4)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x03,             // INPUT (Constant)
+  // Haptic Motors
+  USAGE_PAGE(1),      0x0F,             // USAGE_PAGE (Physical Interface)
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0xFF,             // LOGICAL_MAXIMUM (255)
+  REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
+  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
+  USAGE(1),           0x97,             // USAGE (Magnitude) - Left Motor
+  USAGE(1),           0x97,             // USAGE (Magnitude) - Right Motor
+  HIDOUTPUT(1),       0x02,             // OUTPUT (Data,Var,Abs)
+  END_COLLECTION(0)                     // END_COLLECTION (Application)
 };
+
 // This is a "constructor". It takes that class from the BleKeyboard.h file, and turns it into "objects" that can actually be used.
 BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer, uint8_t batteryLevel) 
     : hid(0)
@@ -335,8 +285,7 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
 {
   // Initialize reports
   memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
-  memset(&_mouseReport, 0, sizeof(_mouseReport));
-  memset(&_absoluteReport, 0, sizeof(_absoluteReport));
+  memset(&_pointerReport, 0, sizeof(_pointerReport));
   memset(&_gamepadReport, 0, sizeof(_gamepadReport));
   memset(&_geminiReport, 0, sizeof(_geminiReport));
   _gamepadReport.hat = HAT_CENTER; // Initialize hat to center position 
@@ -407,7 +356,6 @@ void BleKeyboard::begin(void) {
 
     // Mouse / Digitizer / Gamepad reports
     inputMouse    = hid->getInputReport(0x04);
-    inputAbsolute = hid->getInputReport(0x05);
     inputGamepad  = hid->getInputReport(0x06);
     if (inputGamepad) {
     inputGamepad->setCallbacks(this);
@@ -785,23 +733,22 @@ void BleKeyboard::press(int8_t button) {
 }
 
 void BleKeyboard::press(char b) {
+  _mouseButtons |= b;
+  _pointerReport.buttons = _mouseButtons;  // Use combined structure
+  
   if (_useAbsolute) {
-    // In absolute mode without coordinates, use current position
-    press(_absoluteReport.x, _absoluteReport.y, b);
+    moveTo(_pointerReport.absX, _pointerReport.absY);
   } else {
-    // Relative mode
-    _mouseButtons |= b;
     move(0, 0, 0, 0);
   }
 }
 
 void BleKeyboard::press(uint16_t x, uint16_t y, char b) {
-  // Auto-switch to absolute mode if coordinates are provided
   if (!_useAbsolute) {
     useAbsolute(true);
   }
   
-  _absoluteReport.buttons |= b;
+  _pointerReport.buttons |= b;
   moveTo(x, y);
 }
 
@@ -875,24 +822,14 @@ void BleKeyboard::release(int8_t button) {
 }
 
 void BleKeyboard::release(char b) {
+  _mouseButtons &= ~b;
+  _pointerReport.buttons = _mouseButtons;  // Use combined structure
+  
   if (_useAbsolute) {
-    // In absolute mode without coordinates, use current position
-    release(_absoluteReport.x, _absoluteReport.y, b);
+    moveTo(_pointerReport.absX, _pointerReport.absY);
   } else {
-    // Relative mode
-    _mouseButtons &= ~b;
     move(0, 0, 0, 0);
   }
-}
-
-void BleKeyboard::release(uint16_t x, uint16_t y, char b) {
-  // Auto-switches to absolute mode if coordinates are provided
-  if (!_useAbsolute) {
-    useAbsolute(true);
-  }
-  
-  _absoluteReport.buttons &= ~b;
-  moveTo(x, y);
 }
 
 size_t BleKeyboard::release(int32_t stenoKey) {
@@ -1041,7 +978,7 @@ uint8_t BleKeyboard::countPressedKeys() {
 void BleKeyboard::click(char b) {
   if (_useAbsolute) {
     // In absolute mode without coordinates, use current position
-    click(_absoluteReport.x, _absoluteReport.y, b);
+    click(_pointerReport.absX, _pointerReport.absY, b);
   } else {
     // Relative mode
     _mouseButtons = b;
@@ -1050,7 +987,6 @@ void BleKeyboard::click(char b) {
     move(0, 0, 0, 0);
   }
 }
-
 void BleKeyboard::click(uint16_t x, uint16_t y, char b) {
   // Auto-switch to absolute mode if coordinates are provided
   if (!_useAbsolute) {
@@ -1061,63 +997,73 @@ void BleKeyboard::click(uint16_t x, uint16_t y, char b) {
 }
 
 void BleKeyboard::move(signed char x, signed char y, signed char wheel, signed char hWheel) {
-  // Auto-switch to relative mode if moving with relative coordinates
   if (_useAbsolute) {
     useAbsolute(false);
   }
   
   if (this->isConnected() && inputMouse) {
-    _mouseReport.buttons = _mouseButtons;
-    _mouseReport.x = x;
-    _mouseReport.y = y;
-    _mouseReport.wheel = wheel;
-    _mouseReport.hWheel = hWheel;
+    _pointerReport.buttons = _mouseButtons;
     
-    inputMouse->setValue((uint8_t*)&_mouseReport, sizeof(_mouseReport));
+    // Set relative fields
+    _pointerReport.relX = x;
+    _pointerReport.relY = y;
+    _pointerReport.wheel = wheel;
+    _pointerReport.hWheel = hWheel;
+    
+    // Clear absolute fields when in relative mode
+    _pointerReport.absX = 0;
+    _pointerReport.absY = 0;
+    _pointerReport.pressure = 0;
+    _pointerReport.tipSwitch = 0;
+    
+    inputMouse->setValue((uint8_t*)&_pointerReport, sizeof(_pointerReport));
     inputMouse->notify();
     delay(_delay_ms);
   }
 }
 
 void BleKeyboard::moveTo(uint16_t x, uint16_t y, signed char wheel, signed char hWheel) {
-  // Auto-switch to absolute mode if moving to absolute coordinates
   if (!_useAbsolute) {
     useAbsolute(true);
   }
   
-  _absoluteReport.x = x;
-  _absoluteReport.y = y;
-  _absoluteReport.wheel = wheel;
-  _absoluteReport.hWheel = hWheel;
-  
-  // Set tip switch based on pressure for better compatibility
-  if (_absoluteReport.pressure > 0) {
-    _absoluteReport.tipSwitch = 1;
-  } else {
-    _absoluteReport.tipSwitch = 0;
-  }
-  
-  if (this->isConnected() && inputAbsolute) {
-    inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
-    inputAbsolute->notify();
+  if (this->isConnected() && inputMouse) {
+    _pointerReport.buttons = _mouseButtons;
+    
+    // Set absolute fields
+    _pointerReport.absX = x;
+    _pointerReport.absY = y;
+    _pointerReport.wheel = wheel;
+    _pointerReport.hWheel = hWheel;
+    
+    // Set tip switch based on pressure
+    if (_pointerReport.pressure > 0) {
+      _pointerReport.tipSwitch = 1;
+    } else {
+      _pointerReport.tipSwitch = 0;
+    }
+    
+    // Clear relative fields when in absolute mode
+    _pointerReport.relX = 0;
+    _pointerReport.relY = 0;
+    
+    inputMouse->setValue((uint8_t*)&_pointerReport, sizeof(_pointerReport));
+    inputMouse->notify();
     delay(_delay_ms);
   }
 }
 
 bool BleKeyboard::mouseIsPressed(char b) {
-  if (_useAbsolute) {
-    return (_absoluteReport.buttons & b) != 0;
-  } else {
-    return (_mouseButtons & b) != 0;
-  }
+  return (_pointerReport.buttons & b) != 0;
 }
 
 void BleKeyboard::mouseReleaseAll() {
+  _mouseButtons = 0;
+  _pointerReport.buttons = 0;
+  
   if (_useAbsolute) {
-    _absoluteReport.buttons = 0;
-    moveTo(_absoluteReport.x, _absoluteReport.y);
+    moveTo(_pointerReport.absX, _pointerReport.absY);
   } else {
-    _mouseButtons = 0;
     move(0, 0, 0, 0);
   }
 }
@@ -1142,11 +1088,11 @@ bool BleKeyboard::isAbsoluteEnabled() {
 }
 
 void BleKeyboard::setPressure(uint16_t pressure) {
-  _absoluteReport.pressure = pressure;
+  _pointerReport.pressure = pressure;
 }
 
 void BleKeyboard::setTipSwitch(bool state) {
-  _absoluteReport.tipSwitch = state ? 1 : 0;
+  _pointerReport.tipSwitch = state ? 1 : 0;
 }
 
 void BleKeyboard::moveToWithPressure(uint16_t x, uint16_t y, uint16_t pressure, bool touching) {
@@ -1154,14 +1100,14 @@ void BleKeyboard::moveToWithPressure(uint16_t x, uint16_t y, uint16_t pressure, 
     useAbsolute(true);
   }
   
-  _absoluteReport.x = x;
-  _absoluteReport.y = y;
-  _absoluteReport.pressure = pressure;
-  _absoluteReport.tipSwitch = touching ? 1 : 0;
+  _pointerReport.absX = x;
+  _pointerReport.absY = y;
+  _pointerReport.pressure = pressure;
+  _pointerReport.tipSwitch = touching ? 1 : 0;
   
-  if (this->isConnected() && inputAbsolute) {
-    inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
-    inputAbsolute->notify();
+  if (this->isConnected() && inputMouse) {
+    inputMouse->setValue((uint8_t*)&_pointerReport, sizeof(_pointerReport));
+    inputMouse->notify();
     delay(_delay_ms);
   }
 }
@@ -1172,29 +1118,12 @@ void BleKeyboard::clickWithPressure(uint16_t x, uint16_t y, uint16_t pressure, u
   }
   
   // Press with pressure
-  _absoluteReport.buttons |= button;
-  _absoluteReport.x = x;
-  _absoluteReport.y = y;
-  _absoluteReport.pressure = pressure;
-  _absoluteReport.tipSwitch = 1;
-  // inRange removed from structure
-  
-  if (this->isConnected() && inputAbsolute) {
-    inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
-    inputAbsolute->notify();
-    delay(_delay_ms);
-  }
+  _pointerReport.buttons |= button;
+  moveToWithPressure(x, y, pressure, true);
   
   // Release
-  _absoluteReport.buttons &= ~button;
-  _absoluteReport.pressure = 0;
-  _absoluteReport.tipSwitch = 0;
-  
-  if (this->isConnected() && inputAbsolute) {
-    inputAbsolute->setValue((uint8_t*)&_absoluteReport, sizeof(_absoluteReport));
-    inputAbsolute->notify();
-    delay(_delay_ms);
-  }
+  _pointerReport.buttons &= ~button;
+  moveToWithPressure(x, y, 0, false);
 }
 
 void BleKeyboard::beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure) {
@@ -1210,11 +1139,11 @@ void BleKeyboard::endStroke(uint16_t x, uint16_t y) {
 }
 
 uint16_t BleKeyboard::getPressure() const {
-  return _absoluteReport.pressure;
+  return _pointerReport.pressure;
 }
 
 bool BleKeyboard::getTipSwitch() const {
-  return _absoluteReport.tipSwitch != 0;
+  return _pointerReport.tipSwitch != 0;
 }
 
 bool BleKeyboard::gamepadIsPressed(int8_t button) {
