@@ -56,23 +56,18 @@ typedef struct
 // Mouse report structure
 typedef struct {
   uint8_t buttons;
-  int8_t x;
-  int8_t y;
+  // Relative mode fields (used when _useAbsolute = false)
+  int8_t relX;
+  int8_t relY;
   int8_t wheel;
   int8_t hWheel;
-} MouseReport;
-
-// Digitizer report structure  
-typedef struct {
-  uint8_t buttons;
-  uint16_t x;
-  uint16_t y;
+  // Absolute mode fields (used when _useAbsolute = true)  
+  uint16_t absX;
+  uint16_t absY;
   uint16_t pressure;
   uint8_t tipSwitch : 1;
   uint8_t padding : 7;
-  int8_t wheel;
-  int8_t hWheel;
-} AbsoluteReport;
+} PointerReport;
 
 // Gamepad report structure
 typedef struct {
@@ -887,14 +882,12 @@ private:
   BLECharacteristic* inputMediaKeys;
   BLECharacteristic* inputNKRO;
   BLECharacteristic* inputMouse;
-  BLECharacteristic* inputAbsolute;
   BLECharacteristic* inputGamepad;
   BLECharacteristic* inputGeminiPR;
   BLEAdvertising*    advertising;
   KeyReportNKRO      _keyReportNKRO;
   uint8_t            _mouseButtons;
-  MouseReport        _mouseReport;
-  AbsoluteReport     _absoluteReport;
+  PointerReport      _pointerReport;
   GamepadReport      _gamepadReport;
   GeminiPRReport     _geminiReport;
   uint32_t           _mediaKeyBitmask;
