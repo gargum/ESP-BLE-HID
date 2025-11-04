@@ -16,78 +16,80 @@ KeyReport	KEYWORD1
 # Public Methods
 #######################################
 
-begin	             KEYWORD2
-end	             KEYWORD2
+begin	               KEYWORD2
+end	               KEYWORD2
 
-setPIN               KEYWORD2
+setPIN                 KEYWORD2
 
-write	             KEYWORD2
-press                KEYWORD2
-release	             KEYWORD2
-releaseAll           KEYWORD2
+write	               KEYWORD2
+press                  KEYWORD2
+release	               KEYWORD2
+releaseAll             KEYWORD2
 
-isConnected	     KEYWORD2
+isConnected	       KEYWORD2
 
-setBatteryLevel	     KEYWORD2
-setName	             KEYWORD2
-setManufacturer      KEYWORD2
+setBatteryLevel	       KEYWORD2
+setName	               KEYWORD2
+setManufacturer        KEYWORD2
 
-setDelay	     KEYWORD2
+setDelay	       KEYWORD2
 
-set_vendor_id	     KEYWORD2
-set_product_id	     KEYWORD2
-set_version	     KEYWORD2
+set_vendor_id	       KEYWORD2
+set_product_id	       KEYWORD2
+set_version	       KEYWORD2
 
-setModifiers         KEYWORD2
-getModifiers         KEYWORD2
+setModifiers           KEYWORD2
+getModifiers           KEYWORD2
 
-setMediaKeyBitmask   KEYWORD2
-getMediaKeyBitmask   KEYWORD2
-addMediaKey          KEYWORD2
-removeMediaKey       KEYWORD2
+setMediaKeyBitmask     KEYWORD2
+getMediaKeyBitmask     KEYWORD2
+addMediaKey            KEYWORD2
+removeMediaKey         KEYWORD2
 
-useNKRO              KEYWORD2
-use6KRO              KEYWORD2
-isNKROEnabled        KEYWORD2
-updateNKROBitmask    KEYWORD2
+useNKRO                KEYWORD2
+use6KRO                KEYWORD2
+isNKROEnabled          KEYWORD2
+updateNKROBitmask      KEYWORD2
 
-sendNKROReport       KEYWORD2
+sendNKROReport         KEYWORD2
 
-click                KEYWORD2
-move                 KEYWORD2
-moveTo               KEYWORD2
-mouseIsPressed       KEYWORD2
-mouseReleaseAll      KEYWORD2
+click                  KEYWORD2
+move                   KEYWORD2
+moveTo                 KEYWORD2
+mouseIsPressed         KEYWORD2
+mouseReleaseAll        KEYWORD2
 
-useRelative          KEYWORD2
-useAbsolute          KEYWORD2
-setAbsoluteRange     KEYWORD2
-isAbsoluteEnabled    KEYWORD2
+useRelative            KEYWORD2
+useAbsolute            KEYWORD2
+setAbsoluteRange       KEYWORD2
+isAbsoluteEnabled      KEYWORD2
 
-moveToWithPressure   KEYWORD2
-clickWithPressure    KEYWORD2
-beginStroke          KEYWORD2
-updateStroke         KEYWORD2
-endStroke            KEYWORD2
+moveToWithPressure     KEYWORD2
+clickWithPressure      KEYWORD2
+beginStroke            KEYWORD2
+updateStroke           KEYWORD2
+endStroke              KEYWORD2
 
-getPressure          KEYWORD2
-getTipSwitch         KEYWORD2
-setPressure          KEYWORD2
-setTipSwitch         KEYWORD2
+getPressure            KEYWORD2
+getTipSwitch           KEYWORD2
+setPressure            KEYWORD2
+setTipSwitch           KEYWORD2
 
-gamepadIsPressed     KEYWORD2
+gamepadIsPressed       KEYWORD2
 
-gamepadSetLeftStick  KEYWORD2
-gamepadSetRightStick KEYWORD2
-gamepadSetTriggers   KEYWORD2
-gamepadSetAxis       KEYWORD2
+gamepadSetLeftStick    KEYWORD2
+gamepadSetRightStick   KEYWORD2
+gamepadSetTriggers     KEYWORD2
+gamepadSetAxis         KEYWORD2
 
-gamepadGetLeftStick  KEYWORD2
-gamepadGetRightStick KEYWORD2
-gamepadGetAxis       KEYWORD2
-gamepadSetAllAxes    KEYWORD2
+gamepadGetLeftStick    KEYWORD2
+gamepadGetRightStick   KEYWORD2
+gamepadGetAxis         KEYWORD2
+gamepadSetAllAxes      KEYWORD2
 
-sendGamepadReport    KEYWORD2
+geminiStroke           KEYWORD2
+geminiStrokeFromString KEYWORD2
+stenoCharToKey         KEYWORD2
 
 #######################################
 # Private Methods
@@ -502,6 +504,48 @@ AXIS_LT		LITERAL1
 AXIS_RT		LITERAL1
 
 #######################################
+# Constants - GeminiPR
+#######################################
+
+GEMINI_FN       LITERAL1
+GEMINI_NUM1     LITERAL1
+GEMINI_S1       LITERAL1
+GEMINI_S2       LITERAL1
+GEMINI_T        LITERAL1
+GEMINI_K        LITERAL1
+GEMINI_P        LITERAL1
+GEMINI_W        LITERAL1
+GEMINI_H        LITERAL1
+GEMINI_R        LITERAL1
+GEMINI_A        LITERAL1
+GEMINI_O        LITERAL1
+GEMINI_STAR1    LITERAL1
+GEMINI_STAR2    LITERAL1
+GEMINI_RES1     LITERAL1
+GEMINI_RES2     LITERAL1
+GEMINI_PWR      LITERAL1
+GEMINI_STAR3    LITERAL1
+GEMINI_STAR4    LITERAL1
+GEMINI_E        LITERAL1
+GEMINI_U        LITERAL1
+GEMINI_F        LITERAL1
+GEMINI_R2       LITERAL1
+GEMINI_P2       LITERAL1
+GEMINI_B        LITERAL1
+GEMINI_L        LITERAL1
+GEMINI_G        LITERAL1
+GEMINI_T2       LITERAL1
+GEMINI_S        LITERAL1
+GEMINI_D        LITERAL1
+GEMINI_NUM7     LITERAL1
+GEMINI_NUM8     LITERAL1
+GEMINI_NUM9     LITERAL1
+GEMINI_NUM10    LITERAL1
+GEMINI_NUM11    LITERAL1
+GEMINI_NUM12    LITERAL1
+GEMINI_Z        LITERAL1
+
+#######################################
 # Constants - QMK-Formatted Aliases
 #######################################
 
@@ -809,3 +853,41 @@ GA_RX	      LITERAL1
 GA_RY	      LITERAL1
 GA_LT	      LITERAL1
 GA_RT	      LITERAL1
+
+ST_FN         LITERAL1
+ST_1          LITERAL1
+ST_S1         LITERAL1
+ST_S2         LITERAL1
+ST_T          LITERAL1
+ST_K          LITERAL1
+ST_P          LITERAL1
+ST_W          LITERAL1
+ST_H          LITERAL1
+ST_R          LITERAL1
+ST_A          LITERAL1
+ST_O          LITERAL1
+ST_ST1        LITERAL1
+ST_ST2        LITERAL1
+ST_RS1        LITERAL1
+ST_RS2        LITERAL1
+ST_PWR        LITERAL1
+ST_ST3        LITERAL1
+ST_ST4        LITERAL1
+ST_E          LITERAL1
+ST_U          LITERAL1
+ST_F          LITERAL1
+ST_R2         LITERAL1
+ST_P2         LITERAL1
+ST_B          LITERAL1
+ST_L          LITERAL1
+ST_G          LITERAL1
+ST_T2         LITERAL1
+ST_S          LITERAL1
+ST_D          LITERAL1
+ST_7          LITERAL1
+ST_8          LITERAL1
+ST_9          LITERAL1
+ST_10         LITERAL1
+ST_11         LITERAL1
+ST_12         LITERAL1
+ST_Z          LITERAL1
