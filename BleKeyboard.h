@@ -3,10 +3,10 @@
 #if defined(CONFIG_BT_ENABLED)          // ESP32s with sdkconfig bundled
 #elif defined(ARDUINO_ARCH_ESP32)       // ESP32s without sdkconfig bundled
   #define CONFIG_BT_ENABLED 
-#elif defined(ARDUINO_ARCH_NRF52)       // Adafruit / Seeed nRF52
+#elif defined(ARDUINO_ARCH_NRF52) || defined(NRF52_SERIES)
   #define CONFIG_BT_ENABLED
-#elif defined(NRF52_SERIES)             // n-able Arduino core
-#  define CONFIG_BT_ENABLED
+  #define NIMBLE_CFG_TRANSPORT_HCI_UART 0
+  #define NIMBLE_CFG_TRANSPORT_HCI_IPC 0
 #elif defined(ARDUINO_ARCH_MBED)        // mbed-based (Nano 33 BLE …)
   #define CONFIG_BT_ENABLED
 #elif defined(ARDUINO_ARCH_STM32)       // STM32duino + NimBLE
@@ -39,13 +39,11 @@
 // NKRO configuration
 #define NKRO_KEY_COUNT 252 // Surprise! "N" in "N-Key Rollover" stands for "252" in my implementation.
 
-// Pointer configuration
-#define ABSOLUTE_MIN 0
-#define ABSOLUTE_MAX 32767
-
 // Gamepad configuration
 #define GAMEPAD_BUTTON_COUNT 64
 #define GAMEPAD_AXIS_COUNT 6
+
+#define SCAN_INTERVAL 10
 
 // NKRO report structure
 typedef struct
@@ -131,7 +129,6 @@ static const bool disabled = false;
 #define WHEELCHAIR            0x0CC1
 #define MOBILITY_SCOOTER      0x0CC2
 #define IOT_GATEWAY           0x008D
-
 
 // Mouse codes
 const char MOUSE_LEFT    = 1;
