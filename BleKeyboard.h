@@ -72,7 +72,7 @@ typedef struct {
 typedef struct {
   uint32_t buttons[2];
   int16_t axes[GAMEPAD_AXIS_COUNT];
-  uint8_t hat;
+  int8_t hat;
 } GamepadReport;
 
 // GeminiPR packet structure
@@ -888,10 +888,6 @@ private:
   PointerReport      _pointerReport;
   GamepadReport      _gamepadReport;
   GeminiPRReport     _geminiReport;
-  void               sendNKROReport();
-  void               sendMediaReport();
-  void               sendGeminiPRReport();
-  void               sendGamepadReport();
   
   uint32_t           passkey = 0;           // PIN code (0 = no security)
   bool               bonding_enabled = true; 
@@ -962,6 +958,12 @@ public:
   
   void releaseAll();
   void mouseReleaseAll();
+  void gamepadReleaseAll();
+  
+  void sendNKROReport();
+  void sendMediaReport();
+  void sendGeminiPRReport();
+  void sendGamepadReport();
   
   // NKRO/6KRO mode switching
   void useNKRO(bool state = enabled);
@@ -1024,6 +1026,8 @@ public:
   void gamepadSetAxis(int8_t axis, int16_t value);
   int16_t gamepadGetAxis(int8_t axis);
   void gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
+  void onVibrate(void (*callback)(uint8_t leftMotor, uint8_t rightMotor));
+  bool isHapticsSupported() const;
   
   // GeminiPR methods
   void geminiStroke(const int32_t* keys, size_t count);
