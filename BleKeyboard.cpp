@@ -49,7 +49,7 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
   USAGE(1),           0x06,             // USAGE (Keyboard)
   COLLECTION(1),      0x01,             // COLLECTION (Application)
-  REPORT_ID(1),       NKRO_KEYBOARD_ID, // REPORT_ID (3)
+  REPORT_ID(1),       NKRO_KEYBOARD_ID, // REPORT_ID
   USAGE_PAGE(1),      0x07,             // USAGE_PAGE (Key Codes)
   USAGE_MINIMUM(1),   0xE0,             // USAGE_MINIMUM (Keyboard LeftControl)
   USAGE_MAXIMUM(1),   0xE7,             // USAGE_MAXIMUM (Keyboard Right GUI)
@@ -83,7 +83,7 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE_PAGE(1),      0x0C,             // USAGE_PAGE (Consumer)
   USAGE(1),           0x01,             // USAGE (Consumer Control)
   COLLECTION(1),      0x01,             // COLLECTION (Application)
-  REPORT_ID(1),       MEDIA_KEYS_ID,    // REPORT_ID (2)
+  REPORT_ID(1),       MEDIA_KEYS_ID,    // REPORT_ID
   USAGE(2),           0x30, 0x01,       // USAGE (System Power)
   USAGE(2),           0x34, 0x01,       // USAGE (System Sleep)
   USAGE(2),           0x35, 0x01,       // USAGE (System Wake)
@@ -122,7 +122,7 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
   USAGE(1),           0x02,             // USAGE (Mouse)
   COLLECTION(1),      0x01,             // COLLECTION (Application)
-  REPORT_ID(1),       MOUSE_ID,         // REPORT_ID (4)
+  REPORT_ID(1),       MOUSE_ID,         // REPORT_ID
   USAGE(1),           0x01,             // USAGE (Pointer)
   COLLECTION(1),      0x00,             // COLLECTION (Physical)
   // Buttons (5 bits)
@@ -190,7 +190,7 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE_PAGE(1),       0xFF, 0x00,       // USAGE_PAGE (Vendor Defined)
   USAGE(1),            0x01,             // USAGE (Vendor Usage 1)
   COLLECTION(1),       0x01,             // COLLECTION (Application)
-  REPORT_ID(1),        GEMINIPR_ID,      // REPORT_ID (6) - GeminiPR report
+  REPORT_ID(1),        GEMINIPR_ID,      // REPORT_ID
   // 6-byte GeminiPR packet (48 bits)
   LOGICAL_MINIMUM(1),  0x00,             // LOGICAL_MINIMUM (0)
   LOGICAL_MAXIMUM(1),  0x01,             // LOGICAL_MAXIMUM (1)
@@ -203,7 +203,7 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
   USAGE(1),           0x05,             // USAGE (Game Pad)
   COLLECTION(1),      0x01,             // COLLECTION (Application)
-  REPORT_ID(1),       GAMEPAD_ID,       // REPORT_ID (5)
+  REPORT_ID(1),       GAMEPAD_ID,       // REPORT_ID
   // 64 buttons in bitfield
   USAGE_PAGE(1),      0x09,             // USAGE_PAGE (Button)
   USAGE_MINIMUM(1),   0x01,             // USAGE_MINIMUM (Button 1)
@@ -258,6 +258,15 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_SIZE(1),     0x04,             // REPORT_SIZE (4)
   REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
   HIDINPUT(1),        0x03,             // INPUT (Constant)
+  // Haptic Motors
+  USAGE_PAGE(1),      0x0F,             // USAGE_PAGE (Physical Interface)
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0xFF,             // LOGICAL_MAXIMUM (255)
+  REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
+  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
+  USAGE(1),           0x97,             // USAGE (Magnitude) - Left Motor
+  USAGE(1),           0x97,             // USAGE (Magnitude) - Right Motor
+  HIDOUTPUT(1),       0x02,             // OUTPUT (Data,Var,Abs)
   END_COLLECTION(0),                     // END_COLLECTION (Application)
 };
 
@@ -335,20 +344,20 @@ void BleKeyboard::begin(void) {
     hid = new NimBLEHIDDevice(pServer);
 
     // Obtain report-characteristic pointers
-    outputKeyboard = hid->getOutputReport(KEYBOARD_ID);      // 0x01
-    inputNKRO      = hid->getInputReport(NKRO_KEYBOARD_ID);  // 0x02
-    inputMediaKeys = hid->getInputReport(MEDIA_KEYS_ID);     // 0x03  
-    inputMouse     = hid->getInputReport(MOUSE_ID);          // 0x04
-    inputGeminiPR  = hid->getInputReport(GEMINIPR_ID);       // 0x05
-//    inputGamepad   = hid->getInputReport(GAMEPAD_ID);        // 0x06
+    outputKeyboard = hid->getOutputReport(KEYBOARD_ID);
+    inputNKRO      = hid->getInputReport(NKRO_KEYBOARD_ID);
+    inputMediaKeys = hid->getInputReport(MEDIA_KEYS_ID);
+    inputMouse     = hid->getInputReport(MOUSE_ID);
+    inputGeminiPR  = hid->getInputReport(GEMINIPR_ID);
+    inputGamepad   = hid->getInputReport(GAMEPAD_ID);
 
     outputKeyboard->setCallbacks(this);
-    inputNKRO->setCallbacks(this);
-    inputMediaKeys->setCallbacks(this);
-    inputMouse->setCallbacks(this);
-    inputGeminiPR->setCallbacks(this);
- //   inputGamepad->setCallbacks(this);
-
+    if (inputNKRO) {inputNKRO->setCallbacks(this);}
+    if (inputMediaKeys) {inputMediaKeys->setCallbacks(this);}
+    if (inputMouse) {inputMouse->setCallbacks(this);}
+    if (inputGeminiPR) {inputGeminiPR->setCallbacks(this);}
+    if (inputGamepad) {inputGamepad->setCallbacks(this);}
+    
     // Manufacturer / PnP / HID-info
     hid->setManufacturer(std::string(deviceManufacturer.c_str()));
     hid->setHidInfo(0x00, 0x01);
@@ -837,12 +846,15 @@ void BleKeyboard::releaseAll() {
   sendNKROReport();
   _mediaKeyBitmask = 0;
   sendMediaReport();
+  memset(&_geminiReport, 0, sizeof(_geminiReport));
+  sendGeminiPRReport();
+}
+
+void BleKeyboard::gamepadReleaseAll() {
   _gamepadReport.buttons[0] = 0;
   _gamepadReport.buttons[1] = 0;
   _gamepadReport.hat = HAT_CENTER;
   sendGamepadReport();
-  memset(&_geminiReport, 0, sizeof(_geminiReport));
-  sendGeminiPRReport();
 }
 
 size_t BleKeyboard::write(uint8_t c) {
@@ -1193,6 +1205,16 @@ void BleKeyboard::gamepadGetRightStick(int16_t &x, int16_t &y) {
     y = gamepadGetAxis(AXIS_RY);
 }
 
+
+void BleKeyboard::onVibrate(void (*callback)(uint8_t leftMotor, uint8_t rightMotor)) {
+  _onVibrateCallback = callback;
+  Serial.printf("[%s] Vibrate callback registered\n", LOG_TAG);
+}
+
+bool BleKeyboard::isHapticsSupported() const {
+  return (inputGamepad != nullptr) && (_onVibrateCallback != nullptr);
+}
+
 void BleKeyboard::sendGamepadReport() {
     if (this->isConnected() && inputGamepad) {
     inputGamepad->setValue((uint8_t*)&_gamepadReport, sizeof(_gamepadReport));
@@ -1201,7 +1223,6 @@ void BleKeyboard::sendGamepadReport() {
   }
 }
 
-// GeminiPR implementation
 void BleKeyboard::sendGeminiPRReport() {
   if (this->isConnected() && inputGeminiPR) {
     inputGeminiPR->setValue((uint8_t*)&_geminiReport, sizeof(_geminiReport));
