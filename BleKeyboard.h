@@ -46,14 +46,14 @@
 #define SCAN_INTERVAL 10
 
 // NKRO report structure
-typedef struct __attribute__((packed)) {
+typedef struct {
   uint8_t modifiers;
   uint8_t reserved;
   uint8_t keys_bitmask[(NKRO_KEY_COUNT + 7) / 8];
 } KeyReportNKRO;
 
 // Mouse report structure
-typedef struct __attribute__((packed)) {
+typedef struct {
   uint8_t buttons;
   // Relative mode fields (used when _useAbsolute = false)
   int8_t relX;
@@ -69,14 +69,14 @@ typedef struct __attribute__((packed)) {
 } PointerReport;
 
 // Gamepad report structure
-typedef struct __attribute__((packed)) {
+typedef struct {
   uint32_t buttons[2];
   int16_t axes[GAMEPAD_AXIS_COUNT];
   uint8_t hat;
 } GamepadReport;
 
 // GeminiPR packet structure
-typedef struct __attribute__((packed)) {
+typedef struct {
   uint8_t byte0;  // Fn  to #6
   uint8_t byte1;  // S1- to H-
   uint8_t byte2;  // R-  to res2
@@ -871,54 +871,52 @@ class BleKeyboard : public Print
     , public NimBLECharacteristicCallbacks
 {
 private:
-  BLECharacteristic*    outputKeyboard;
-  BLECharacteristic*    inputNKRO;
-  BLECharacteristic*    inputMediaKeys;
-  BLECharacteristic*    inputMouse;
-  BLECharacteristic*    inputGamepad;
-  BLECharacteristic*    inputGeminiPR;
+  BLEHIDDevice*      hid;
+  uint16_t           appearance = HID_KEYBOARD;
+  std::string        deviceName;
+  std::string        deviceManufacturer;
+  uint8_t            batteryLevel;
   
-  BLEHIDDevice*         hid;
-  BLEAdvertising*       advertising;
-  std::string           deviceName;
-  std::string           deviceManufacturer;
-  uint8_t               batteryLevel;
-  uint16_t              appearance = HID_KEYBOARD;
+  BLECharacteristic* outputKeyboard;
+  BLECharacteristic* inputMediaKeys;
+  BLECharacteristic* inputNKRO;
+  BLECharacteristic* inputMouse;
+  BLECharacteristic* inputGamepad;
+  BLECharacteristic* inputGeminiPR;
   
-  void                  _update();
-  friend void           _bleKeyboardAutoUpdate(void);
-  static void           securityCallback(uint32_t passkey);   
-  uint32_t              passkey = 0;           // PIN code (0 = no security)
-  bool                  bonding_enabled = true; 
-  friend void           pollConnection(void * arg);
-  uint8_t               last_connected_count = 0;   // previous poll result
-  uint32_t              lastPollTime = 0;
+  KeyReportNKRO      _keyReportNKRO;
+  PointerReport      _pointerReport;
+  GamepadReport      _gamepadReport;
+  GeminiPRReport     _geminiReport;
+  void               sendNKROReport();
+  void               sendMediaReport();
+  void               sendGeminiPRReport();
+  void               sendGamepadReport();
+  
+  uint32_t           passkey = 0;           // PIN code (0 = no security)
+  bool               bonding_enabled = true; 
+  void               _update();
+  friend void        _bleKeyboardAutoUpdate(void);
+  BLEAdvertising*    advertising;
+  uint32_t           _mediaKeyBitmask;
+  uint8_t            _mouseButtons;
+  uint32_t           _delay_ms = 7;
+  bool               _useNKRO = true;  // Default to NKRO
+  bool               _useAbsolute = false;
+
+  uint16_t vid       = 0x05ac; // I picked random numbers here and it worked fine,
+  uint16_t pid       = 0x820a; // idk if these actually matter at all for anything
+  uint16_t version   = 0x0210;
+  
+  friend void pollConnection(void * arg);
+  uint8_t  last_connected_count = 0;   // previous poll result
+  uint32_t lastPollTime = 0;
   static const uint32_t POLL_INTERVAL = 1000; // 1 second in milliseconds
-
-  void                  updateNKROBitmask(uint8_t k, bool pressed);
-  uint8_t               countPressedKeys();
-  uint32_t              _mediaKeyBitmask;
-  uint32_t              mediaKeyToBitmask(uint16_t usageCode);
-  uint8_t               _mouseButtons;
-  void                  (*_onVibrateCallback)(uint8_t leftMotor, uint8_t rightMotor) = nullptr;
-
-  uint32_t              _delay_ms = 7;
-  bool                  _useNKRO = true;  // Default to NKRO
-  bool                  _useAbsolute = false;
-  
-  uint16_t vid          = 0x05ac; // I picked random numbers here and it worked fine, idk if these
-  uint16_t pid          = 0x820a; // actually matter. I let you declare these values because QMK
-  uint16_t version      = 0x0210; // allows that and it was easy enough to add.
-  
-  KeyReportNKRO         _keyReportNKRO;
-  PointerReport         _pointerReport;
-  GamepadReport         _gamepadReport;
-  GeminiPRReport        _geminiReport;
-  
-  void sendNKROReport();
-  void sendMediaReport();
-  void sendGamepadReport();
-  void sendGeminiPRReport();
+  static void securityCallback(uint32_t passkey); 
+  uint32_t mediaKeyToBitmask(uint16_t usageCode);
+  void updateNKROBitmask(uint8_t k, bool pressed);
+  uint8_t countPressedKeys();
+  void (*_onVibrateCallback)(uint8_t leftMotor, uint8_t rightMotor) = nullptr;
 
 public:
   BleKeyboard(std::string deviceName = "ESP32 Keyboard", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
@@ -1026,8 +1024,6 @@ public:
   void gamepadSetAxis(int8_t axis, int16_t value);
   int16_t gamepadGetAxis(int8_t axis);
   void gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
-  void onVibrate(void (*callback)(uint8_t leftMotor, uint8_t rightMotor));
-  bool isHapticsSupported() const;
   
   // GeminiPR methods
   void geminiStroke(const int32_t* keys, size_t count);
@@ -1036,14 +1032,14 @@ public:
   uint8_t stenoCharToKey(char c);
   
 protected:
-  virtual void     onStarted(BLEServer *pServer) { };
-  virtual void     onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc);
-  virtual void     onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason);
-  virtual void     onWrite(NimBLECharacteristic* me);
+  virtual void onStarted(BLEServer *pServer) { };
   virtual uint32_t onPassKeyRequest();
-  virtual void     onAuthenticationComplete(ble_gap_conn_desc* desc);
-  virtual bool     onSecurityRequest();
-  virtual void     onMouseStarted(BLEServer *pServer) { };
+  virtual void onAuthenticationComplete(ble_gap_conn_desc* desc);
+  virtual bool onSecurityRequest();
+  virtual void onMouseStarted(BLEServer *pServer) { };
+  virtual void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc);
+  virtual void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason);
+  virtual void onWrite(NimBLECharacteristic* me);
 };
 
 #endif // CONFIG_BT_ENABLED
