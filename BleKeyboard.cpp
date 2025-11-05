@@ -355,8 +355,8 @@ void BleKeyboard::begin(void) {
     hid->setHidInfo(0x00, 0x01);
 
     // Mouse / Digitizer / Gamepad reports
-    inputMouse    = hid->getInputReport(0x04);
-    inputGamepad  = hid->getInputReport(0x06);
+    inputMouse    = hid->getInputReport(MOUSE_ID);
+    inputGamepad  = hid->getInputReport(GAMEPAD_ID);
     if (inputGamepad) {
     inputGamepad->setCallbacks(this);
     }
@@ -545,7 +545,7 @@ void BleKeyboard::setManufacturer(std::string deviceManufacturer) {
   this->deviceManufacturer = deviceManufacturer;
 }
 
-// Sets the waiting time (in milliseconds) between multiple keystrokes in NimBLE mode.
+// Sets the waiting time (in milliseconds) between multiple keystrokes.
 void BleKeyboard::setDelay(uint32_t ms) {
   _delay_ms = ms;
 }
@@ -579,8 +579,7 @@ void BleKeyboard::sendNKROReport() {
   }
 }
 
-void BleKeyboard::updateNKROBitmask(uint8_t k, bool pressed)
-{  
+void BleKeyboard::updateNKROBitmask(uint8_t k, bool pressed) {
   if (k < NKRO_KEY_COUNT) {
     uint8_t bitmaskIndex = k / 8;
     uint8_t bitOffset = k % 8;
@@ -593,7 +592,6 @@ void BleKeyboard::updateNKROBitmask(uint8_t k, bool pressed)
   }
 }
 
-// NKRO/6KRO mode switching functions
 void BleKeyboard::useNKRO(bool state) {
   _useNKRO = state; // state = enabled, therefore _useNKRO = true/enabled
   Serial.printf("[%s] Switched to %s mode\n", LOG_TAG, _useNKRO ? "NKRO" : "6KRO");
@@ -608,8 +606,7 @@ bool BleKeyboard::isNKROEnabled() {
   return _useNKRO;
 }
 
-static uint8_t charToKeyCode(char c, bool *needShift)
-{
+static uint8_t charToKeyCode(char c, bool *needShift) {
     *needShift = false;
 
     if (c >= '0' && c <= '9')            return (c - '0') + 0x27;   // 0x27…0x30
@@ -670,7 +667,6 @@ static uint8_t charToKeyCode(char c, bool *needShift)
 }
 
 size_t BleKeyboard::press(uint8_t k) {
-  // This function ONLY handles regular keycodes (uint8_t)
   if (k >= 136) { 
     k = k - 136;
   }
@@ -691,8 +687,6 @@ size_t BleKeyboard::press(uint8_t k) {
 }
 
 size_t BleKeyboard::press(int16_t modifier) {
-  // This function ONLY handles modifier keys (0x0100-0x8000)
-  
   // Convert internal modifier code to HID modifier code
   uint8_t hidModifier = 0;
   if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
@@ -706,8 +700,7 @@ size_t BleKeyboard::press(int16_t modifier) {
   return 1;
 }
 
-size_t BleKeyboard::press(uint16_t mediaKey)
-{
+size_t BleKeyboard::press(uint16_t mediaKey) {
     addMediaKey(mediaKey);
     return 1;
 }
@@ -765,9 +758,7 @@ size_t BleKeyboard::press(int32_t stenoKey) {
   return 1;
 }
 
-// This just sends a keyup event/unpresses a given key
 size_t BleKeyboard::release(uint8_t k) {
-  // This function ONLY handles regular keycodes
   if (k >= 136) {
     k = k - 136;
   }
@@ -781,8 +772,6 @@ size_t BleKeyboard::release(uint8_t k) {
 }
 
 size_t BleKeyboard::release(int16_t modifier) {
-  // This function ONLY handles modifier keys
-  
   // Convert internal modifier code to HID modifier code
   uint8_t hidModifier = 0;
   if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
@@ -796,8 +785,7 @@ size_t BleKeyboard::release(int16_t modifier) {
   return 1;
 }
 
-size_t BleKeyboard::release(uint16_t mediaKey)
-{
+size_t BleKeyboard::release(uint16_t mediaKey) {
     removeMediaKey(mediaKey);
     return 1;
 }
@@ -857,8 +845,7 @@ void BleKeyboard::releaseAll() {
   sendGeminiPRReport();
 }
 
-size_t BleKeyboard::write(uint8_t c)
-{
+size_t BleKeyboard::write(uint8_t c) {
     bool shift;
     uint8_t key = charToKeyCode((char)c, &shift);
     if (key == 0) return 0;                     // character not supported
@@ -876,15 +863,13 @@ size_t BleKeyboard::write(int16_t modifier) {
   return p;
 }
 
-size_t BleKeyboard::write(uint16_t mediaKey)
-{
+size_t BleKeyboard::write(uint16_t mediaKey) {
 	uint16_t p = press(mediaKey);  // Keydown
 	release(mediaKey);            // Keyup
 	return p;
 }
 
-size_t BleKeyboard::write(const uint8_t *buf, size_t len)
-{
+size_t BleKeyboard::write(const uint8_t *buf, size_t len) {
     size_t n = 0;
     while (len--) n += write(*buf++);
     return n;
@@ -1337,8 +1322,7 @@ void BleKeyboard::onWrite(NimBLECharacteristic* me) {
   }
 }
 
-void pollConnection(void * arg)
-{
+void pollConnection(void * arg) {
     BleKeyboard * kb = static_cast<BleKeyboard*>(arg);
     uint8_t cnt = NimBLEDevice::getServer()->getConnectedCount();
 
