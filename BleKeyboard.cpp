@@ -11,11 +11,11 @@ bool getInitialized = false;
 
 // Report IDs:
 #define KEYBOARD_ID 0x01
-#define MEDIA_KEYS_ID 0x02
-#define NKRO_KEYBOARD_ID 0x03
+#define NKRO_KEYBOARD_ID 0x02
+#define MEDIA_KEYS_ID 0x03
 #define MOUSE_ID 0x04
-#define GAMEPAD_ID 0x05
-#define GEMINIPR_ID 0x06  
+#define GEMINIPR_ID 0x05
+#define GAMEPAD_ID 0x06
 
 void pollConnection(void * arg);
 
@@ -258,16 +258,7 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_SIZE(1),     0x04,             // REPORT_SIZE (4)
   REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
   HIDINPUT(1),        0x03,             // INPUT (Constant)
-  // Haptic Motors
-  USAGE_PAGE(1),      0x0F,             // USAGE_PAGE (Physical Interface)
-  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0xFF,             // LOGICAL_MAXIMUM (255)
-  REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
-  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
-  USAGE(1),           0x97,             // USAGE (Magnitude) - Left Motor
-  USAGE(1),           0x97,             // USAGE (Magnitude) - Right Motor
-  HIDOUTPUT(1),       0x02,             // OUTPUT (Data,Var,Abs)
-  END_COLLECTION(0)                     // END_COLLECTION (Application)
+  END_COLLECTION(0),                     // END_COLLECTION (Application)
 };
 
 // This is a "constructor". It takes that class from the BleKeyboard.h file, and turns it into "objects" that can actually be used.
@@ -344,22 +335,23 @@ void BleKeyboard::begin(void) {
     hid = new NimBLEHIDDevice(pServer);
 
     // Obtain report-characteristic pointers
-    outputKeyboard = hid->getOutputReport(KEYBOARD_ID);
-    inputMediaKeys = hid->getInputReport(MEDIA_KEYS_ID);
-    inputNKRO      = hid->getInputReport(NKRO_KEYBOARD_ID);
-    inputGeminiPR  = hid->getInputReport(GEMINIPR_ID);
+    outputKeyboard = hid->getOutputReport(KEYBOARD_ID);      // 0x01
+    inputNKRO      = hid->getInputReport(NKRO_KEYBOARD_ID);  // 0x02
+    inputMediaKeys = hid->getInputReport(MEDIA_KEYS_ID);     // 0x03  
+    inputMouse     = hid->getInputReport(MOUSE_ID);          // 0x04
+    inputGeminiPR  = hid->getInputReport(GEMINIPR_ID);       // 0x05
+//    inputGamepad   = hid->getInputReport(GAMEPAD_ID);        // 0x06
+
     outputKeyboard->setCallbacks(this);
+    inputNKRO->setCallbacks(this);
+    inputMediaKeys->setCallbacks(this);
+    inputMouse->setCallbacks(this);
+    inputGeminiPR->setCallbacks(this);
+ //   inputGamepad->setCallbacks(this);
 
     // Manufacturer / PnP / HID-info
     hid->setManufacturer(std::string(deviceManufacturer.c_str()));
     hid->setHidInfo(0x00, 0x01);
-
-    // Mouse / Digitizer / Gamepad reports
-    inputMouse    = hid->getInputReport(MOUSE_ID);
-    inputGamepad  = hid->getInputReport(GAMEPAD_ID);
-    if (inputGamepad) {
-    inputGamepad->setCallbacks(this);
-    }
 
     // Publish HID report map and start services
     hid->setReportMap((uint8_t *)_hidReportDescriptor, sizeof(_hidReportDescriptor));
@@ -545,7 +537,7 @@ void BleKeyboard::setManufacturer(std::string deviceManufacturer) {
   this->deviceManufacturer = deviceManufacturer;
 }
 
-// Sets the waiting time (in milliseconds) between multiple keystrokes.
+// Sets the waiting time (in milliseconds) between multiple keystrokes in NimBLE mode.
 void BleKeyboard::setDelay(uint32_t ms) {
   _delay_ms = ms;
 }
@@ -592,6 +584,7 @@ void BleKeyboard::updateNKROBitmask(uint8_t k, bool pressed) {
   }
 }
 
+// NKRO/6KRO mode switching functions
 void BleKeyboard::useNKRO(bool state) {
   _useNKRO = state; // state = enabled, therefore _useNKRO = true/enabled
   Serial.printf("[%s] Switched to %s mode\n", LOG_TAG, _useNKRO ? "NKRO" : "6KRO");
@@ -667,6 +660,7 @@ static uint8_t charToKeyCode(char c, bool *needShift) {
 }
 
 size_t BleKeyboard::press(uint8_t k) {
+  // This function ONLY handles regular keycodes (uint8_t)
   if (k >= 136) { 
     k = k - 136;
   }
@@ -687,6 +681,8 @@ size_t BleKeyboard::press(uint8_t k) {
 }
 
 size_t BleKeyboard::press(int16_t modifier) {
+  // This function ONLY handles modifier keys (0x0100-0x8000)
+  
   // Convert internal modifier code to HID modifier code
   uint8_t hidModifier = 0;
   if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
@@ -758,7 +754,9 @@ size_t BleKeyboard::press(int32_t stenoKey) {
   return 1;
 }
 
+// This just sends a keyup event/unpresses a given key
 size_t BleKeyboard::release(uint8_t k) {
+  // This function ONLY handles regular keycodes
   if (k >= 136) {
     k = k - 136;
   }
@@ -772,6 +770,8 @@ size_t BleKeyboard::release(uint8_t k) {
 }
 
 size_t BleKeyboard::release(int16_t modifier) {
+  // This function ONLY handles modifier keys
+  
   // Convert internal modifier code to HID modifier code
   uint8_t hidModifier = 0;
   if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
@@ -1191,15 +1191,6 @@ void BleKeyboard::gamepadGetLeftStick(int16_t &x, int16_t &y) {
 void BleKeyboard::gamepadGetRightStick(int16_t &x, int16_t &y) {
     x = gamepadGetAxis(AXIS_RX);
     y = gamepadGetAxis(AXIS_RY);
-}
-
-void BleKeyboard::onVibrate(void (*callback)(uint8_t leftMotor, uint8_t rightMotor)) {
-  _onVibrateCallback = callback;
-  Serial.printf("[%s] Vibrate callback registered\n", LOG_TAG);
-}
-
-bool BleKeyboard::isHapticsSupported() const {
-  return (inputGamepad != nullptr) && (_onVibrateCallback != nullptr);
 }
 
 void BleKeyboard::sendGamepadReport() {
