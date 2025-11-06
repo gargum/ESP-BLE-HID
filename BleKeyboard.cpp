@@ -1,1049 +1,1379 @@
-#ifndef BLE_KEYBOARD_H_ 
-#define BLE_KEYBOARD_H_
-#if defined(CONFIG_BT_ENABLED)          // ESP32s with sdkconfig bundled
-#elif defined(ARDUINO_ARCH_ESP32)       // ESP32s without sdkconfig bundled
-  #define CONFIG_BT_ENABLED 
-#elif defined(ARDUINO_ARCH_NRF52) || defined(NRF52_SERIES)
-  #define CONFIG_BT_ENABLED
-  #define NIMBLE_CFG_TRANSPORT_HCI_UART 0
-  #define NIMBLE_CFG_TRANSPORT_HCI_IPC 0
-#elif defined(ARDUINO_ARCH_MBED)        // mbed-based (Nano 33 BLE …)
-  #define CONFIG_BT_ENABLED
-#elif defined(ARDUINO_ARCH_STM32)       // STM32duino + NimBLE
-  #define CONFIG_BT_ENABLED
-#endif
-#if defined(CONFIG_BT_ENABLED)
+#include "BleKeyboard.h"
 
-#include "NimBLEDevice.h"
-#include "NimBLEHIDDevice.h"
-#include "NimBLECharacteristic.h"
-#include "NimBLEAdvertising.h"
-#include "NimBLEServer.h"
-#include "NimBLEUUID.h"
+#include <NimBLEDevice.h>
+#include <NimBLEServer.h>
+#include <NimBLEUtils.h>
+#include <NimBLEHIDDevice.h>
+#include <NimBLEUUID.h>
+#include "HIDTypes.h"
+static const char* LOG_TAG = "BleKeyboard";
+bool getInitialized = false;
 
-#define BLEDevice                  NimBLEDevice
-#define BLEServerCallbacks         NimBLEServerCallbacks
-#define BLECharacteristicCallbacks NimBLECharacteristicCallbacks
-#define BLEHIDDevice               NimBLEHIDDevice
-#define BLECharacteristic          NimBLECharacteristic
-#define BLEAdvertising             NimBLEAdvertising
-#define BLEServer                  NimBLEServer
+// Report IDs:
+#define KEYBOARD_ID 0x01
+#define NKRO_KEYBOARD_ID 0x02
+#define MEDIA_KEYS_ID 0x03
+#define MOUSE_ID 0x04
+#define GEMINIPR_ID 0x05
+#define GAMEPAD_ID 0x06
 
-#include "Print.h"
+void pollConnection(void * arg);
 
-#define BLE_KEYBOARD_VERSION "0.0.4"
-#define BLE_KEYBOARD_VERSION_MAJOR 0
-#define BLE_KEYBOARD_VERSION_MINOR 0
-#define BLE_KEYBOARD_VERSION_REVISION 4
+// Global instance tracking
+static BleKeyboard* _activeBleKeyboardInstance = nullptr;
 
-// NKRO configuration
-#define NKRO_KEY_COUNT 252 // Surprise! "N" in "N-Key Rollover" stands for "252" in my implementation.
-
-// Gamepad configuration
-#define GAMEPAD_BUTTON_COUNT 64
-#define GAMEPAD_AXIS_COUNT 6
-
-#define SCAN_INTERVAL 10
-
-// NKRO report structure
-typedef struct {
-  uint8_t modifiers;
-  uint8_t reserved;
-  uint8_t keys_bitmask[(NKRO_KEY_COUNT + 7) / 8];
-} KeyReportNKRO;
-
-// Mouse report structure
-typedef struct {
-  uint8_t buttons;
-  // Relative mode fields (used when _useAbsolute = false)
-  int8_t relX;
-  int8_t relY;
-  int8_t wheel;
-  int8_t hWheel;
-  // Absolute mode fields (used when _useAbsolute = true)  
-  uint16_t absX;
-  uint16_t absY;
-  uint16_t pressure;
-  uint8_t tipSwitch : 1;
-  uint8_t padding : 7;
-} PointerReport;
-
-// Gamepad report structure
-typedef struct {
-  uint32_t buttons[2];
-  int16_t axes[GAMEPAD_AXIS_COUNT];
-  int8_t hat;
-} GamepadReport;
-
-// GeminiPR packet structure
-typedef struct {
-  uint8_t byte0;  // Fn  to #6
-  uint8_t byte1;  // S1- to H-
-  uint8_t byte2;  // R-  to res2
-  uint8_t byte3;  // pwr to -R
-  uint8_t byte4;  // -P  to -D
-  uint8_t byte5;  // #7  to -Z
-} GeminiPRReport;
-
-static const bool enabled = true;
-static const bool disabled = false;
-
-// Appearance codes
-//
-// These make it easier to set what the ESP32 advertises itself as. Arranged in order of how much they frighten me.
-#define GENERIC_HID           0x03C0
-#define KEYBOARD              0x03C1
-#define MOUSE                 0x03C2
-#define JOYSTICK              0x03C3
-#define GAMEPAD               0x03C4
-#define DIGITIZER             0x03C5
-#define DIGITAL_PEN           0x03C7 
-#define HEADPHONES            0x0943
-#define DISPLAY               0x0141
-#define REMOTE_CONTROL        0x0181
-#define REMOTE_PRESENTATION   0x0182
-#define KEYRING               0x0242
-#define DESKTOP               0x0081
-#define SERVER                0x0082
-#define LAPTOP                0x0083
-#define TABLET                0x0087
-#define PHONE                 0x0041
-#define SMARTWATCH            0x00C2
-#define CYCLING_COMPUTER      0x0481
-#define RUNNING_WALKING       0x044C
-#define WEARABLE              0x0086
-#define WEARABLE_IN_SHOE      0x0441
-#define WEARABLE_ON_SHOE      0x0442
-#define WEARABLE_ON_HIP       0x0443
-#define CLOCK                 0x0104
-#define BARCODE_SCANNER       0x03C8
-#define CARD_READER           0x03C6
-#define OUTDOOR_SPORTS        0x1440 // Idk wtf the intended use case for this one is
-#define LOCATION_DISPLAY      0x1441
-#define LOCATION_POD          0x1443
-#define WEIGHT_SCALE          0x0C81
-#define EAR_THERMOMETER       0x0301
-#define BLOOD_PRESSURE        0x0381
-#define PULSE_OXIMETER        0x0C41
-#define GLUCOSE_METER         0x0412
-#define GLUCOSE_CONTINUOUS    0x0D01
-#define MEDICATION_DELIVERY   0x0D81
-#define INSULIN_PEN           0x0D48
-#define INSULIN_PUMP          0x0D41
-#define WHEELCHAIR            0x0CC1
-#define MOBILITY_SCOOTER      0x0CC2
-#define IOT_GATEWAY           0x008D
-
-// Mouse codes
-const char MOUSE_LEFT    = 1;
-const char MOUSE_RIGHT   = 2;
-const char MOUSE_MIDDLE  = 4;
-const char MOUSE_BACK    = 8;
-const char MOUSE_FORWARD = 16;
-const char MOUSE_ALL     = (MOUSE_LEFT | MOUSE_RIGHT | MOUSE_MIDDLE);
-
-// Key codes
-//
-// Those numbers on the right are the real HID codes. It's designed that way to make it easier to understand and modify the code.
-const uint8_t KEY_A = 0x04; 
-const uint8_t KEY_B = 0x05;          
-const uint8_t KEY_C = 0x06;          
-const uint8_t KEY_D = 0x07;          
-const uint8_t KEY_E = 0x08;          
-const uint8_t KEY_F = 0x09;          
-const uint8_t KEY_G = 0x0A;          
-const uint8_t KEY_H = 0x0B;          
-const uint8_t KEY_I = 0x0C;          
-const uint8_t KEY_J = 0x0D;          
-const uint8_t KEY_K = 0x0E;          
-const uint8_t KEY_L = 0x0F;          
-const uint8_t KEY_M = 0x10;          
-const uint8_t KEY_N = 0x11;          
-const uint8_t KEY_O = 0x12;          
-const uint8_t KEY_P = 0x13;          
-const uint8_t KEY_Q = 0x14;          
-const uint8_t KEY_R = 0x15;          
-const uint8_t KEY_S = 0x16;          
-const uint8_t KEY_T = 0x17;          
-const uint8_t KEY_U = 0x18;          
-const uint8_t KEY_V = 0x19; 
-const uint8_t KEY_W = 0x1A; 
-const uint8_t KEY_X = 0x1B; 
-const uint8_t KEY_Y = 0x1C;
-const uint8_t KEY_Z = 0x1D;
-
-const uint8_t KC_A = 0x04; 
-const uint8_t KC_B = 0x05;          
-const uint8_t KC_C = 0x06;          
-const uint8_t KC_D = 0x07;          
-const uint8_t KC_E = 0x08;          
-const uint8_t KC_F = 0x09;          
-const uint8_t KC_G = 0x0A;          
-const uint8_t KC_H = 0x0B;          
-const uint8_t KC_I = 0x0C;          
-const uint8_t KC_J = 0x0D;          
-const uint8_t KC_K = 0x0E;          
-const uint8_t KC_L = 0x0F;          
-const uint8_t KC_M = 0x10;          
-const uint8_t KC_N = 0x11;          
-const uint8_t KC_O = 0x12;          
-const uint8_t KC_P = 0x13;          
-const uint8_t KC_Q = 0x14;          
-const uint8_t KC_R = 0x15;          
-const uint8_t KC_S = 0x16;          
-const uint8_t KC_T = 0x17;          
-const uint8_t KC_U = 0x18;          
-const uint8_t KC_V = 0x19; 
-const uint8_t KC_W = 0x1A; 
-const uint8_t KC_X = 0x1B; 
-const uint8_t KC_Y = 0x1C;
-const uint8_t KC_Z = 0x1D;
-
-const uint8_t KEY_1 = 0x1e;          
-const uint8_t KEY_2 = 0x1f;          
-const uint8_t KEY_3 = 0x20;          
-const uint8_t KEY_4 = 0x21;          
-const uint8_t KEY_5 = 0x22;          
-const uint8_t KEY_6 = 0x23;          
-const uint8_t KEY_7 = 0x24;          
-const uint8_t KEY_8 = 0x25;          
-const uint8_t KEY_9 = 0x26;          
-const uint8_t KEY_0 = 0x27;          
-
-const uint8_t KC_1 = 0x1e;          
-const uint8_t KC_2 = 0x1f;          
-const uint8_t KC_3 = 0x20;          
-const uint8_t KC_4 = 0x21;          
-const uint8_t KC_5 = 0x22;          
-const uint8_t KC_6 = 0x23;          
-const uint8_t KC_7 = 0x24;          
-const uint8_t KC_8 = 0x25;          
-const uint8_t KC_9 = 0x26;          
-const uint8_t KC_0 = 0x27;     
-
-const uint8_t KEY_F1 = 0xC2;
-const uint8_t KEY_F2 = 0xC3;
-const uint8_t KEY_F3 = 0xC4;
-const uint8_t KEY_F4 = 0xC5;
-const uint8_t KEY_F5 = 0xC6;
-const uint8_t KEY_F6 = 0xC7;
-const uint8_t KEY_F7 = 0xC8;
-const uint8_t KEY_F8 = 0xC9;
-const uint8_t KEY_F9 = 0xCA;
-const uint8_t KEY_F10 = 0xCB;
-const uint8_t KEY_F11 = 0xCC;
-const uint8_t KEY_F12 = 0xCD;
-const uint8_t KEY_F13 = 0xF0;
-const uint8_t KEY_F14 = 0xF1;
-const uint8_t KEY_F15 = 0xF2;
-const uint8_t KEY_F16 = 0xF3;
-const uint8_t KEY_F17 = 0xF4;
-const uint8_t KEY_F18 = 0xF5;
-const uint8_t KEY_F19 = 0xF6;
-const uint8_t KEY_F20 = 0xF7;
-const uint8_t KEY_F21 = 0xF8;
-const uint8_t KEY_F22 = 0xF9;
-const uint8_t KEY_F23 = 0xFA;
-const uint8_t KEY_F24 = 0xFB;
-
-const uint8_t KC_F1   = 0xC2;
-const uint8_t KC_F2   = 0xC3;
-const uint8_t KC_F3   = 0xC4;
-const uint8_t KC_F4   = 0xC5;
-const uint8_t KC_F5   = 0xC6;
-const uint8_t KC_F6   = 0xC7;
-const uint8_t KC_F7   = 0xC8;
-const uint8_t KC_F8   = 0xC9;
-const uint8_t KC_F9   = 0xCA;
-const uint8_t KC_F10  = 0xCB;
-const uint8_t KC_F11  = 0xCC;
-const uint8_t KC_F12  = 0xCD;
-const uint8_t KC_F13  = 0xF0;
-const uint8_t KC_F14  = 0xF1;
-const uint8_t KC_F15  = 0xF2;
-const uint8_t KC_F16  = 0xF3;
-const uint8_t KC_F17  = 0xF4;
-const uint8_t KC_F18  = 0xF5;
-const uint8_t KC_F19  = 0xF6;
-const uint8_t KC_F20  = 0xF7;
-const uint8_t KC_F21  = 0xF8;
-const uint8_t KC_F22  = 0xF9;
-const uint8_t KC_F23  = 0xFA;
-const uint8_t KC_F24  = 0xFB;
-
-const uint8_t KEY_ENTER = 0xB0;
-const uint8_t KEY_ESC = 0xB1;
-const uint8_t KEY_BACKSPACE = 0xB2;
-const uint8_t KEY_TAB = 0xB3;
-const uint8_t KEY_SPACE = 0x2C;
-const uint8_t KEY_MINUS = 0x2D;
-const uint8_t KEY_EQUAL = 0x2E;
-const uint8_t KEY_LEFT_BRACKET = 0x2F;
-const uint8_t KEY_RIGHT_BRACKET = 0x30;
-const uint8_t KEY_BACKSLASH = 0x31;
-const uint8_t KEY_NON_US_HASH = 0x32;
-const uint8_t KEY_SEMICOLON = 0x33;
-const uint8_t KEY_APOSTROPHE = 0x34;
-const uint8_t KEY_GRAVE = 0x35;
-const uint8_t KEY_COMMA = 0x36;
-const uint8_t KEY_PERIOD = 0x37;
-const uint8_t KEY_FORWARD_SLASH = 0x38;
-const uint8_t KEY_NON_US_BACKSLASH = 0x64;
-
-const uint8_t KC_ENT  = 0xB0;
-const uint8_t KC_ESC  = 0xB1;
-const uint8_t KC_BSPC = 0xB2;
-const uint8_t KC_TAB  = 0xB3;
-const uint8_t KC_SPC  = 0x2C;
-const uint8_t KC_MINS = 0x2D;
-const uint8_t KC_EQL  = 0x2E;
-const uint8_t KC_LBRC = 0x2F;
-const uint8_t KC_RBRC = 0x30;
-const uint8_t KC_BSLS = 0x31;
-const uint8_t KC_NUHS = 0x32;
-const uint8_t KC_SCLN = 0x33;
-const uint8_t KC_QUOT = 0x34;
-const uint8_t KC_GRV  = 0x35;
-const uint8_t KC_COMM = 0x36;
-const uint8_t KC_DOT  = 0x37;
-const uint8_t KC_SLSH = 0x38;
-const uint8_t KC_NUBS = 0x64;
-
-const uint8_t KEY_CAPS_LOCK = 0x39;
-const uint8_t KEY_SCROLL_LOCK = 0x47;
-const uint8_t KEY_NUM_LOCK = 0x53;
-const uint8_t KEY_LOCKING_CAPS_LOCK = 0x82;
-const uint8_t KEY_LOCKING_NUM_LOCK = 0x83;
-const uint8_t KEY_LOCKING_SCROLL_LOCK = 0x84;
-
-const uint8_t KC_CAPS = 0x39;
-const uint8_t KC_NUM  = 0x53;
-const uint8_t KC_SCRL = 0x47;
-const uint8_t KC_BRMD = 0x47;
-const uint8_t KC_LCAP = 0x82;
-const uint8_t KC_LNUM = 0x83;
-const uint8_t KC_LSCR = 0x84;
-
-const int16_t KEY_LEFT_CTRL   = 0x0100;
-const int16_t KEY_LEFT_SHIFT  = 0x0200;
-const int16_t KEY_LEFT_ALT    = 0x0400;
-const int16_t KEY_LEFT_GUI    = 0x0800;
-const int16_t KEY_RIGHT_CTRL  = 0x1000;
-const int16_t KEY_RIGHT_SHIFT = 0x2000;
-const int16_t KEY_RIGHT_ALT   = 0x4000;
-const int16_t KEY_RIGHT_GUI   = 0x8000;
-
-const int16_t KC_LCTL  = 0x0100;
-const int16_t KC_LSFT  = 0x0200;
-const int16_t KC_LALT  = 0x0400;
-const int16_t KC_LOPT  = 0x0400;
-const int16_t KC_LGUI  = 0x0800;
-const int16_t KC_LCMD  = 0x0800;
-const int16_t KC_LWIN  = 0x0800;
-const int16_t KC_RCTL  = 0x1000;
-const int16_t KC_RSFT  = 0x2000;
-const int16_t KC_RALT  = 0x4000;
-const int16_t KC_ROPT  = 0x4000;
-const int16_t KC_ALGR  = 0x4000;
-const int16_t KC_RGUI  = 0x8000;
-const int16_t KC_RCMD  = 0x8000;
-const int16_t KC_RWIN  = 0x8000;
-
-const uint8_t KEY_RO = 0x87;
-const uint8_t KEY_KATAKANAHIRAGANA = 0x88;
-const uint8_t KEY_YEN = 0x89;
-const uint8_t KEY_HENKAN = 0x8A;
-const uint8_t KEY_MUHENKAN = 0x8B;
-const uint8_t KEY_TOUTEN = 0x8C;
-const uint8_t KEY_INTERNATIONAL_7 = 0x8D;
-const uint8_t KEY_INTERNATIONAL_8 = 0x8E;
-const uint8_t KEY_INTERNATIONAL_9 = 0x8F;
-const uint8_t KEY_HANGEUL = 0x90;
-const uint8_t KEY_HANJA = 0x91;
-const uint8_t KEY_KATAKANA = 0x92;
-const uint8_t KEY_HIRAGANA = 0x93;
-const uint8_t KEY_ZENKAKUHANKAKU = 0x94;
-const uint8_t KEY_LANG_6 = 0x95;
-const uint8_t KEY_LANG_7 = 0x96;
-const uint8_t KEY_LANG_8 = 0x97;
-const uint8_t KEY_LANG_9 = 0x98;
-
-const uint8_t KC_INT1 = 0x87;
-const uint8_t KC_INT2 = 0x88;
-const uint8_t KC_INT3 = 0x89;
-const uint8_t KC_INT4 = 0x8A;
-const uint8_t KC_INT5 = 0x8B;
-const uint8_t KC_INT6 = 0x8C;
-const uint8_t KC_INT7 = 0x8D;
-const uint8_t KC_INT8 = 0x8E;
-const uint8_t KC_INT9 = 0x8F;
-const uint8_t KC_LNG1 = 0x90;
-const uint8_t KC_LNG2 = 0x91;
-const uint8_t KC_LNG3 = 0x92;
-const uint8_t KC_LNG4 = 0x93;
-const uint8_t KC_LNG5 = 0x94;
-const uint8_t KC_LNG6 = 0x95;
-const uint8_t KC_LNG7 = 0x96;
-const uint8_t KC_LNG8 = 0x97;
-const uint8_t KC_LNG9 = 0x98;
-
-const uint8_t KEY_UP_ARROW = 0xDA;
-const uint8_t KEY_DOWN_ARROW = 0xD9;
-const uint8_t KEY_LEFT_ARROW = 0xD8;
-const uint8_t KEY_RIGHT_ARROW = 0xD7;
-
-const uint8_t KC_UP   = 0xDA;
-const uint8_t KC_DOWN = 0xD9;
-const uint8_t KC_LEFT = 0xD8;
-const uint8_t KC_RGHT = 0xD7;
-
-const uint8_t KEY_INSERT = 0xD1;
-const uint8_t KEY_PRTSC = 0xCE;
-const uint8_t KEY_DELETE = 0xD4;
-const uint8_t KEY_PAGE_UP = 0xD3;
-const uint8_t KEY_PAGE_DOWN = 0xD6;
-const uint8_t KEY_HOME = 0xD2;
-const uint8_t KEY_END = 0xD5;
-const uint8_t KEY_SYSREQ = 0x46;
-const uint8_t KEY_PAUSE = 0x48;
-const uint8_t KEY_APPLICATION = 0x65;
-const uint8_t KEY_KB_POWER = 0x66;
-const uint8_t KEY_OPEN = 0x74;
-const uint8_t KEY_EXEC = 0x74;
-const uint8_t KEY_HELP = 0x75;
-const uint8_t KEY_PROPS = 0x76;
-const uint8_t KEY_FRONT = 0x77;
-const uint8_t KEY_KB_STOP = 0x78;
-const uint8_t KEY_AGAIN = 0x79;
-const uint8_t KEY_UNDO = 0x7A;
-const uint8_t KEY_CUT = 0x7B;
-const uint8_t KEY_COPY = 0x7C;
-const uint8_t KEY_PASTE = 0x7D;
-const uint8_t KEY_FIND = 0x7E;
-const uint8_t KEY_ALT_ERASE = 0x99;
-const uint8_t KEY_ATTENTION = 0x9A;
-const uint8_t KEY_CANCEL = 0x9B;
-const uint8_t KEY_CLEAR = 0x9C;
-const uint8_t KEY_PRIOR = 0x9D;
-const uint8_t KEY_RETURN = 0x9E;
-const uint8_t KEY_SEPARATOR = 0x9F;
-const uint8_t KEY_OUT = 0xA0;
-const uint8_t KEY_OPER = 0xA1;
-const uint8_t KEY_CLEAR_AGAIN = 0xA2;
-const uint8_t KEY_CRSEL_PROPS = 0xA3;
-const uint8_t KEY_EXSEL = 0xA4;
-
-const uint8_t KC_INS  = 0xD1;
-const uint8_t KC_PSCR = 0xCE;
-const uint8_t KC_DEL  = 0xD4;
-const uint8_t KC_PGUP = 0xD3;
-const uint8_t KC_PGDN = 0xD6;
-const uint8_t KC_HOME = 0xD2;
-const uint8_t KC_END  = 0xD5;
-const uint8_t KC_SYRQ = 0x46;
-const uint8_t KC_PAUS = 0x48;
-const uint8_t KC_BRK  = 0x48;
-const uint8_t KC_BRMU = 0x48;
-const uint8_t KC_APP  = 0x65;
-const uint8_t KC_KBPR = 0x66;
-const uint8_t KC_OPEN = 0x74;
-const uint8_t KC_EXEC = 0x74;
-const uint8_t KC_HELP = 0x75;
-const uint8_t KC_MENU = 0x76;
-const uint8_t KC_SLCT = 0x77;
-const uint8_t KC_STOP = 0x78;
-const uint8_t KC_AGIN = 0x79;
-const uint8_t KC_UNDO = 0x7A;
-const uint8_t KC_CUT  = 0x7B;
-const uint8_t KC_COPY = 0x7C;
-const uint8_t KC_PSTE = 0x7D;
-const uint8_t KC_FIND = 0x7E;
-const uint8_t KC_ERAS = 0x99;
-const uint8_t KC_ATTN = 0x9A;
-const uint8_t KC_CNCL = 0x9B;
-const uint8_t KC_CLR  = 0x9C;
-const uint8_t KC_PRIR = 0x9D;
-const uint8_t KC_RETN = 0x9E;
-const uint8_t KC_SEPR = 0x9F;
-const uint8_t KC_OUT  = 0xA0;
-const uint8_t KC_OPER = 0xA1;
-const uint8_t KC_CLAG = 0xA2;
-const uint8_t KC_CRSL = 0xA3;
-const uint8_t KC_EXSL = 0xA4;
-
-const uint8_t KEY_NUM_SLASH = 0x54;
-const uint8_t KEY_NUM_ASTERISK = 0x55;
-const uint8_t KEY_NUM_MINUS = 0x56;
-const uint8_t KEY_NUM_PLUS = 0x57;
-const uint8_t KEY_NUM_ENTER = 0x58;
-const uint8_t KEY_NUM_1 = 0x59;
-const uint8_t KEY_NUM_2 = 0x5A;
-const uint8_t KEY_NUM_3 = 0x5B;
-const uint8_t KEY_NUM_4 = 0x5C;
-const uint8_t KEY_NUM_5 = 0x5D;
-const uint8_t KEY_NUM_6 = 0x5E;
-const uint8_t KEY_NUM_7 = 0x5F;
-const uint8_t KEY_NUM_8 = 0x60;
-const uint8_t KEY_NUM_9 = 0x61;
-const uint8_t KEY_NUM_0 = 0x62;
-const uint8_t KEY_NUM_PERIOD = 0x63;
-const uint8_t KEY_NUM_EQUAL = 0x67;
-const uint8_t KEY_NUM_COMMA = 0x85;
-
-const uint8_t KC_PSLS = 0x54;
-const uint8_t KC_PAST = 0x55;
-const uint8_t KC_PMNS = 0x56;
-const uint8_t KC_PPLS = 0x57;
-const uint8_t KC_PENT = 0x58;
-const uint8_t KC_P1   = 0x59;
-const uint8_t KC_P2   = 0x5A;
-const uint8_t KC_P3   = 0x5B;
-const uint8_t KC_P4   = 0x5C;
-const uint8_t KC_P5   = 0x5D;
-const uint8_t KC_P6   = 0x5E;
-const uint8_t KC_P7   = 0x5F;
-const uint8_t KC_P8   = 0x60;
-const uint8_t KC_P9   = 0x61;
-const uint8_t KC_P0   = 0x62;
-const uint8_t KC_PDOT = 0x63;
-const uint8_t KC_PEQL = 0x67;
-const uint8_t KC_PCMM = 0x85;
-
-// Media keys are supposed use 16 bit HID codes for some reason, so I'm just following that rule here
-
-const uint16_t KEY_MEDIA_POWER = 0x0130;
-const uint16_t KEY_MEDIA_SLEEP = 0x0134;
-const uint16_t KEY_MEDIA_WAKE = 0x0135;
-const uint16_t KEY_MEDIA_NEXT_TRACK = 0x00B5;
-const uint16_t KEY_MEDIA_PREVIOUS_TRACK = 0x00B6;
-const uint16_t KEY_MEDIA_STOP = 0x00B7;
-const uint16_t KEY_MEDIA_PLAY_PAUSE = 0x00CD;
-const uint16_t KEY_MEDIA_FAST_FORWARD = 0x00B3;
-const uint16_t KEY_MEDIA_REWIND = 0x00B4;
-const uint16_t KEY_MEDIA_EJECT = 0x00B8;
-const uint16_t KEY_MEDIA_MUTE = 0x00E2;
-const uint16_t KEY_MEDIA_VOLUME_UP = 0x00E9;
-const uint16_t KEY_MEDIA_VOLUME_DOWN = 0x00EA;
-const uint16_t KEY_MEDIA_BRIGHTNESS_UP = 0x006F;
-const uint16_t KEY_MEDIA_BRIGHTNESS_DOWN = 0x0070;
-const uint16_t KEY_MEDIA_MY_COMPUTER = 0x0194;
-const uint16_t KEY_MEDIA_CALCULATOR = 0x0192;
-const uint16_t KEY_MEDIA_MAIL = 0x018A;
-const uint16_t KEY_MEDIA_MEDIA_SELECTION = 0x0183;
-const uint16_t KEY_MEDIA_CONTROL_PANEL = 0x0186;
-const uint16_t KEY_MEDIA_LAUNCHPAD = 0x0187;
-const uint16_t KEY_MEDIA_WWW_HOME = 0x0223;
-const uint16_t KEY_MEDIA_WWW_FAVORITES = 0x022A;
-const uint16_t KEY_MEDIA_WWW_SEARCH = 0x0221;
-const uint16_t KEY_MEDIA_WWW_STOP = 0x0226;
-const uint16_t KEY_MEDIA_WWW_BACK = 0x0224;
-const uint16_t KEY_MEDIA_WWW_FORWARD = 0x0225;
-const uint16_t KEY_MEDIA_WWW_REFRESH = 0x0227;
-
-const uint16_t KC_PWR  = 0x0130;
-const uint16_t KC_SLEP = 0x0134;
-const uint16_t KC_WAKE = 0x0135;
-const uint16_t KC_MNXT = 0x00B5;
-const uint16_t KC_MPRV = 0x00B6;
-const uint16_t KC_MFFD = 0x00B3;
-const uint16_t KC_MRWD = 0x00B4;
-const uint16_t KC_MSTP = 0x00B7;
-const uint16_t KC_MPLY = 0x00CD;
-const uint16_t KC_MUTE = 0x00E2;
-const uint16_t KC_VOLU = 0x00E9;
-const uint16_t KC_VOLD = 0x00EA;
-const uint16_t KC_WHOM = 0x0223;
-const uint16_t KC_MYCM = 0x0194;
-const uint16_t KC_CALC = 0x0192;
-const uint16_t KC_WFAV = 0x022A;
-const uint16_t KC_WSCH = 0x0221;
-const uint16_t KC_WSTP = 0x0226;
-const uint16_t KC_WREF = 0x0227;
-const uint16_t KC_WBAK = 0x0224;
-const uint16_t KC_WFWD = 0x0225;
-const uint16_t KC_MSEL = 0x0183;
-const uint16_t KC_MAIL = 0x018A;
-const uint16_t KC_EJCT = 0x00B8;
-const uint16_t KC_BRIU = 0x006F;
-const uint16_t KC_BRID = 0x0070;
-const uint16_t KC_CPNL = 0x0186;
-const uint16_t KC_LPAD = 0x0187;
-
-const int8_t GAMEPAD_0 = 1;
-const int8_t GAMEPAD_SO = 1;
-const int8_t GAMEPAD_1 = 2;
-const int8_t GAMEPAD_EA = 2;
-const int8_t GAMEPAD_2 = 3;
-const int8_t GAMEPAD_3 = 4;
-const int8_t GAMEPAD_WE = 4;
-const int8_t GAMEPAD_4 = 5;
-const int8_t GAMEPAD_NO = 5;
-const int8_t GAMEPAD_5 = 6;
-const int8_t GAMEPAD_6 = 7;
-const int8_t GAMEPAD_L1 = 7;
-const int8_t GAMEPAD_7 = 8;
-const int8_t GAMEPAD_R1 = 8;
-const int8_t GAMEPAD_8 = 9;
-const int8_t GAMEPAD_9 = 10;
-const int8_t GAMEPAD_10 = 11;
-const int8_t GAMEPAD_BA = 11;
-const int8_t GAMEPAD_11 = 12;
-const int8_t GAMEPAD_ST = 12;
-const int8_t GAMEPAD_12 = 13;
-const int8_t GAMEPAD_GU = 13;
-const int8_t GAMEPAD_13 = 14;
-const int8_t GAMEPAD_L3 = 14;
-const int8_t GAMEPAD_14 = 15;
-const int8_t GAMEPAD_R3 = 15;
-const int8_t GAMEPAD_15 = 16;
-const int8_t GAMEPAD_16 = 17;
-const int8_t GAMEPAD_17 = 18;
-const int8_t GAMEPAD_18 = 19;
-const int8_t GAMEPAD_19 = 20;
-const int8_t GAMEPAD_20 = 21;
-const int8_t GAMEPAD_21 = 22;
-const int8_t GAMEPAD_22 = 23;
-const int8_t GAMEPAD_23 = 24;
-const int8_t GAMEPAD_24 = 25;
-const int8_t GAMEPAD_25 = 26;
-const int8_t GAMEPAD_26 = 27;
-const int8_t GAMEPAD_27 = 28;
-const int8_t GAMEPAD_28 = 29;
-const int8_t GAMEPAD_29 = 30;
-const int8_t GAMEPAD_30 = 31;
-const int8_t GAMEPAD_31 = 32;
-const int8_t GAMEPAD_32 = 33;
-const int8_t GAMEPAD_33 = 34;
-const int8_t GAMEPAD_34 = 35;
-const int8_t GAMEPAD_35 = 36;
-const int8_t GAMEPAD_36 = 37;
-const int8_t GAMEPAD_37 = 38;
-const int8_t GAMEPAD_38 = 39;
-const int8_t GAMEPAD_39 = 40;
-const int8_t GAMEPAD_40 = 41;
-const int8_t GAMEPAD_41 = 42;
-const int8_t GAMEPAD_42 = 43;
-const int8_t GAMEPAD_43 = 44;
-const int8_t GAMEPAD_44 = 45;
-const int8_t GAMEPAD_45 = 46;
-const int8_t GAMEPAD_46 = 47;
-const int8_t GAMEPAD_47 = 48;
-const int8_t GAMEPAD_48 = 49;
-const int8_t GAMEPAD_49 = 50;
-const int8_t GAMEPAD_50 = 51;
-const int8_t GAMEPAD_51 = 52;
-const int8_t GAMEPAD_52 = 53;
-const int8_t GAMEPAD_53 = 54;
-const int8_t GAMEPAD_54 = 55;
-const int8_t GAMEPAD_55 = 56;
-const int8_t GAMEPAD_56 = 57;
-const int8_t GAMEPAD_57 = 58;
-const int8_t GAMEPAD_58 = 59;
-const int8_t GAMEPAD_59 = 60;
-const int8_t GAMEPAD_60 = 61;
-const int8_t GAMEPAD_61 = 62;
-const int8_t GAMEPAD_62 = 63;
-const int8_t GAMEPAD_63 = 64;
-const int8_t GAMEPAD_64 = 65;
-const int8_t GAMEPAD_UP = 65;
-const int8_t GAMEPAD_65 = 66;
-const int8_t GAMEPAD_RI = 66;
-const int8_t GAMEPAD_66 = 67;
-const int8_t GAMEPAD_DO = 67;
-const int8_t GAMEPAD_67 = 68;
-const int8_t GAMEPAD_LE = 68;
-
-const int8_t GB_00 = 1;
-const int8_t GB_SO = 1;
-const int8_t GB_01 = 2;
-const int8_t GB_EA = 2;
-const int8_t GB_02 = 3;
-const int8_t GB_03 = 4;
-const int8_t GB_WE = 4;
-const int8_t GB_04 = 5;
-const int8_t GB_NO = 5;
-const int8_t GB_05 = 6;
-const int8_t GB_06 = 7;
-const int8_t GB_L1 = 7;
-const int8_t GB_07 = 8;
-const int8_t GB_R1 = 8;
-const int8_t GB_08 = 9;
-const int8_t GB_09 = 10;
-const int8_t GB_10 = 11;
-const int8_t GB_BA = 11;
-const int8_t GB_11 = 12;
-const int8_t GB_ST = 12;
-const int8_t GB_12 = 13;
-const int8_t GB_GU = 13;
-const int8_t GB_13 = 14;
-const int8_t GB_L3 = 14;
-const int8_t GB_14 = 15;
-const int8_t GB_R3 = 15;
-const int8_t GB_15 = 16;
-const int8_t GB_16 = 17;
-const int8_t GB_17 = 18;
-const int8_t GB_18 = 19;
-const int8_t GB_19 = 20;
-const int8_t GB_20 = 21;
-const int8_t GB_21 = 22;
-const int8_t GB_22 = 23;
-const int8_t GB_23 = 24;
-const int8_t GB_24 = 25;
-const int8_t GB_25 = 26;
-const int8_t GB_26 = 27;
-const int8_t GB_27 = 28;
-const int8_t GB_28 = 29;
-const int8_t GB_29 = 30;
-const int8_t GB_30 = 31;
-const int8_t GB_31 = 32;
-const int8_t GB_32 = 33;
-const int8_t GB_33 = 34;
-const int8_t GB_34 = 35;
-const int8_t GB_35 = 36;
-const int8_t GB_36 = 37;
-const int8_t GB_37 = 38;
-const int8_t GB_38 = 39;
-const int8_t GB_39 = 40;
-const int8_t GB_40 = 41;
-const int8_t GB_41 = 42;
-const int8_t GB_42 = 43;
-const int8_t GB_43 = 44;
-const int8_t GB_44 = 45;
-const int8_t GB_45 = 46;
-const int8_t GB_46 = 47;
-const int8_t GB_47 = 48;
-const int8_t GB_48 = 49;
-const int8_t GB_49 = 50;
-const int8_t GB_50 = 51;
-const int8_t GB_51 = 52;
-const int8_t GB_52 = 53;
-const int8_t GB_53 = 54;
-const int8_t GB_54 = 55;
-const int8_t GB_55 = 56;
-const int8_t GB_56 = 57;
-const int8_t GB_57 = 58;
-const int8_t GB_58 = 59;
-const int8_t GB_59 = 60;
-const int8_t GB_60 = 61;
-const int8_t GB_61 = 62;
-const int8_t GB_62 = 63;
-const int8_t GB_63 = 64;
-
-const int8_t AXIS_LX = 0;  // Left stick X
-const int8_t AXIS_LY = 1;  // Left stick Y
-const int8_t AXIS_RX = 2;  // Right stick X
-const int8_t AXIS_RY = 3;  // Right stick Y
-const int8_t AXIS_LT = 4;  // Left trigger
-const int8_t AXIS_RT = 5;  // Right trigger
-
-const int8_t GA_LX = 0;
-const int8_t GA_LY = 1;
-const int8_t GA_RX = 2;
-const int8_t GA_RY = 3;
-const int8_t GA_LT = 4;
-const int8_t GA_RT = 5;
-
-const int8_t HAT_CENTER = 0x08;
-const int8_t HAT_UP = 0x00;
-const int8_t HAT_UP_RIGHT = 0x01;
-const int8_t HAT_RIGHT = 0x02;
-const int8_t HAT_DOWN_RIGHT = 0x03;
-const int8_t HAT_DOWN = 0x04;
-const int8_t HAT_DOWN_LEFT = 0x05;
-const int8_t HAT_LEFT = 0x06;
-const int8_t HAT_UP_LEFT = 0x07;
-
-const int8_t GB_UP = 65;
-const int8_t GB_RI = 66;
-const int8_t GB_DO = 67;
-const int8_t GB_LE = 68;
-
-static const int8_t hatPress[4][9] = {
-  { 0x00, 0x01, 0x01, 0x01, 0x00, 0x07, 0x07, 0x07, 0x00 }, // UP     |  UP     UP-RIGHT  RIGHT  DOWN-RIGHT  DOWN  DOWN-LEFT   LEFT   UP-LEFT   CENTER
-  { 0x01, 0x01, 0x02, 0x03, 0x03, 0x03, 0x02, 0x01, 0x02 }, // RIGHT  |  0x00     0x01     0x02     0x03     0x04     0x05     0x06     0x07     0x08
-  { 0x04, 0x03, 0x03, 0x03, 0x04, 0x05, 0x05, 0x05, 0x04 }, // DOWN   |  The numbers in both these arrays are in this order. This means, for the hatPress array,
-  { 0x07, 0x07, 0x06, 0x05, 0x05, 0x05, 0x06, 0x07, 0x06 }};// LEFT   |  the very last number says "When holding CENTER, pressing LEFT results in direction 0x06 (LEFT)						
+// Automatic update/polling function
+void _bleKeyboardAutoUpdate() {
+  static uint32_t lastUpdateTime = 0;
+  uint32_t currentTime = millis();
   
-static const int8_t hatRelease[4][9] = {
-  { 0x08, 0x02, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06, 0x08}, // UP      |  { 0x08, 0x02, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06, 0x08 } // UP
-  { 0x00, 0x00, 0x08, 0x04, 0x04, 0x05, 0x06, 0x07, 0x08}, // RIGHT   |     ^
-  { 0x00, 0x01, 0x02, 0x02, 0x08, 0x06, 0x06, 0x07, 0x08}, // DOWN    |     This means, "If you're pressing UP and you release UP, the result is 0x08 (CENTER)
-  { 0x00, 0x01, 0x02, 0x03, 0x04, 0x04, 0x08, 0x00, 0x08}};// LEFT    |     First value, so "If pressing UP", first row of hatRelease so "and UP is released", code is the result.
+  // Updating every 10ms currently
+  if (currentTime - lastUpdateTime >= SCAN_INTERVAL) {
+    lastUpdateTime = currentTime;
+    
+    if (_activeBleKeyboardInstance) {
+      _activeBleKeyboardInstance->_update();
+    }
+  }
+}
 
-enum GeminiPRKeys {
-  // Byte 0
-  GEMINI_FN    = 0x80,
-  GEMINI_NUM1  = 0x40,
-//GEMINI_NUM2  = 0x20, <-
-//GEMINI_NUM3  = 0x10, <-   None of these 5 actually exist for some reason.
-//GEMINI_NUM4  = 0x08, <-   I've added them as comments to mourn what could have been.
-//GEMINI_NUM5  = 0x04, <-
-//GEMINI_NUM6  = 0x02, <-
+// We're hooking into Arduino IDE's main loop here
+__attribute__((weak)) void loop() {
+  _bleKeyboardAutoUpdate();
+  delay(1); // Small delay was added to prevent overwhelming the CPU
+}
 
-  // Byte 1
-  GEMINI_S1    = 0x80,
-  GEMINI_S2    = 0x40,
-  GEMINI_T     = 0x20,
-  GEMINI_K     = 0x10,
-  GEMINI_P     = 0x08,
-  GEMINI_W     = 0x04,
-  GEMINI_H     = 0x02,
-  
-  // Byte 2
-  GEMINI_R     = 0x80,
-  GEMINI_A     = 0x40,
-  GEMINI_O     = 0x20,
-  GEMINI_STAR1 = 0x10,
-  GEMINI_STAR2 = 0x08,
-  GEMINI_RES1  = 0x04,
-  GEMINI_RES2  = 0x02,
-  
-  // Byte 3
-  GEMINI_PWR   = 0x80,
-  GEMINI_STAR3 = 0x40,
-  GEMINI_STAR4 = 0x20,
-  GEMINI_E     = 0x10,
-  GEMINI_U     = 0x08,
-  GEMINI_F     = 0x04,
-  GEMINI_R2    = 0x02,
-  
-  // Byte 4
-  GEMINI_P2    = 0x80,
-  GEMINI_B     = 0x40,
-  GEMINI_L     = 0x20,
-  GEMINI_G     = 0x10,
-  GEMINI_T2    = 0x08,
-  GEMINI_S     = 0x04,
-  GEMINI_D     = 0x02,
-  
-  // Byte 5
-  GEMINI_NUM7  = 0x80,
-  GEMINI_NUM8  = 0x40,
-  GEMINI_NUM9  = 0x20,
-  GEMINI_NUM10 = 0x10,
-  GEMINI_NUM11 = 0x08,
-  GEMINI_NUM12 = 0x04,
-  GEMINI_Z     = 0x02
+// This "HID Report Descriptor" tells your computer or phone what the ESP32 you've just connected is supposed to do
+static const uint8_t _hidReportDescriptor[] = {
+  // NKRO Report Descriptor (6KRO is emulated)
+  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x06,             // USAGE (Keyboard)
+  COLLECTION(1),      0x01,             // COLLECTION (Application)
+  REPORT_ID(1),       NKRO_KEYBOARD_ID, // REPORT_ID
+  USAGE_PAGE(1),      0x07,             // USAGE_PAGE (Key Codes)
+  USAGE_MINIMUM(1),   0xE0,             // USAGE_MINIMUM (Keyboard LeftControl)
+  USAGE_MAXIMUM(1),   0xE7,             // USAGE_MAXIMUM (Keyboard Right GUI)
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x08,             // REPORT_COUNT (8)
+  HIDINPUT(1),        0x02,             // INPUT (Data, Variable, Absolute)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
+  HIDINPUT(1),        0x01,             // INPUT (Constant)
+  REPORT_COUNT(1),    0x05,             // REPORT_COUNT (5)
+  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
+  USAGE_PAGE(1),      0x08,             // USAGE_PAGE (LEDs)
+  USAGE_MINIMUM(1),   0x01,             // USAGE_MINIMUM (Num Lock)
+  USAGE_MAXIMUM(1),   0x05,             // USAGE_MAXIMUM (Kana)
+  HIDOUTPUT(1),       0x02,             // OUTPUT (Data, Variable, Absolute)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  REPORT_SIZE(1),     0x03,             // REPORT_SIZE (3)
+  HIDOUTPUT(1),       0x01,             // OUTPUT (Constant)
+  USAGE_PAGE(1),      0x07,             // USAGE_PAGE (Key Codes)
+  USAGE_MINIMUM(1),   0x00,             // USAGE_MINIMUM (0)
+  USAGE_MAXIMUM(1),   0x6F,             // USAGE_MAXIMUM (111) - Maximum key index
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0xFC,             // REPORT_COUNT (252) - 252 keys
+  HIDINPUT(1),        0x02,             // INPUT (Data, Variable, Absolute)
+  END_COLLECTION(0),                      // END_COLLECTION
+  // ------------------------------------------------- Media Keys
+  USAGE_PAGE(1),      0x0C,             // USAGE_PAGE (Consumer)
+  USAGE(1),           0x01,             // USAGE (Consumer Control)
+  COLLECTION(1),      0x01,             // COLLECTION (Application)
+  REPORT_ID(1),       MEDIA_KEYS_ID,    // REPORT_ID
+  USAGE(2),           0x30, 0x01,       // USAGE (System Power)
+  USAGE(2),           0x34, 0x01,       // USAGE (System Sleep)
+  USAGE(2),           0x35, 0x01,       // USAGE (System Wake)
+  USAGE(1),           0xB5,             // USAGE (Next Track)
+  USAGE(1),           0xB6,             // USAGE (Previous Track)
+  USAGE(1),           0xB7,             // USAGE (Stop)
+  USAGE(1),           0xCD,             // USAGE (Play/Pause)
+  USAGE(1),           0xB3,             // USAGE (Fast Forward)
+  USAGE(1),           0xB4,             // USAGE (Rewind)
+  USAGE(1),           0xB8,             // USAGE (Eject)
+  USAGE(1),           0xE2,             // USAGE (Mute)
+  USAGE(1),           0xE9,             // USAGE (Volume Up)
+  USAGE(1),           0xEA,             // USAGE (Volume Down)
+  USAGE(1),           0x6F,             // USAGE (Brightness Up)
+  USAGE(1),           0x70,             // USAGE (Brightness Down)
+  USAGE(2),           0x94, 0x01,       // USAGE (My Computer)
+  USAGE(2),           0x92, 0x01,       // USAGE (Calculator)
+  USAGE(2),           0x8A, 0x01,       // USAGE (Mail)
+  USAGE(2),           0x83, 0x01,       // USAGE (Media Selection)
+  USAGE(2),           0x86, 0x01,       // USAGE (Control Panel)
+  USAGE(2),           0x87, 0x01,       // USAGE (Launchpad)
+  USAGE(2),           0x23, 0x02,       // USAGE (WWW Home)
+  USAGE(2),           0x2A, 0x02,       // USAGE (WWW Favorites)
+  USAGE(2),           0x21, 0x02,       // USAGE (WWW Search)
+  USAGE(2),           0x26, 0x02,       // USAGE (WWW Stop)
+  USAGE(2),           0x24, 0x02,       // USAGE (WWW Back)
+  USAGE(2),           0x25, 0x02,       // USAGE (WWW Forward)
+  USAGE(2),           0x27, 0x02,       // USAGE (WWW Refresh)
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x03,       // LOGICAL_MAXIMUM (1023)
+  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x1C,             // REPORT_COUNT (28)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  END_COLLECTION(0),                    // END_COLLECTION
+  // ------------------------------------------------- Pointers - Relative & Absolute
+  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x02,             // USAGE (Mouse)
+  COLLECTION(1),      0x01,             // COLLECTION (Application)
+  REPORT_ID(1),       MOUSE_ID,         // REPORT_ID
+  USAGE(1),           0x01,             // USAGE (Pointer)
+  COLLECTION(1),      0x00,             // COLLECTION (Physical)
+  // Buttons (5 bits)
+  USAGE_PAGE(1),      0x09,             // USAGE_PAGE (Button)
+  USAGE_MINIMUM(1),   0x01,             // USAGE_MINIMUM (Button 1)
+  USAGE_MAXIMUM(1),   0x05,             // USAGE_MAXIMUM (Button 5)
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x05,             // REPORT_COUNT (5)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Button padding (3 bits)
+  REPORT_SIZE(1),     0x03,             // REPORT_SIZE (3)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x03,             // INPUT (Constant)
+  // Relative X, Y, Wheel
+  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x30,             // USAGE (X)
+  USAGE(1),           0x31,             // USAGE (Y)
+  USAGE(1),           0x38,             // USAGE (Wheel)
+  LOGICAL_MINIMUM(1), 0x81,             // LOGICAL_MINIMUM (-127)
+  LOGICAL_MAXIMUM(1), 0x7F,             // LOGICAL_MAXIMUM (127)
+  REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
+  REPORT_COUNT(1),    0x03,             // REPORT_COUNT (3)
+  HIDINPUT(1),        0x06,             // INPUT (Data,Var,Rel)
+  // Horizontal Wheel
+  USAGE_PAGE(1),      0x0C,             // USAGE_PAGE (Consumer)
+  USAGE(2),           0x38, 0x02,            // USAGE (AC Pan)
+  LOGICAL_MINIMUM(1), 0x81,             // LOGICAL_MINIMUM (-127)
+  LOGICAL_MAXIMUM(1), 0x7F,             // LOGICAL_MAXIMUM (127)
+  REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x06,             // INPUT (Data,Var,Rel)
+  // Absolute X, Y (16-bit)
+  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x30,             // USAGE (X)
+  USAGE(1),           0x31,             // USAGE (Y)
+  LOGICAL_MINIMUM(2), 0x00, 0x00,       // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
+  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Pressure (Vendor-defined)
+  USAGE_PAGE(2),      0xFF, 0x00,       // USAGE_PAGE (Vendor Defined)
+  USAGE(1),           0x01,             // USAGE (Vendor Usage 1)
+  LOGICAL_MINIMUM(2), 0x00, 0x00,       // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x03,       // LOGICAL_MAXIMUM (1023)
+  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Tip Switch (Vendor-defined)
+  USAGE(1),           0x02,             // USAGE (Vendor Usage 2)
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Tip Switch padding (7 bits)
+  REPORT_SIZE(1),     0x07,             // REPORT_SIZE (7)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x03,             // INPUT (Constant)
+  END_COLLECTION(0),                    // END_COLLECTION (Physical)
+  END_COLLECTION(0),                    // END_COLLECTION (Application)
+  // ------------------------------------------------- GeminiPR Steno Protocol
+  USAGE_PAGE(1),       0xFF, 0x00,       // USAGE_PAGE (Vendor Defined)
+  USAGE(1),            0x01,             // USAGE (Vendor Usage 1)
+  COLLECTION(1),       0x01,             // COLLECTION (Application)
+  REPORT_ID(1),        GEMINIPR_ID,      // REPORT_ID
+  // 6-byte GeminiPR packet (48 bits)
+  LOGICAL_MINIMUM(1),  0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1),  0x01,             // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),      0x01,             // REPORT_SIZE (1)
+  REPORT_COUNT(1),     0x30,             // REPORT_COUNT (48) - 48 bits
+  USAGE(1),            0x01,             // USAGE (Vendor Usage 1)
+  HIDINPUT(1),         0x02,             // INPUT (Data, Variable, Absolute)
+  END_COLLECTION(0),                      // END_COLLECTION
+  // ------------------------------------------------- Gamepad
+  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x05,             // USAGE (Game Pad)
+  COLLECTION(1),      0x01,             // COLLECTION (Application)
+  REPORT_ID(1),       GAMEPAD_ID,       // REPORT_ID
+  // 64 buttons in bitfield
+  USAGE_PAGE(1),      0x09,             // USAGE_PAGE (Button)
+  USAGE_MINIMUM(1),   0x01,             // USAGE_MINIMUM (Button 1)
+  USAGE_MAXIMUM(1),   0x40,             // USAGE_MAXIMUM (Button 64)
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x40,             // REPORT_COUNT (64)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Left Stick X/Y
+  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x01,             // USAGE (Pointer)
+  COLLECTION(1),      0x00,             // COLLECTION (Physical)
+  USAGE(1),           0x30,             // USAGE (X)
+  USAGE(1),           0x31,             // USAGE (Y)
+  LOGICAL_MINIMUM(2), 0x01, 0x80,       // LOGICAL_MINIMUM (-32767)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
+  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  END_COLLECTION(0),                    // END_COLLECTION (Physical)
+  // Right Stick X/Y
+  USAGE(1),           0x01,             // USAGE (Pointer)
+  COLLECTION(1),      0x00,             // COLLECTION (Physical)
+  USAGE(1),           0x33,             // USAGE (Rx)
+  USAGE(1),           0x34,             // USAGE (Ry)
+  LOGICAL_MINIMUM(2), 0x01, 0x80,       // LOGICAL_MINIMUM (-32767)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
+  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  END_COLLECTION(0),                    // END_COLLECTION (Physical)
+  // Triggers
+  USAGE(1),           0x32,             // USAGE (Z) - Left Trigger
+  USAGE(1),           0x35,             // USAGE (Rz) - Right Trigger
+  LOGICAL_MINIMUM(2), 0x00, 0x00,       // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
+  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Hat Switch
+  USAGE(1),           0x39,             // USAGE (Hat Switch)
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x07,             // LOGICAL_MAXIMUM (7)
+  PHYSICAL_MINIMUM(1),0x00,             // PHYSICAL_MINIMUM (0)
+  PHYSICAL_MAXIMUM(2),0x3B, 0x01,       // PHYSICAL_MAXIMUM (315)
+  UNIT(1),            0x14,             // UNIT (Degrees)
+  REPORT_SIZE(1),     0x04,             // REPORT_SIZE (4)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Hat padding (4 bits)
+  REPORT_SIZE(1),     0x04,             // REPORT_SIZE (4)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x03,             // INPUT (Constant)
+  // Haptic Motors
+  USAGE_PAGE(1),      0x0F,             // USAGE_PAGE (Physical Interface)
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0xFF,             // LOGICAL_MAXIMUM (255)
+  REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
+  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
+  USAGE(1),           0x97,             // USAGE (Magnitude) - Left Motor
+  USAGE(1),           0x97,             // USAGE (Magnitude) - Right Motor
+  HIDOUTPUT(1),       0x02,             // OUTPUT (Data,Var,Abs)
+  END_COLLECTION(0),                     // END_COLLECTION (Application)
 };
 
-using StenoKey = int32_t;
-
-const StenoKey ST_FN    = GEMINI_FN;
-const StenoKey ST_1     = GEMINI_NUM1;
-const StenoKey ST_S1    = GEMINI_S1;
-const StenoKey ST_S2    = GEMINI_S2;
-const StenoKey ST_T     = GEMINI_T;
-const StenoKey ST_K     = GEMINI_K;
-const StenoKey ST_P     = GEMINI_P;
-const StenoKey ST_W     = GEMINI_W;
-const StenoKey ST_H     = GEMINI_H;
-const StenoKey ST_R     = GEMINI_R;
-const StenoKey ST_A     = GEMINI_A;
-const StenoKey ST_O     = GEMINI_O;
-const StenoKey ST_ST1   = GEMINI_STAR1;
-const StenoKey ST_ST2   = GEMINI_STAR2;
-const StenoKey ST_RS1   = GEMINI_RES1;
-const StenoKey ST_RS2   = GEMINI_RES2;
-const StenoKey ST_PWR   = GEMINI_PWR;
-const StenoKey ST_ST3   = GEMINI_STAR3;
-const StenoKey ST_ST4   = GEMINI_STAR4;
-const StenoKey ST_E     = GEMINI_E;
-const StenoKey ST_U     = GEMINI_U;
-const StenoKey ST_F     = GEMINI_F;
-const StenoKey ST_R2    = GEMINI_R2;
-const StenoKey ST_P2    = GEMINI_P2;
-const StenoKey ST_B     = GEMINI_B;
-const StenoKey ST_L     = GEMINI_L;
-const StenoKey ST_G     = GEMINI_G;
-const StenoKey ST_T2    = GEMINI_T2;
-const StenoKey ST_S     = GEMINI_S;
-const StenoKey ST_D     = GEMINI_D;
-const StenoKey ST_7     = GEMINI_NUM7;
-const StenoKey ST_8     = GEMINI_NUM8;
-const StenoKey ST_9     = GEMINI_NUM9;
-const StenoKey ST_10    = GEMINI_NUM10;
-const StenoKey ST_11    = GEMINI_NUM11;
-const StenoKey ST_12    = GEMINI_NUM12;
-const StenoKey ST_Z     = GEMINI_Z;
-
-class BleKeyboard : public Print
-    , public NimBLEServerCallbacks
-    , public NimBLECharacteristicCallbacks
+// This is a "constructor". It takes that class from the BleKeyboard.h file, and turns it into "objects" that can actually be used.
+BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer, uint8_t batteryLevel) 
+    : hid(0)
+    , deviceName(std::string(deviceName).substr(0, 15))
+    , deviceManufacturer(std::string(deviceManufacturer).substr(0,15))
+    , batteryLevel(batteryLevel) 
+    , _mediaKeyBitmask(0) 
+    , _useNKRO(true)
+    , _mouseButtons(0)
+    , _useAbsolute(false)
+    , _onVibrateCallback(nullptr) 
+    , lastPollTime(0) 
 {
-private:
-  BLEHIDDevice*      hid;
-  uint16_t           appearance = HID_KEYBOARD;
-  std::string        deviceName;
-  std::string        deviceManufacturer;
-  uint8_t            batteryLevel;
-  
-  BLECharacteristic* outputKeyboard;
-  BLECharacteristic* inputMediaKeys;
-  BLECharacteristic* inputNKRO;
-  BLECharacteristic* inputMouse;
-  BLECharacteristic* inputGamepad;
-  BLECharacteristic* inputGeminiPR;
-  
-  KeyReportNKRO      _keyReportNKRO;
-  PointerReport      _pointerReport;
-  GamepadReport      _gamepadReport;
-  GeminiPRReport     _geminiReport;
-  
-  uint32_t           passkey = 0;           // PIN code (0 = no security)
-  bool               bonding_enabled = true; 
-  void               _update();
-  friend void        _bleKeyboardAutoUpdate(void);
-  BLEAdvertising*    advertising;
-  uint32_t           _mediaKeyBitmask;
-  uint8_t            _mouseButtons;
-  uint32_t           _delay_ms = 7;
-  bool               _useNKRO = true;  // Default to NKRO
-  bool               _useAbsolute = false;
+  // Initialize reports
+  memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
+  memset(&_pointerReport, 0, sizeof(_pointerReport));
+  memset(&_gamepadReport, 0, sizeof(_gamepadReport));
+  memset(&_geminiReport, 0, sizeof(_geminiReport));
+  _gamepadReport.hat = HAT_CENTER; // Initialize hat to center position 
+  _activeBleKeyboardInstance = this;
+}
+// This is a "destructor". It takes objects the contructor made, and destroys them whenever you tell it to. 
+BleKeyboard::~BleKeyboard() { 
+  // Unregister this instance
+  if (_activeBleKeyboardInstance == this) {
+    _activeBleKeyboardInstance = nullptr;
+  }
+}
 
-  uint16_t vid       = 0x05ac; // I picked random numbers here and it worked fine,
-  uint16_t pid       = 0x820a; // idk if these actually matter at all for anything
-  uint16_t version   = 0x0210;
+void BleKeyboard::begin(void) {
   
-  friend void pollConnection(void * arg);
-  uint8_t  last_connected_count = 0;   // previous poll result
-  uint32_t lastPollTime = 0;
-  static const uint32_t POLL_INTERVAL = 1000; // 1 second in milliseconds
-  static void securityCallback(uint32_t passkey); 
-  uint32_t mediaKeyToBitmask(uint16_t usageCode);
-  void updateNKROBitmask(uint8_t k, bool pressed);
-  uint8_t countPressedKeys();
-  void (*_onVibrateCallback)(uint8_t leftMotor, uint8_t rightMotor) = nullptr;
+    // Initialise BLE stack only once
+    if (getInitialized) {
+        Serial.printf("[%s] BLE already initialized, cleaning up first...\n", LOG_TAG);
+        end();
+        delay(100);
+    } else { NimBLEDevice::init(deviceName.c_str()); }
+    
+    // Configure security if enabled
+    if (isSecurityEnabled()) {
+        // Enhanced security configuration for bonding
+        NimBLEDevice::setSecurityAuth(true, true, true); // Bonding, MITM, Secure Connections
+        NimBLEDevice::setSecurityPasskey(passkey);
+        NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
+        
+        // Configure bonding parameters
+        if (bonding_enabled) {
+            NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+            NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+        }
+        
+        Serial.printf("[%s] Security configured with PIN: %06lu, Bonding: %s\n", 
+                 LOG_TAG, passkey, bonding_enabled ? "enabled" : "disabled");
+    } else {
+        // For "Just Works" pairing, still enable bonding if requested
+        if (bonding_enabled) {
+            NimBLEDevice::setSecurityAuth(true, false, false); // Bonding only, no MITM
+            NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC);
+            NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC);
+            Serial.printf("[%s] Just Works pairing with bonding enabled\n", LOG_TAG);
+        } else {
+            NimBLEDevice::setSecurityAuth(false, false, false);
+            Serial.printf("[%s] Running without security (Just Works)\n", LOG_TAG);
+        }
+    }
+    
+    // Create server & install callbacks
+    NimBLEServer *pServer = NimBLEDevice::createServer();
+    pServer->setCallbacks(this);
 
-public:
-  BleKeyboard(std::string deviceName = "ESP32 Keyboard", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
-  
-  ~BleKeyboard();
-  
-  void begin(void);
-  void end(void);
-  
- // Security methods
-  void setPIN(const char* pin);                 // Set 6-digit PIN like "123456"
-  void setPIN(uint32_t pin);                    // Set numeric PIN
-  void disableSecurity(bool enable = true);     // Enable/disable security
-  bool isSecurityEnabled() const;               // Check if security is enabled
-  
-  void enableBonding(bool enable = true);
-  void clearBonds();
-  bool isBonded() const;
-  
-  void setAppearance(uint16_t newAppearance);
-  
-  // The library differentiates between keys, modifiers, and media keys by storing them using 3 different integer types
-  size_t press(uint8_t k);           // I went with uint8_t for normal keycodes
-  size_t press(int16_t modifier);    // I chose int16_t for modifiers
-  size_t press(uint16_t mediaKey);   // I picked uint16_t for media keys
-  void   press(int8_t button);       // Next, int8_t is for the gamepad buttons
-  void   press(char b = MOUSE_LEFT); // Finally, char is for mouse clicks . . .
-  size_t press(int32_t stenoKey);    // . . . And int32_t is for the steno keys
-  void   press(uint16_t x, uint16_t y, char b = MOUSE_LEFT);  // Feeding in coordinates makes it assume you're trying to use absolute pointer mode
-  
-  size_t release(uint8_t k);
-  size_t release(int16_t modifier);
-  size_t release(uint16_t mediaKey);
-  void   release(int8_t button);
-  void   release(char b = MOUSE_LEFT);
-  size_t release(int32_t stenoKey);
-  void   release(uint16_t x, uint16_t y, char b = MOUSE_LEFT);
-  
-  size_t write(uint8_t c);
-  size_t write(int16_t modifier);
-  size_t write(uint16_t mediaKey);
-  size_t write(const uint8_t *buffer, size_t size);
-  
-  void releaseAll();
-  void mouseReleaseAll();
-  
-  void sendNKROReport();
-  void sendMediaReport();
-  void sendGeminiPRReport();
-  void sendGamepadReport();
-  
-  // NKRO/6KRO mode switching
-  void useNKRO(bool state = enabled);
-  void use6KRO(bool state = enabled);
-  bool isNKROEnabled();
-  
-  // BLE helper functions
-  bool isConnected(void);
-  void setBatteryLevel(uint8_t level);
-  void setName(std::string deviceName);  
-  void setManufacturer(std::string deviceManufacturer);
-  void setDelay(uint32_t ms);
+    // Create HID device object
+    hid = new NimBLEHIDDevice(pServer);
 
-  // Misc hardware helper functions
-  void set_vendor_id(uint16_t vid);
-  void set_product_id(uint16_t pid);
-  void set_version(uint16_t version);
-  
-  // Modifier key helper functions
-  void setModifiers(uint8_t modifiers);
-  uint8_t getModifiers();
-  
-  // Media key helper functions
-  void setMediaKeyBitmask(uint32_t bitmask);
-  uint32_t getMediaKeyBitmask();
-  void addMediaKey(uint16_t mediaKey);
-  void removeMediaKey(uint16_t mediaKey);
+    // Obtain report-characteristic pointers
+    outputKeyboard = hid->getOutputReport(KEYBOARD_ID);
+    inputNKRO      = hid->getInputReport(NKRO_KEYBOARD_ID);
+    inputMediaKeys = hid->getInputReport(MEDIA_KEYS_ID);
+    inputMouse     = hid->getInputReport(MOUSE_ID);
+    inputGeminiPR  = hid->getInputReport(GEMINIPR_ID);
+    inputGamepad   = hid->getInputReport(GAMEPAD_ID);
 
-  // Pointer helper functions (Duplicates are so the same commands can support relative or absolute depending upon whether you feed in coordinates)
-  void click(char b = MOUSE_LEFT);
-  void click(uint16_t x, uint16_t y, char b = MOUSE_LEFT);
-  void move(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
-  void moveTo(uint16_t x, uint16_t y, signed char wheel = 0, signed char hWheel = 0);
-  bool mouseIsPressed(char b = MOUSE_LEFT);
-  
-  // Absolute pointer helpers
-  void useAbsolute(bool enable = true);
-  void useRelative(bool enable = true);
-  void setAbsoluteRange(uint16_t minVal = 0, uint16_t maxVal = 32767);
-  bool isAbsoluteEnabled();
-  
-   // Pressure-sensitive drawing helpers
-  void moveToWithPressure(uint16_t x, uint16_t y, uint16_t pressure = 512, bool touching = true);
-  void clickWithPressure(uint16_t x, uint16_t y, uint16_t pressure = 1023, uint8_t button = MOUSE_LEFT);
-  void beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 1);
-  void updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
-  void endStroke(uint16_t x, uint16_t y);
-  uint16_t getPressure() const;
-  bool getTipSwitch() const;
-  void setPressure(uint16_t pressure);  // Pressure values are 0-1023
-  void setTipSwitch(bool state);
-  
-  // Gamepad helpers
-  bool gamepadIsPressed(int8_t button);
-  void gamepadSetLeftStick(int16_t x, int16_t y);
-  void gamepadSetRightStick(int16_t x, int16_t y);
-  void gamepadSetTriggers(int16_t left, int16_t right);
-  void gamepadGetLeftStick(int16_t &x, int16_t &y);
-  void gamepadGetRightStick(int16_t &x, int16_t &y);
-  void gamepadSetAxis(int8_t axis, int16_t value);
-  int16_t gamepadGetAxis(int8_t axis);
-  void gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
-  void onVibrate(void (*callback)(uint8_t leftMotor, uint8_t rightMotor));
-  bool isHapticsSupported() const;
-  
-  // GeminiPR methods
-  void geminiStroke(const int32_t* keys, size_t count);
-  
-  // Helper to convert steno notation to key codes
-  uint8_t stenoCharToKey(char c);
-  
-protected:
-  virtual void onStarted(BLEServer *pServer) { };
-  virtual uint32_t onPassKeyRequest();
-  virtual void onAuthenticationComplete(ble_gap_conn_desc* desc);
-  virtual bool onSecurityRequest();
-  virtual void onMouseStarted(BLEServer *pServer) { };
-  virtual void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc);
-  virtual void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason);
-  virtual void onWrite(NimBLECharacteristic* me);
-};
+    outputKeyboard->setCallbacks(this);
+    if (inputNKRO) {inputNKRO->setCallbacks(this);}
+    if (inputMediaKeys) {inputMediaKeys->setCallbacks(this);}
+    if (inputMouse) {inputMouse->setCallbacks(this);}
+    if (inputGeminiPR) {inputGeminiPR->setCallbacks(this);}
+    if (inputGamepad) {inputGamepad->setCallbacks(this);}
+    
+    // Manufacturer / PnP / HID-info
+    hid->setManufacturer(std::string(deviceManufacturer.c_str()));
+    hid->setHidInfo(0x00, 0x01);
 
-#endif // CONFIG_BT_ENABLED
-#endif // ESP32_BLE_KEYBOARD_H
+    // Publish HID report map and start services
+    hid->setReportMap((uint8_t *)_hidReportDescriptor, sizeof(_hidReportDescriptor));
+    hid->startServices();
+
+    // Advertising setup
+    advertising = pServer->getAdvertising();
+    BLEAdvertisementData adv, scan;
+    
+    scan.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
+    scan.setName(deviceName.c_str());
+    scan.setShortName(deviceName.substr(0, 8).c_str());
+    scan.setAppearance(this->appearance);
+    scan.addServiceUUID(hid->getHidService()->getUUID());
+    scan.setManufacturerData((deviceManufacturer).c_str());
+
+    adv.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
+    adv.setName(deviceName.c_str());
+    adv.setShortName(deviceName.substr(0, 8).c_str());
+    adv.setAppearance(this->appearance);
+    adv.setCompleteServices(hid->getHidService()->getUUID());
+    adv.addServiceUUID(hid->getHidService()->getUUID());
+    adv.setManufacturerData((deviceManufacturer).c_str());
+
+    advertising->setMinInterval(32);    // 20ms in 0.625ms units
+    advertising->setMaxInterval(160);   // 100ms in 0.625ms units  
+    advertising->setAdvertisementData(adv);
+    advertising->setScanResponseData(scan);
+
+    // Start advertising & finish
+    onStarted(pServer);
+    advertising->start();
+    hid->setBatteryLevel(batteryLevel);
+    
+    lastPollTime = millis();
+
+    Serial.printf("[%s] Advertising started!\n", LOG_TAG);
+    Serial.printf("[%s] Device name: %s\n", LOG_TAG, deviceName.c_str());
+    Serial.printf("[%s] Service UUID: %s\n", LOG_TAG, hid->getHidService()->getUUID().toString().c_str());
+    Serial.printf("[%s] Using %s mode by default\n", LOG_TAG, _useNKRO ? "NKRO" : "6KRO");
+    
+    getInitialized = true;
+}
+
+void BleKeyboard::end(void) {
+  if (hid != 0) {
+    delete hid;
+    hid = 0;
+  }
+  BLEDevice::deinit(true);
+  getInitialized = false;
+  Serial.printf("[%s] BLE Keyboard stopped\n", LOG_TAG);
+}
+
+void BleKeyboard::_update() {
+  uint32_t currentTime = millis();
+  
+  // Handle millis() rollover
+  if (currentTime < lastPollTime) {
+    lastPollTime = currentTime;
+    return;
+  }
+  
+  if (currentTime - lastPollTime >= POLL_INTERVAL) {
+    lastPollTime = currentTime;
+    pollConnection(this);
+  }
+}
+
+// Security callback - displays PIN to user
+void BleKeyboard::securityCallback(uint32_t passkey) {
+  Serial.printf("[%s] Pairing PIN: %06lu\n", LOG_TAG, passkey);
+  // You could add display output here if you have an LCD/OLED
+}
+
+void BleKeyboard::onAuthenticationComplete(ble_gap_conn_desc* desc) {
+    Serial.printf("[%s] Authentication complete - encrypted: %s, authenticated: %s\n", LOG_TAG,
+             desc->sec_state.encrypted ? "yes" : "no",
+             desc->sec_state.authenticated ? "yes" : "no");
+}
+
+void BleKeyboard::setPIN(const char* pin) {
+  if (pin == nullptr) {
+    disableSecurity();
+    return;
+  }
+  
+  if (strlen(pin) == 6) {
+    this->passkey = atoi(pin);
+    Serial.printf("[%s] Security enabled with PIN: %s\n", LOG_TAG, pin);
+  } else {
+    Serial.printf("[%s] PIN must be 6 digits, security disabled\n", LOG_TAG);
+    this->passkey = 0;
+  }
+}
+
+void BleKeyboard::setPIN(uint32_t pin) {
+  if (pin >= 1 && pin <= 999999) {  // 0 means no security
+    this->passkey = pin;
+    Serial.printf("[%s] Security enabled with PIN: %06lu\n", LOG_TAG, pin);
+  } else {
+    Serial.printf("[%s] PIN must be between 000001 and 999999, security disabled\n", LOG_TAG);
+    this->passkey = 0;
+  }
+}
+
+void BleKeyboard::disableSecurity(bool enable) {
+  if (!enable) {
+    this->passkey = 0;
+    Serial.printf("[%s] Security disabled\n", LOG_TAG);
+  } else {
+    Serial.printf("[%s] Security remains enabled (call setPIN to enable)\n", LOG_TAG);
+  }
+}
+
+bool BleKeyboard::isSecurityEnabled() const {
+  return passkey != 0;
+}
+
+// Update the security callbacks to check passkey directly
+uint32_t BleKeyboard::onPassKeyRequest() {
+  Serial.printf("[%s] PassKeyRequest received\n", LOG_TAG);
+  if (isSecurityEnabled()) {
+    securityCallback(passkey);
+    return passkey;
+  }
+  return 0; // No PIN = Just Works
+}
+
+bool BleKeyboard::onSecurityRequest() {
+  Serial.printf("[%s] Security request received\n", LOG_TAG);
+  return isSecurityEnabled(); // Only require auth if we have a PIN
+}
+
+void BleKeyboard::setAppearance(uint16_t newAppearance) {
+  this->appearance = newAppearance;
+  Serial.printf("[%s] Appearance set to: 0x%04X\n", LOG_TAG, newAppearance);
+}
+
+bool BleKeyboard::isConnected(void) {
+    // Always check the actual BLE state - relying on cached flags kept breaking for some reason
+    if (NimBLEDevice::getServer()) {
+        int connectedClients = NimBLEDevice::getServer()->getConnectedCount();
+        
+        // Debug logging (every 10 seconds)
+        static uint64_t lastLogTime = 0;
+        uint64_t currentTime = micros();
+        
+        if (currentTime - lastLogTime > 10000000) { // This is just 10 seconds in microseconds
+            Serial.printf("[%s] BLE Status - Connected clients: %d, Advertising: %s\n", LOG_TAG,
+                    connectedClients,
+                    advertising ? (advertising->isAdvertising() ? "Yes" : "No") : "Null");
+            lastLogTime = currentTime;
+        }
+        
+        return (connectedClients > 0);
+    }
+    
+    static uint64_t lastLogTime = 0;
+    uint64_t currentTime = micros();
+    
+    if (currentTime - lastLogTime > 10000000) {
+        Serial.printf("[%s] BLE Status: No server instance available\n", LOG_TAG);
+        lastLogTime = currentTime;
+    }
+    
+    return false;
+}
+
+void BleKeyboard::setBatteryLevel(uint8_t level) {
+  this->batteryLevel = level;
+  if (hid != 0)
+    this->hid->setBatteryLevel(this->batteryLevel);
+}
+
+//must be called before begin in order to set the name
+void BleKeyboard::setName(std::string deviceName) {
+  this->deviceName = deviceName;
+}
+
+//must be called before begin in order to set the manufacturer
+void BleKeyboard::setManufacturer(std::string deviceManufacturer) {
+  this->deviceManufacturer = deviceManufacturer;
+}
+
+// Sets the waiting time (in milliseconds) between multiple keystrokes in NimBLE mode.
+void BleKeyboard::setDelay(uint32_t ms) {
+  _delay_ms = ms;
+}
+
+void BleKeyboard::set_vendor_id(uint16_t vid) { 
+	this->vid = vid; 
+}
+
+void BleKeyboard::set_product_id(uint16_t pid) { 
+	this->pid = pid; 
+}
+
+void BleKeyboard::set_version(uint16_t version) { 
+	this->version = version; 
+}
+
+void BleKeyboard::sendMediaReport() {
+  if (this->isConnected()) {
+    // Send the current media key bitmask
+    this->inputMediaKeys->setValue((uint8_t*)&_mediaKeyBitmask, sizeof(uint32_t));
+    this->inputMediaKeys->notify();
+    delay(_delay_ms);
+  }	
+}
+
+void BleKeyboard::sendNKROReport() {
+  if (this->isConnected() && inputNKRO) {
+    inputNKRO->setValue((uint8_t*)&_keyReportNKRO, sizeof(KeyReportNKRO));
+    inputNKRO->notify();
+    delay(_delay_ms);
+  }
+}
+
+void BleKeyboard::updateNKROBitmask(uint8_t k, bool pressed) {
+  if (k < NKRO_KEY_COUNT) {
+    uint8_t bitmaskIndex = k / 8;
+    uint8_t bitOffset = k % 8;
+    
+    if (pressed) {
+      _keyReportNKRO.keys_bitmask[bitmaskIndex] |= (1 << bitOffset);
+    } else {
+      _keyReportNKRO.keys_bitmask[bitmaskIndex] &= ~(1 << bitOffset);
+    }
+  }
+}
+
+// NKRO/6KRO mode switching functions
+void BleKeyboard::useNKRO(bool state) {
+  _useNKRO = state; // state = enabled, therefore _useNKRO = true/enabled
+  Serial.printf("[%s] Switched to %s mode\n", LOG_TAG, _useNKRO ? "NKRO" : "6KRO");
+}
+
+void BleKeyboard::use6KRO(bool state) {
+  _useNKRO = !state; // state = enabled, therefore _useNKRO = not true/enabled = false
+  Serial.printf("[%s] Switched to %s mode\n", LOG_TAG, _useNKRO ? "NKRO" : "6KRO");
+}
+
+bool BleKeyboard::isNKROEnabled() {
+  return _useNKRO;
+}
+
+static uint8_t charToKeyCode(char c, bool *needShift) {
+    *needShift = false;
+
+    if (c >= '0' && c <= '9')            return (c - '0') + 0x27;   // 0x27…0x30
+    if (c == ')')  { *needShift = true;  return 0x27; }            // shift-0
+    if (c == '!')  { *needShift = true;  return 0x1e; }            // shift-1
+    if (c == '@')  { *needShift = true;  return 0x1f; }            // shift-2
+    if (c == '#')  { *needShift = true;  return 0x20; }            // shift-3
+    if (c == '$')  { *needShift = true;  return 0x21; }            // shift-4
+    if (c == '%')  { *needShift = true;  return 0x22; }            // shift-5
+    if (c == '^')  { *needShift = true;  return 0x23; }            // shift-6
+    if (c == '&')  { *needShift = true;  return 0x24; }            // shift-7
+    if (c == '*')  { *needShift = true;  return 0x25; }            // shift-8
+    if (c == '(')  { *needShift = true;  return 0x26; }            // shift-9
+
+    if (c >= 'a' && c <= 'z')            return (c - 'a') + 0x04;   // 0x04…0x1D
+    if (c >= 'A' && c <= 'Z') { *needShift = true;  return (c - 'A') + 0x04; }
+
+    switch (c)
+    {
+    case '\n': case '\r':                return KEY_ENTER;          // 0xB0
+    case '\t':                           return KEY_TAB;            // 0xB3
+    case ' ':                            return KEY_SPACE;          // 0x2C
+    case '-': case '_':
+        if (c == '_') *needShift = true;
+        return KEY_MINUS;                                      // 0x2D
+    case '=': case '+':
+        if (c == '+') *needShift = true;
+        return KEY_EQUAL;                                      // 0x2E
+    case '[': case '{':
+        if (c == '{') *needShift = true;
+        return KEY_LEFT_BRACKET;                               // 0x2F
+    case ']': case '}':
+        if (c == '}') *needShift = true;
+        return KEY_RIGHT_BRACKET;                              // 0x30
+    case '\\': case '|':
+        if (c == '|') *needShift = true;
+        return KEY_BACKSLASH;                                  // 0x31
+    case ';': case ':':
+        if (c == ':') *needShift = true;
+        return KEY_SEMICOLON;                                  // 0x33
+    case '\'': case '"':
+        if (c == '"') *needShift = true;
+        return KEY_APOSTROPHE;                                 // 0x34
+    case '`': case '~':
+        if (c == '~') *needShift = true;
+        return KEY_GRAVE;                                      // 0x35
+    case ',': case '<':
+        if (c == '<') *needShift = true;
+        return KEY_COMMA;                                      // 0x36
+    case '.': case '>':
+        if (c == '>') *needShift = true;
+        return KEY_PERIOD;                                     // 0x37
+    case '/': case '?':
+        if (c == '?') *needShift = true;
+        return KEY_FORWARD_SLASH;                              // 0x38
+    default:                             return 0;                // non-printable
+    }
+}
+
+size_t BleKeyboard::press(uint8_t k) {
+  // This function ONLY handles regular keycodes (uint8_t)
+  if (k >= 136) { 
+    k = k - 136;
+  }
+  
+  if (k != 0) {
+    // Check if we're already at 6 non-modifier keys
+    if (!_useNKRO && countPressedKeys() >= 6) {
+      setWriteError();                
+      return 0;
+    }
+    
+    // Update the bitmask - ONLY for regular keys
+    updateNKROBitmask(k, true);
+  }
+  
+  sendNKROReport();
+  return 1;
+}
+
+size_t BleKeyboard::press(int16_t modifier) {
+  // This function ONLY handles modifier keys (0x0100-0x8000)
+  
+  // Convert internal modifier code to HID modifier code
+  uint8_t hidModifier = 0;
+  if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
+    hidModifier = modifier >> 8;
+  } else {
+    return 0; // Invalid modifier
+  }
+  
+  _keyReportNKRO.modifiers |= hidModifier;
+  sendNKROReport();
+  return 1;
+}
+
+size_t BleKeyboard::press(uint16_t mediaKey) {
+    addMediaKey(mediaKey);
+    return 1;
+}
+
+
+void BleKeyboard::press(int8_t button) {
+    if (button >= 1 && button <= 64) {
+        uint8_t field = (button - 1) / 32;
+        uint8_t bit = (button - 1) % 32;
+        _gamepadReport.buttons[field] |= (1UL << bit);
+    }
+    else if (button >= 65 && button <= 68) {
+        uint8_t currentHat = _gamepadReport.hat;
+        uint8_t directionIndex = button - 65; // Convert 65-68 to 0-3
+        
+        _gamepadReport.hat = hatPress[directionIndex][currentHat];
+    }
+    sendGamepadReport();
+}
+
+void BleKeyboard::press(char b) {
+  _mouseButtons |= b;
+  _pointerReport.buttons = _mouseButtons;  // Use combined structure
+  
+  if (_useAbsolute) {
+    moveTo(_pointerReport.absX, _pointerReport.absY);
+  } else {
+    move(0, 0, 0, 0);
+  }
+}
+
+void BleKeyboard::press(uint16_t x, uint16_t y, char b) {
+  if (!_useAbsolute) {
+    useAbsolute(true);
+  }
+  
+  _pointerReport.buttons |= b;
+  moveTo(x, y);
+}
+
+size_t BleKeyboard::press(int32_t stenoKey) {
+  // Remove the _useGeminiPR check and auto-enable logic
+  // Convert int32_t to uint8_t (safe since steno keys are 0-255)
+  uint8_t key = (uint8_t)(stenoKey & 0xFF);
+  
+  // Set the appropriate bit in the GeminiPR packet
+  if (key & 0x80) _geminiReport.byte0 |= (key & 0xC0);
+  else if (key & 0x40) _geminiReport.byte1 |= key;
+  else if (key & 0x20) _geminiReport.byte2 |= key;
+  else if (key & 0x10) _geminiReport.byte3 |= key;
+  else if (key & 0x08) _geminiReport.byte4 |= key;
+  else if (key & 0x04) _geminiReport.byte5 |= key;
+  
+  sendGeminiPRReport();
+  return 1;
+}
+
+// This just sends a keyup event/unpresses a given key
+size_t BleKeyboard::release(uint8_t k) {
+  // This function ONLY handles regular keycodes
+  if (k >= 136) {
+    k = k - 136;
+  }
+  
+  if (k != 0) {
+    updateNKROBitmask(k, false);
+  }
+  
+  sendNKROReport();
+  return 1;
+}
+
+size_t BleKeyboard::release(int16_t modifier) {
+  // This function ONLY handles modifier keys
+  
+  // Convert internal modifier code to HID modifier code
+  uint8_t hidModifier = 0;
+  if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
+    hidModifier = modifier >> 8;
+  } else {
+    return 0; // Invalid modifier
+  }
+  
+  _keyReportNKRO.modifiers &= ~hidModifier;
+  sendNKROReport();
+  return 1;
+}
+
+size_t BleKeyboard::release(uint16_t mediaKey) {
+    removeMediaKey(mediaKey);
+    return 1;
+}
+
+void BleKeyboard::release(int8_t button) {
+    if (button >= 1 && button <= 64) {
+        uint8_t field = (button - 1) / 32;
+        uint8_t bit = (button - 1) % 32;
+        _gamepadReport.buttons[field] &= ~(1UL << bit);
+    }
+    else if (button >= 65 && button <= 68) {
+        uint8_t currentHat = _gamepadReport.hat;
+        uint8_t directionIndex = button - 65; // Convert 65-68 to 0-3
+        
+        _gamepadReport.hat = hatRelease[directionIndex][currentHat];
+    }
+    sendGamepadReport();
+}
+
+void BleKeyboard::release(char b) {
+  _mouseButtons &= ~b;
+  _pointerReport.buttons = _mouseButtons;  // Use combined structure
+  
+  if (_useAbsolute) {
+    moveTo(_pointerReport.absX, _pointerReport.absY);
+  } else {
+    move(0, 0, 0, 0);
+  }
+}
+
+size_t BleKeyboard::release(int32_t stenoKey) {
+  // Convert int32_t to uint8_t
+  uint8_t key = (uint8_t)(stenoKey & 0xFF);
+  
+  // Clear the appropriate bit in the GeminiPR packet
+  if (key & 0x80) _geminiReport.byte0 &= ~(key & 0xC0);
+  else if (key & 0x40) _geminiReport.byte1 &= ~key;
+  else if (key & 0x20) _geminiReport.byte2 &= ~key;
+  else if (key & 0x10) _geminiReport.byte3 &= ~key;
+  else if (key & 0x08) _geminiReport.byte4 &= ~key;
+  else if (key & 0x04) _geminiReport.byte5 &= ~key;
+  
+  sendGeminiPRReport();
+  return 1;
+}
+
+void BleKeyboard::releaseAll() {
+  memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
+  sendNKROReport();
+  _mediaKeyBitmask = 0;
+  sendMediaReport();
+  _gamepadReport.buttons[0] = 0;
+  _gamepadReport.buttons[1] = 0;
+  _gamepadReport.hat = HAT_CENTER;
+  sendGamepadReport();
+  memset(&_geminiReport, 0, sizeof(_geminiReport));
+  sendGeminiPRReport();
+}
+
+size_t BleKeyboard::write(uint8_t c) {
+    bool shift;
+    uint8_t key = charToKeyCode((char)c, &shift);
+    if (key == 0) return 0;                     // character not supported
+
+    if (shift) press(KEY_LEFT_SHIFT);           // hold shift
+    press(key);                                 // key-down
+    release(key);                               // key-up
+    if (shift) release(KEY_LEFT_SHIFT);         // release shift
+    return 1;
+}
+
+size_t BleKeyboard::write(int16_t modifier) {
+  uint16_t p = press(modifier);  // Modifier down
+  release(modifier);             // Modifier up
+  return p;
+}
+
+size_t BleKeyboard::write(uint16_t mediaKey) {
+	uint16_t p = press(mediaKey);  // Keydown
+	release(mediaKey);            // Keyup
+	return p;
+}
+
+size_t BleKeyboard::write(const uint8_t *buf, size_t len) {
+    size_t n = 0;
+    while (len--) n += write(*buf++);
+    return n;
+}
+
+void BleKeyboard::setModifiers(uint8_t modifiers) {
+    _keyReportNKRO.modifiers = modifiers;
+    sendNKROReport();
+}
+
+uint8_t BleKeyboard::getModifiers() {
+    return _keyReportNKRO.modifiers;
+}
+
+void BleKeyboard::setMediaKeyBitmask(uint32_t bitmask) {
+    _mediaKeyBitmask = bitmask;
+    sendMediaReport(); // Send the updated bitmask
+}
+
+uint32_t BleKeyboard::getMediaKeyBitmask() {
+    return _mediaKeyBitmask;
+}
+
+uint32_t BleKeyboard::mediaKeyToBitmask(uint16_t usageCode) {
+    switch (usageCode) {
+      case 0x0130: return (1UL << 0);   // System Power
+      case 0x0134: return (1UL << 1);   // System Sleep  
+      case 0x0135: return (1UL << 2);   // System Wake
+      case 0x00B5: return (1UL << 3);   // Next Track
+      case 0x00B6: return (1UL << 4);   // Previous Track
+      case 0x00B7: return (1UL << 5);   // Stop
+      case 0x00CD: return (1UL << 6);   // Play/Pause
+      case 0x00B3: return (1UL << 7);   // Fast Forward
+      case 0x00B4: return (1UL << 8);   // Rewind
+      case 0x00B8: return (1UL << 9);   // Eject
+      case 0x00E2: return (1UL << 10);  // Mute
+      case 0x00E9: return (1UL << 11);  // Volume Up
+      case 0x00EA: return (1UL << 12);  // Volume Down
+      case 0x006F: return (1UL << 13);  // Brightness Up
+      case 0x0070: return (1UL << 14);  // Brightness Down
+      case 0x0194: return (1UL << 15);  // My Computer
+      case 0x0192: return (1UL << 16);  // Calculator
+      case 0x018A: return (1UL << 17);  // Mail
+      case 0x0183: return (1UL << 18);  // Media Selection
+      case 0x0186: return (1UL << 19);  // Control Panel
+      case 0x0187: return (1UL << 20);  // Launchpad
+      case 0x0223: return (1UL << 21);  // WWW Home
+      case 0x022A: return (1UL << 22);  // WWW Favorites
+      case 0x0221: return (1UL << 23);  // WWW Search
+      case 0x0226: return (1UL << 24);  // WWW Stop
+      case 0x0224: return (1UL << 25);  // WWW Back
+      case 0x0225: return (1UL << 26);  // WWW Forward
+      case 0x0227: return (1UL << 27);  // WWW Refresh
+      default: return 0;
+    }
+}
+
+void BleKeyboard::addMediaKey(uint16_t mediaKey) {
+    uint32_t keyBitmask = mediaKeyToBitmask(mediaKey);
+    _mediaKeyBitmask |= keyBitmask;
+    sendMediaReport();
+}
+
+void BleKeyboard::removeMediaKey(uint16_t mediaKey) {
+    uint32_t keyBitmask = mediaKeyToBitmask(mediaKey);
+    _mediaKeyBitmask &= ~keyBitmask;
+    sendMediaReport();
+}
+
+uint8_t BleKeyboard::countPressedKeys() {
+  uint8_t count = 0;
+  // Only count non-modifier keys in the main key area
+  // This ensures modifiers don't count toward the 6-key limit
+  for (int i = 0; i < (NKRO_KEY_COUNT / 8); i++) {
+    uint8_t byte = _keyReportNKRO.keys_bitmask[i];
+    count += __builtin_popcount(byte);
+  }
+  return count;
+}
+
+void BleKeyboard::click(char b) {
+  if (_useAbsolute) {
+    // In absolute mode without coordinates, use current position
+    click(_pointerReport.absX, _pointerReport.absY, b);
+  } else {
+    // Relative mode
+    _mouseButtons = b;
+    move(0, 0, 0, 0);
+    _mouseButtons = 0;
+    move(0, 0, 0, 0);
+  }
+}
+void BleKeyboard::click(uint16_t x, uint16_t y, char b) {
+  // Auto-switch to absolute mode if coordinates are provided
+  if (!_useAbsolute) {
+    useAbsolute(true);
+  }
+  press(x, y, b);
+  release(x, y, b);
+}
+
+void BleKeyboard::move(signed char x, signed char y, signed char wheel, signed char hWheel) {
+  if (_useAbsolute) {
+    useAbsolute(false);
+  }
+  
+  if (this->isConnected() && inputMouse) {
+    _pointerReport.buttons = _mouseButtons;
+    
+    // Set relative fields
+    _pointerReport.relX = x;
+    _pointerReport.relY = y;
+    _pointerReport.wheel = wheel;
+    _pointerReport.hWheel = hWheel;
+    
+    // Clear absolute fields when in relative mode
+    _pointerReport.absX = 0;
+    _pointerReport.absY = 0;
+    _pointerReport.pressure = 0;
+    _pointerReport.tipSwitch = 0;
+    
+    inputMouse->setValue((uint8_t*)&_pointerReport, sizeof(_pointerReport));
+    inputMouse->notify();
+    delay(_delay_ms);
+  }
+}
+
+void BleKeyboard::moveTo(uint16_t x, uint16_t y, signed char wheel, signed char hWheel) {
+  if (!_useAbsolute) {
+    useAbsolute(true);
+  }
+  
+  if (this->isConnected() && inputMouse) {
+    _pointerReport.buttons = _mouseButtons;
+    
+    // Set absolute fields
+    _pointerReport.absX = x;
+    _pointerReport.absY = y;
+    _pointerReport.wheel = wheel;
+    _pointerReport.hWheel = hWheel;
+    
+    // Set tip switch based on pressure
+    if (_pointerReport.pressure > 0) {
+      _pointerReport.tipSwitch = 1;
+    } else {
+      _pointerReport.tipSwitch = 0;
+    }
+    
+    // Clear relative fields when in absolute mode
+    _pointerReport.relX = 0;
+    _pointerReport.relY = 0;
+    
+    inputMouse->setValue((uint8_t*)&_pointerReport, sizeof(_pointerReport));
+    inputMouse->notify();
+    delay(_delay_ms);
+  }
+}
+
+bool BleKeyboard::mouseIsPressed(char b) {
+  return (_pointerReport.buttons & b) != 0;
+}
+
+void BleKeyboard::mouseReleaseAll() {
+  _mouseButtons = 0;
+  _pointerReport.buttons = 0;
+  
+  if (_useAbsolute) {
+    moveTo(_pointerReport.absX, _pointerReport.absY);
+  } else {
+    move(0, 0, 0, 0);
+  }
+}
+
+void BleKeyboard::useAbsolute(bool enable) {
+  _useAbsolute = enable;
+  Serial.printf("[%s] Switched to %s pointer mode\n", LOG_TAG, _useAbsolute ? "absolute" : "relative");
+}
+
+void BleKeyboard::useRelative(bool enable) {
+  _useAbsolute = !enable;
+  Serial.printf("[%s] Switched to %s pointer mode\n", LOG_TAG, _useAbsolute ? "absolute" : "relative");
+}
+
+void BleKeyboard::setAbsoluteRange(uint16_t minVal, uint16_t maxVal) {
+  // This is just to scale your coordinates - the actual range is fixed to 32767 on both axes
+  Serial.printf("[%s] Absolute pointer range set to %d-%d\n", LOG_TAG, minVal, maxVal);
+}
+
+bool BleKeyboard::isAbsoluteEnabled() {
+  return _useAbsolute;
+}
+
+void BleKeyboard::setPressure(uint16_t pressure) {
+  _pointerReport.pressure = pressure;
+}
+
+void BleKeyboard::setTipSwitch(bool state) {
+  _pointerReport.tipSwitch = state ? 1 : 0;
+}
+
+void BleKeyboard::moveToWithPressure(uint16_t x, uint16_t y, uint16_t pressure, bool touching) {
+  if (!_useAbsolute) {
+    useAbsolute(true);
+  }
+  
+  _pointerReport.absX = x;
+  _pointerReport.absY = y;
+  _pointerReport.pressure = pressure;
+  _pointerReport.tipSwitch = touching ? 1 : 0;
+  
+  if (this->isConnected() && inputMouse) {
+    inputMouse->setValue((uint8_t*)&_pointerReport, sizeof(_pointerReport));
+    inputMouse->notify();
+    delay(_delay_ms);
+  }
+}
+
+void BleKeyboard::clickWithPressure(uint16_t x, uint16_t y, uint16_t pressure, uint8_t button) {
+  if (!_useAbsolute) {
+    useAbsolute(true);
+  }
+  
+  // Press with pressure
+  _pointerReport.buttons |= button;
+  moveToWithPressure(x, y, pressure, true);
+  
+  // Release
+  _pointerReport.buttons &= ~button;
+  moveToWithPressure(x, y, 0, false);
+}
+
+void BleKeyboard::beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure) {
+  moveToWithPressure(x, y, initialPressure, true);
+}
+
+void BleKeyboard::updateStroke(uint16_t x, uint16_t y, uint16_t pressure) {
+  moveToWithPressure(x, y, pressure, true);
+}
+
+void BleKeyboard::endStroke(uint16_t x, uint16_t y) {
+  moveToWithPressure(x, y, 0, false);
+}
+
+uint16_t BleKeyboard::getPressure() const {
+  return _pointerReport.pressure;
+}
+
+bool BleKeyboard::getTipSwitch() const {
+  return _pointerReport.tipSwitch != 0;
+}
+
+bool BleKeyboard::gamepadIsPressed(int8_t button) {
+  // Handle regular buttons 1-64
+  if (button >= 1 && button <= 64) {
+    uint8_t field = (button - 1) / 32;
+    uint8_t bit = (button - 1) % 32;
+    return (_gamepadReport.buttons[field] & (1UL << bit)) != 0;
+  }
+  // Handle D-Pad as virtual buttons 65-68
+  else if (button >= 65 && button <= 68) {
+    uint8_t currentHat = _gamepadReport.hat;
+    
+    switch (button) {
+      case 65: // DPAD_UP
+        return (currentHat == HAT_UP || currentHat == HAT_UP_RIGHT || currentHat == HAT_UP_LEFT);
+      case 66: // DPAD_RIGHT
+        return (currentHat == HAT_RIGHT || currentHat == HAT_UP_RIGHT || currentHat == HAT_DOWN_RIGHT);
+      case 67: // DPAD_DOWN
+        return (currentHat == HAT_DOWN || currentHat == HAT_DOWN_RIGHT || currentHat == HAT_DOWN_LEFT);
+      case 68: // DPAD_LEFT
+        return (currentHat == HAT_LEFT || currentHat == HAT_UP_LEFT || currentHat == HAT_DOWN_LEFT);
+    }
+  }
+  return false;
+}
+
+void BleKeyboard::gamepadSetAxis(int8_t axis, int16_t value) {
+  if (axis < GAMEPAD_AXIS_COUNT) {
+    _gamepadReport.axes[axis] = value;
+  }
+  sendGamepadReport();
+}
+
+int16_t BleKeyboard::gamepadGetAxis(int8_t axis) {
+  if (axis < GAMEPAD_AXIS_COUNT) {
+    return _gamepadReport.axes[axis];
+  }
+  return 0;
+}
+
+void BleKeyboard::gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]) {
+  memcpy(_gamepadReport.axes, values, sizeof(_gamepadReport.axes));
+  sendGamepadReport();
+}
+
+void BleKeyboard::gamepadSetLeftStick(int16_t x, int16_t y) {
+    _gamepadReport.axes[AXIS_LX] = x;
+    _gamepadReport.axes[AXIS_LY] = y;
+    sendGamepadReport();
+}
+
+void BleKeyboard::gamepadSetRightStick(int16_t x, int16_t y) {
+    _gamepadReport.axes[AXIS_RX] = x;
+    _gamepadReport.axes[AXIS_RY] = y;
+    sendGamepadReport();
+}
+
+void BleKeyboard::gamepadSetTriggers(int16_t left, int16_t right) {
+    _gamepadReport.axes[AXIS_LT] = left;
+    _gamepadReport.axes[AXIS_RT] = right;
+    sendGamepadReport();
+}
+
+void BleKeyboard::gamepadGetLeftStick(int16_t &x, int16_t &y) {
+    x = gamepadGetAxis(AXIS_LX);
+    y = gamepadGetAxis(AXIS_LY);
+}
+
+void BleKeyboard::gamepadGetRightStick(int16_t &x, int16_t &y) {
+    x = gamepadGetAxis(AXIS_RX);
+    y = gamepadGetAxis(AXIS_RY);
+}
+
+
+void BleKeyboard::onVibrate(void (*callback)(uint8_t leftMotor, uint8_t rightMotor)) {
+  _onVibrateCallback = callback;
+  Serial.printf("[%s] Vibrate callback registered\n", LOG_TAG);
+}
+
+bool BleKeyboard::isHapticsSupported() const {
+  return (inputGamepad != nullptr) && (_onVibrateCallback != nullptr);
+}
+
+void BleKeyboard::sendGamepadReport() {
+    if (this->isConnected() && inputGamepad) {
+    inputGamepad->setValue((uint8_t*)&_gamepadReport, sizeof(_gamepadReport));
+    inputGamepad->notify();
+    delay(_delay_ms);
+  }
+}
+
+void BleKeyboard::sendGeminiPRReport() {
+  if (this->isConnected() && inputGeminiPR) {
+    inputGeminiPR->setValue((uint8_t*)&_geminiReport, sizeof(_geminiReport));
+    inputGeminiPR->notify();
+    delay(_delay_ms);
+  }
+}
+
+void BleKeyboard::geminiStroke(const int32_t* keys, size_t count) {
+  releaseAll();
+  for (size_t i = 0; i < count; i++) {
+    press(keys[i]);
+  }
+  sendGeminiPRReport();
+}
+
+uint8_t BleKeyboard::stenoCharToKey(char c) {
+  switch (toupper(c)) {
+    case 'Q': return GEMINI_S1;
+    case 'A': return GEMINI_S2;
+    case 'W': return GEMINI_T;
+    case 'S': return GEMINI_K;
+    case 'E': return GEMINI_P;
+    case 'D': return GEMINI_W;
+    case 'R': return GEMINI_H;
+    case 'F': return GEMINI_R;
+    case 'C': return GEMINI_A;
+    case 'V': return GEMINI_O;
+    case 'T': return GEMINI_STAR1;
+    case 'G': return GEMINI_STAR2;
+    case 'Y': return GEMINI_STAR3;
+    case 'H': return GEMINI_STAR4;
+    case ',': return GEMINI_E;
+    case 'M': return GEMINI_U;
+    case 'U': return GEMINI_F;
+    case 'J': return GEMINI_R2;
+    case 'I': return GEMINI_P2;
+    case 'K': return GEMINI_B;
+    case 'O': return GEMINI_L;
+    case 'L': return GEMINI_G;
+    case 'P': return GEMINI_T2;
+    case 'B': return GEMINI_S;
+    case 'X': return GEMINI_D;
+    case 'Z': return GEMINI_Z;
+    case '1': return GEMINI_NUM1;
+    case '2': return GEMINI_NUM7;
+    case '3': return GEMINI_NUM8;
+    case '4': return GEMINI_NUM9;
+    case '5': return GEMINI_NUM10;
+    case '6': return GEMINI_NUM11;
+    case '7': return GEMINI_NUM12;
+    case '8': return GEMINI_PWR;
+    case '9': return GEMINI_RES1;
+    case '0': return GEMINI_RES2;
+    case 'N': return GEMINI_FN;
+    default: return 0;
+  }
+}
+
+void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
+    Serial.printf("[%s] ESP-HID onConnect callback triggered - Security: %s, Encrypted: %s\n", LOG_TAG,
+             isSecurityEnabled() ? "Enabled" : "Disabled", 
+             desc->sec_state.encrypted ? "Yes" : "No");
+    
+    if (isSecurityEnabled()) {
+        if (!desc->sec_state.encrypted) {
+            Serial.printf("[%s] Initiating pairing for secure connection\n", LOG_TAG);
+            NimBLEDevice::startSecurity(desc->conn_handle);
+        }
+    }
+    
+    if (inputNKRO) inputNKRO->notify();
+    if (inputMediaKeys) inputMediaKeys->notify(); 
+    
+    // This is to make Android & iOS stop complaining when you simultaneously mash gamepad and regular keyboard buttons
+    _gamepadReport.buttons[0] = 0;
+    _gamepadReport.buttons[1] = 0;
+    _gamepadReport.axes[0] = 0;
+    _gamepadReport.axes[1] = 0;
+    _gamepadReport.axes[2] = 0;
+    _gamepadReport.axes[3] = 0;
+    _gamepadReport.axes[4] = 0;
+    _gamepadReport.axes[5] = 0;
+    _gamepadReport.hat = HAT_CENTER;
+    sendGamepadReport();
+    
+    Serial.printf("[%s] Client connected - Actual connection count: %d\n", LOG_TAG, NimBLEDevice::getServer()->getConnectedCount());
+}
+
+void BleKeyboard::onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) {
+  NimBLEServerCallbacks::onDisconnect(pServer, connInfo, reason);
+  
+  // Restart advertising immediately when disconnected
+  if (advertising) {
+    advertising->start();
+    Serial.printf("[%s] Advertising restarted after disconnect (reason: %d)\n", LOG_TAG, reason);
+  }
+}
+
+void BleKeyboard::onWrite(NimBLECharacteristic* me) {
+  Serial.printf("[%s] ESP-HID onWrite callback triggered!\n", LOG_TAG);
+  uint8_t* value = (uint8_t*)(me->getValue().c_str());
+  size_t length = me->getValue().length();
+  
+  // Check if this is haptic data from the gamepad characteristic
+  if (me == inputGamepad && length >= 2) {
+    // Gamepad output report format for haptics: [LeftMotor, RightMotor]
+    // Most systems send 2 bytes for dual motor vibration
+    uint8_t leftMotor = value[0];
+    uint8_t rightMotor = (length > 1) ? value[1] : value[0]; // Fallback to single motor
+    
+    Serial.printf("[%s] Haptic feedback received: left=%d, right=%d\n", LOG_TAG, leftMotor, rightMotor);
+    
+    // Call user callback if registered
+    if (_onVibrateCallback) {
+      _onVibrateCallback(leftMotor, rightMotor);
+    }
+  } else {
+    // Handle other characteristics (existing code)
+    Serial.printf("[%s] special keys: %d\n", LOG_TAG, *value);
+  }
+}
+
+void pollConnection(void * arg) {
+    BleKeyboard * kb = static_cast<BleKeyboard*>(arg);
+    uint8_t cnt = NimBLEDevice::getServer()->getConnectedCount();
+
+    if (kb->last_connected_count && !cnt) {   // Connection just dropped
+        Serial.printf("[%s] Poller: link lost - restarting advertising\n", LOG_TAG);
+        
+        // Small delay to ensure BLE stack is ready
+        delay(100);
+        
+        if (kb->advertising) {
+            kb->advertising->stop();
+            delay(50);
+            if (!kb->advertising->start()) {
+                Serial.printf("[%s] Poller: Failed to restart advertising, will retry\n", LOG_TAG);
+            }
+        }
+    }
+    kb->last_connected_count = cnt;
+}
+
+void BleKeyboard::enableBonding(bool enable) {
+    bonding_enabled = enable;
+    Serial.printf("[%s] Bonding %s\n", LOG_TAG, bonding_enabled ? "enabled" : "disabled");
+}
+
+void BleKeyboard::clearBonds() {
+    NimBLEDevice::deleteAllBonds();
+    Serial.printf("[%s] All bonds cleared\n", LOG_TAG);
+}
+
+bool BleKeyboard::isBonded() const {
+    return NimBLEDevice::getNumBonds() > 0;
+}
