@@ -213,6 +213,20 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
   REPORT_COUNT(1),    0x40,             // REPORT_COUNT (64)
   HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  // Hat Switch
+  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x39,             // USAGE (Hat Switch)
+  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x07,             // LOGICAL_MAXIMUM (7)
+  PHYSICAL_MINIMUM(1),0x00,             // PHYSICAL_MINIMUM (0)
+  PHYSICAL_MAXIMUM(2),0x3B, 0x01,       // PHYSICAL_MAXIMUM (315)
+  UNIT(1),            0x14,             // UNIT (Degrees)
+  REPORT_SIZE(1),     0x04,             // REPORT_SIZE (4)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
+  REPORT_SIZE(1),     0x04,             // REPORT_SIZE  (4)
+  HIDINPUT(1),        0x03,             // INPUT (Cnst,Var,Abs)
   // Left Stick X/Y
   USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
   USAGE(1),           0x01,             // USAGE (Pointer)
@@ -244,20 +258,6 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
   REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
   HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
-  // Hat Switch
-  USAGE(1),           0x39,             // USAGE (Hat Switch)
-  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x07,             // LOGICAL_MAXIMUM (7)
-  PHYSICAL_MINIMUM(1),0x00,             // PHYSICAL_MINIMUM (0)
-  PHYSICAL_MAXIMUM(2),0x3B, 0x01,       // PHYSICAL_MAXIMUM (315)
-  UNIT(1),            0x14,             // UNIT (Degrees)
-  REPORT_SIZE(1),     0x04,             // REPORT_SIZE (4)
-  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
-  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
-  // Hat padding (4 bits)
-  REPORT_SIZE(1),     0x04,             // REPORT_SIZE (4)
-  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
-  HIDINPUT(1),        0x03,             // INPUT (Constant)
   // Haptic Motors
   USAGE_PAGE(1),      0x0F,             // USAGE_PAGE (Physical Interface)
   LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
@@ -566,8 +566,8 @@ void BleKeyboard::set_version(uint16_t version) {
 void BleKeyboard::sendMediaReport() {
   if (this->isConnected()) {
     // Send the current media key bitmask
-    this->inputMediaKeys->setValue((uint8_t*)&_mediaKeyBitmask, sizeof(uint32_t));
-    this->inputMediaKeys->notify();
+    inputMediaKeys->setValue((uint8_t*)&_mediaKeyBitmask, sizeof(uint32_t));
+    inputMediaKeys->notify();
     delay(_delay_ms);
   }	
 }
@@ -711,7 +711,7 @@ size_t BleKeyboard::press(uint16_t mediaKey) {
 }
 
 
-void BleKeyboard::press(int8_t button) {
+size_t BleKeyboard::press(int8_t button) {
     if (button >= 1 && button <= 64) {
         uint8_t field = (button - 1) / 32;
         uint8_t bit = (button - 1) % 32;
@@ -726,7 +726,7 @@ void BleKeyboard::press(int8_t button) {
     sendGamepadReport();
 }
 
-void BleKeyboard::press(char b) {
+size_t BleKeyboard::press(char b) {
   _mouseButtons |= b;
   _pointerReport.buttons = _mouseButtons;  // Use combined structure
   
@@ -737,7 +737,7 @@ void BleKeyboard::press(char b) {
   }
 }
 
-void BleKeyboard::press(uint16_t x, uint16_t y, char b) {
+size_t BleKeyboard::press(uint16_t x, uint16_t y, char b) {
   if (!_useAbsolute) {
     useAbsolute(true);
   }
@@ -799,7 +799,7 @@ size_t BleKeyboard::release(uint16_t mediaKey) {
     return 1;
 }
 
-void BleKeyboard::release(int8_t button) {
+size_t BleKeyboard::release(int8_t button) {
     if (button >= 1 && button <= 64) {
         uint8_t field = (button - 1) / 32;
         uint8_t bit = (button - 1) % 32;
@@ -814,7 +814,7 @@ void BleKeyboard::release(int8_t button) {
     sendGamepadReport();
 }
 
-void BleKeyboard::release(char b) {
+size_t BleKeyboard::release(char b) {
   _mouseButtons &= ~b;
   _pointerReport.buttons = _mouseButtons;  // Use combined structure
   
@@ -846,12 +846,15 @@ void BleKeyboard::releaseAll() {
   sendNKROReport();
   _mediaKeyBitmask = 0;
   sendMediaReport();
+  memset(&_geminiReport, 0, sizeof(_geminiReport));
+  sendGeminiPRReport();
+}
+
+void BleKeyboard::gamepadReleaseAll() {
   _gamepadReport.buttons[0] = 0;
   _gamepadReport.buttons[1] = 0;
   _gamepadReport.hat = HAT_CENTER;
   sendGamepadReport();
-  memset(&_geminiReport, 0, sizeof(_geminiReport));
-  sendGeminiPRReport();
 }
 
 size_t BleKeyboard::write(uint8_t c) {
@@ -1213,19 +1216,17 @@ bool BleKeyboard::isHapticsSupported() const {
 }
 
 void BleKeyboard::sendGamepadReport() {
-    if (this->isConnected() && inputGamepad) {
+    if (!isConnected() || !inputGamepad) return;
     inputGamepad->setValue((uint8_t*)&_gamepadReport, sizeof(_gamepadReport));
     inputGamepad->notify();
     delay(_delay_ms);
-  }
 }
 
 void BleKeyboard::sendGeminiPRReport() {
-  if (this->isConnected() && inputGeminiPR) {
+    if (!isConnected() || !inputGeminiPR) return;
     inputGeminiPR->setValue((uint8_t*)&_geminiReport, sizeof(_geminiReport));
     inputGeminiPR->notify();
     delay(_delay_ms);
-  }
 }
 
 void BleKeyboard::geminiStroke(const int32_t* keys, size_t count) {
@@ -1293,18 +1294,10 @@ void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
     
     if (inputNKRO) inputNKRO->notify();
     if (inputMediaKeys) inputMediaKeys->notify(); 
-    
-    // This is to make Android & iOS stop complaining when you simultaneously mash gamepad and regular keyboard buttons
-    _gamepadReport.buttons[0] = 0;
-    _gamepadReport.buttons[1] = 0;
-    _gamepadReport.axes[0] = 0;
-    _gamepadReport.axes[1] = 0;
-    _gamepadReport.axes[2] = 0;
-    _gamepadReport.axes[3] = 0;
-    _gamepadReport.axes[4] = 0;
-    _gamepadReport.axes[5] = 0;
-    _gamepadReport.hat = HAT_CENTER;
-    sendGamepadReport();
+    if (inputMediaKeys) inputMediaKeys->notify(); 
+    if (inputMouse) inputMouse->notify();
+    if (inputGeminiPR) inputGeminiPR->notify();
+    if (inputGamepad) inputGamepad->notify();
     
     Serial.printf("[%s] Client connected - Actual connection count: %d\n", LOG_TAG, NimBLEDevice::getServer()->getConnectedCount());
 }
