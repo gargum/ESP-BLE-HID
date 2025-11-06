@@ -938,18 +938,18 @@ public:
   size_t press(uint8_t k);           // I went with uint8_t for normal keycodes
   size_t press(int16_t modifier);    // I chose int16_t for modifiers
   size_t press(uint16_t mediaKey);   // I picked uint16_t for media keys
-  void   press(int8_t button);       // Next, int8_t is for the gamepad buttons
-  void   press(char b = MOUSE_LEFT); // Finally, char is for mouse clicks . . .
+  size_t press(int8_t button);       // Next, int8_t is for the gamepad buttons
+  size_t press(char b = MOUSE_LEFT); // Finally, char is for mouse clicks . . .
   size_t press(int32_t stenoKey);    // . . . And int32_t is for the steno keys
-  void   press(uint16_t x, uint16_t y, char b = MOUSE_LEFT);  // Feeding in coordinates makes it assume you're trying to use absolute pointer mode
+  size_t press(uint16_t x, uint16_t y, char b = MOUSE_LEFT);  // Feeding in coordinates makes it assume you're trying to use absolute pointer mode
   
   size_t release(uint8_t k);
   size_t release(int16_t modifier);
   size_t release(uint16_t mediaKey);
-  void   release(int8_t button);
-  void   release(char b = MOUSE_LEFT);
+  size_t release(int8_t button);
+  size_t release(char b = MOUSE_LEFT);
   size_t release(int32_t stenoKey);
-  void   release(uint16_t x, uint16_t y, char b = MOUSE_LEFT);
+  size_t release(uint16_t x, uint16_t y, char b = MOUSE_LEFT);
   
   size_t write(uint8_t c);
   size_t write(int16_t modifier);
@@ -958,6 +958,7 @@ public:
   
   void releaseAll();
   void mouseReleaseAll();
+  void gamepadReleaseAll();
   
   void sendNKROReport();
   void sendMediaReport();
