@@ -958,7 +958,6 @@ public:
   
   void releaseAll();
   void mouseReleaseAll();
-  void gamepadReleaseAll();
   
   void sendNKROReport();
   void sendMediaReport();
