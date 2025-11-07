@@ -383,6 +383,7 @@ void BleKeyboard::begin(void) {
     inputDigitizer = hid->getInputReport(DIGITIZER_ID);
     inputGeminiPR  = hid->getInputReport(GEMINIPR_ID);
     inputGamepad   = hid->getInputReport(GAMEPAD_ID);
+    outputHaptics  = hid->getOutputReport(GAMEPAD_ID);
 
     outputKeyboard->setCallbacks(this);
     if (inputNKRO) {inputNKRO->setCallbacks(this);}
@@ -391,6 +392,7 @@ void BleKeyboard::begin(void) {
     if (inputDigitizer) {inputDigitizer->setCallbacks(this);}
     if (inputGeminiPR) {inputGeminiPR->setCallbacks(this);}
     if (inputGamepad) {inputGamepad->setCallbacks(this);}
+    if (outputHaptics) {outputHaptics->setCallbacks(this);}
     
     // Manufacturer / PnP / HID-info
     hid->setManufacturer(std::string(deviceManufacturer.c_str()));
@@ -1317,7 +1319,7 @@ void BleKeyboard::onWrite(NimBLECharacteristic* me) {
     // Gamepad output report format for haptics: [LeftMotor, RightMotor]
     // Most systems send 2 bytes for dual motor vibration
     uint8_t leftMotor = value[0];
-    uint8_t rightMotor = (length > 1) ? value[1] : value[0]; // Fallback to single motor
+    uint8_t rightMotor = value[1];
     
     Serial.printf("[%s] Haptic feedback received: left=%d, right=%d\n", LOG_TAG, leftMotor, rightMotor);
     
