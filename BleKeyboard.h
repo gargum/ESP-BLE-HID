@@ -890,6 +890,7 @@ private:
   uint8_t            batteryLevel;
   
   BLECharacteristic* outputKeyboard;
+  BLECharacteristic* outputHaptics;
   BLECharacteristic* inputMediaKeys;
   BLECharacteristic* inputNKRO;
   BLECharacteristic* inputMouse;
