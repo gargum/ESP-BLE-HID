@@ -18,6 +18,9 @@ bool getInitialized = false;
 #define GEMINIPR_ID   0x06
 #define GAMEPAD_ID    0x07
 
+#define COLLECTION_APPLICATION 0x01
+#define COLLECTION_PHYSICAL 0x00
+
 void pollConnection(void * arg);
 
 // Global instance tracking
@@ -46,255 +49,164 @@ __attribute__((weak)) void loop() {
 
 // This "HID Report Descriptor" tells your computer or phone what the ESP32 you've just connected is supposed to do
 static const uint8_t _hidReportDescriptor[] = {
-  // NKRO Report Descriptor (6KRO is emulated)
-  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
-  USAGE(1),           0x06,             // USAGE (Keyboard)
-  COLLECTION(1),      0x01,             // COLLECTION (Application)
-  REPORT_ID(1),       NKRO_ID, // REPORT_ID
-  USAGE_PAGE(1),      0x07,             // USAGE_PAGE (Key Codes)
-  USAGE_MINIMUM(1),   0xE0,             // USAGE_MINIMUM (Keyboard LeftControl)
-  USAGE_MAXIMUM(1),   0xE7,             // USAGE_MAXIMUM (Keyboard Right GUI)
-  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x08,             // REPORT_COUNT (8)
-  HIDINPUT(1),        0x02,             // INPUT (Data, Variable, Absolute)
-  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
-  REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
-  HIDINPUT(1),        0x01,             // INPUT (Constant)
-  REPORT_COUNT(1),    0x05,             // REPORT_COUNT (5)
-  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
-  USAGE_PAGE(1),      0x08,             // USAGE_PAGE (LEDs)
-  USAGE_MINIMUM(1),   0x01,             // USAGE_MINIMUM (Num Lock)
-  USAGE_MAXIMUM(1),   0x05,             // USAGE_MAXIMUM (Kana)
-  HIDOUTPUT(1),       0x02,             // OUTPUT (Data, Variable, Absolute)
-  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
-  REPORT_SIZE(1),     0x03,             // REPORT_SIZE (3)
-  HIDOUTPUT(1),       0x01,             // OUTPUT (Constant)
-  USAGE_PAGE(1),      0x07,             // USAGE_PAGE (Key Codes)
-  USAGE_MINIMUM(1),   0x00,             // USAGE_MINIMUM (0)
-  USAGE_MAXIMUM(1),   0x6F,             // USAGE_MAXIMUM (111) - Maximum key index
-  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
-  REPORT_COUNT(1),    0xFC,             // REPORT_COUNT (252) - 252 keys
-  HIDINPUT(1),        0x02,             // INPUT (Data, Variable, Absolute)
-  END_COLLECTION(0),                      // END_COLLECTION
+  // ------------------------------------------------- Keyboard
+  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x06,                      
+  COLLECTION(1),      0x01,                      REPORT_ID(1),       KEYBOARD_ID,               
+  // Modifiers (8 bits)
+  USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0xE0,                      
+  USAGE_MAXIMUM(1),   0xE7,                      LOGICAL_MINIMUM(1), 0x00,
+  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,
+  REPORT_COUNT(1),    0x08,                      HIDINPUT(1),        0x02,                   
+  // Reserved byte
+  REPORT_COUNT(1),    0x01,                      REPORT_SIZE(1),     0x08,
+  HIDINPUT(1),        0x01,                   
+  // LED output report
+  REPORT_COUNT(1),    0x05,                      REPORT_SIZE(1),     0x01,
+  USAGE_PAGE(1),      0x08,                      USAGE_MINIMUM(1),   0x01,                   
+  USAGE_MAXIMUM(1),   0x05,                      HIDOUTPUT(1),       0x02,                   
+  REPORT_COUNT(1),    0x01,                      REPORT_SIZE(1),     0x03,
+  HIDOUTPUT(1),       0x01,                   
+  // Key array (6 bytes for boot compatibility)
+  REPORT_COUNT(1),    0x06,                      REPORT_SIZE(1),     0x08,
+  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x65,                   
+  USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0x00,
+  USAGE_MAXIMUM(1),   0x65,                      HIDINPUT(1),        0x00,                   
+  END_COLLECTION(0),
+  // NKRO Extended Report (6KRO is emulated)
+  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x06,
+  COLLECTION(1),      0x01,                      REPORT_ID(1),       NKRO_ID,                
+  // Modifiers (8 bits)
+  USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0xE0,
+  USAGE_MAXIMUM(1),   0xE7,                      LOGICAL_MINIMUM(1), 0x00,
+  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,
+  REPORT_COUNT(1),    0x08,                      HIDINPUT(1),        0x02,
+  // Reserved byte
+  REPORT_COUNT(1),    0x01,                      REPORT_SIZE(1),     0x08,
+  HIDINPUT(1),        0x01,
+  // 252-key bitmap
+  USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0x00,
+  USAGE_MAXIMUM(2),   0xFC, 0x00,                LOGICAL_MINIMUM(1), 0x00,
+  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,
+  REPORT_COUNT(2),    0xFC, 0x00,                HIDINPUT(1),        0x02,
+  END_COLLECTION(0),
   // ------------------------------------------------- Media Keys
-  USAGE_PAGE(1),      0x0C,             // USAGE_PAGE (Consumer)
-  USAGE(1),           0x01,             // USAGE (Consumer Control)
-  COLLECTION(1),      0x01,             // COLLECTION (Application)
-  REPORT_ID(1),       MEDIA_KEYS_ID,    // REPORT_ID
-  USAGE(2),           0x30, 0x01,       // USAGE (System Power)
-  USAGE(2),           0x34, 0x01,       // USAGE (System Sleep)
-  USAGE(2),           0x35, 0x01,       // USAGE (System Wake)
-  USAGE(1),           0xB5,             // USAGE (Next Track)
-  USAGE(1),           0xB6,             // USAGE (Previous Track)
-  USAGE(1),           0xB7,             // USAGE (Stop)
-  USAGE(1),           0xCD,             // USAGE (Play/Pause)
-  USAGE(1),           0xB3,             // USAGE (Fast Forward)
-  USAGE(1),           0xB4,             // USAGE (Rewind)
-  USAGE(1),           0xB8,             // USAGE (Eject)
-  USAGE(1),           0xE2,             // USAGE (Mute)
-  USAGE(1),           0xE9,             // USAGE (Volume Up)
-  USAGE(1),           0xEA,             // USAGE (Volume Down)
-  USAGE(1),           0x6F,             // USAGE (Brightness Up)
-  USAGE(1),           0x70,             // USAGE (Brightness Down)
-  USAGE(2),           0x94, 0x01,       // USAGE (My Computer)
-  USAGE(2),           0x92, 0x01,       // USAGE (Calculator)
-  USAGE(2),           0x8A, 0x01,       // USAGE (Mail)
-  USAGE(2),           0x83, 0x01,       // USAGE (Media Selection)
-  USAGE(2),           0x86, 0x01,       // USAGE (Control Panel)
-  USAGE(2),           0x87, 0x01,       // USAGE (Launchpad)
-  USAGE(2),           0x23, 0x02,       // USAGE (WWW Home)
-  USAGE(2),           0x2A, 0x02,       // USAGE (WWW Favorites)
-  USAGE(2),           0x21, 0x02,       // USAGE (WWW Search)
-  USAGE(2),           0x26, 0x02,       // USAGE (WWW Stop)
-  USAGE(2),           0x24, 0x02,       // USAGE (WWW Back)
-  USAGE(2),           0x25, 0x02,       // USAGE (WWW Forward)
-  USAGE(2),           0x27, 0x02,       // USAGE (WWW Refresh)
-  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(2), 0xFF, 0x03,       // LOGICAL_MAXIMUM (1023)
-  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x1C,             // REPORT_COUNT (28)
-  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
-  END_COLLECTION(0),                    // END_COLLECTION
+  USAGE_PAGE(1),      0x0C,                      USAGE(1),           0x01,             
+  COLLECTION(1),      0x01,                      REPORT_ID(1),       MEDIA_KEYS_ID,    
+  USAGE(2),           0x30, 0x01,                USAGE(2),           0x34, 0x01,       
+  USAGE(2),           0x35, 0x01,                USAGE(1),           0xB5,             
+  USAGE(1),           0xB6,                      USAGE(1),           0xB7,             
+  USAGE(1),           0xCD,                      USAGE(1),           0xB3,             
+  USAGE(1),           0xB4,                      USAGE(1),           0xB8,             
+  USAGE(1),           0xE2,                      USAGE(1),           0xE9,             
+  USAGE(1),           0xEA,                      USAGE(1),           0x6F,             
+  USAGE(1),           0x70,                      USAGE(2),           0x94, 0x01,       
+  USAGE(2),           0x92, 0x01,                USAGE(2),           0x8A, 0x01,       
+  USAGE(2),           0x83, 0x01,                USAGE(2),           0x86, 0x01,       
+  USAGE(2),           0x87, 0x01,                USAGE(2),           0x23, 0x02,       
+  USAGE(2),           0x2A, 0x02,                USAGE(2),           0x21, 0x02,       
+  USAGE(2),           0x26, 0x02,                USAGE(2),           0x24, 0x02,       
+  USAGE(2),           0x25, 0x02,                USAGE(2),           0x27, 0x02,       
+  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(2), 0xFF, 0x03,       
+  REPORT_SIZE(1),     0x01,                      REPORT_COUNT(1),    0x1C,             
+  HIDINPUT(1),        0x02,                      END_COLLECTION(0),                    
   // ------------------------------------------------- Pointers - Relative/Mouse
-  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
-  USAGE(1),           0x02,             // USAGE (Mouse)
-  COLLECTION(1),      0x01,             // COLLECTION (Application)
-  REPORT_ID(1),       MOUSE_ID,         // REPORT_ID
-  USAGE(1),           0x01,             // USAGE (Pointer)
-  COLLECTION(1),      0x00,             // COLLECTION (Physical)
+  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x02,             
+  COLLECTION(1),      0x01,                      REPORT_ID(1),       MOUSE_ID,         
+  USAGE(1),           0x01,                      COLLECTION(1),      0x00,             
   // Buttons (5 bits)
-  USAGE_PAGE(1),      0x09,             // USAGE_PAGE (Button)
-  USAGE_MINIMUM(1),   0x01,             // USAGE_MINIMUM (Button 1)
-  USAGE_MAXIMUM(1),   0x05,             // USAGE_MAXIMUM (Button 5)
-  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x05,             // REPORT_COUNT (5)
-  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  USAGE_PAGE(1),      0x09,                      USAGE_MINIMUM(1),   0x01,             
+  USAGE_MAXIMUM(1),   0x05,                      LOGICAL_MINIMUM(1), 0x00,             
+  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,             
+  REPORT_COUNT(1),    0x05,                      HIDINPUT(1),        0x02,             
   // Button padding (3 bits)
-  REPORT_SIZE(1),     0x03,             // REPORT_SIZE (3)
-  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
-  HIDINPUT(1),        0x03,             // INPUT (Constant)
+  REPORT_SIZE(1),     0x03,                      REPORT_COUNT(1),    0x01,             
+  HIDINPUT(1),        0x03,             
   // Relative X, Y, Wheel
-  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
-  USAGE(1),           0x30,             // USAGE (X)
-  USAGE(1),           0x31,             // USAGE (Y)
-  USAGE(1),           0x38,             // USAGE (Wheel)
-  LOGICAL_MINIMUM(1), 0x81,             // LOGICAL_MINIMUM (-127)
-  LOGICAL_MAXIMUM(1), 0x7F,             // LOGICAL_MAXIMUM (127)
-  REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
-  REPORT_COUNT(1),    0x03,             // REPORT_COUNT (3)
-  HIDINPUT(1),        0x06,             // INPUT (Data,Var,Rel)
+  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x30,             
+  USAGE(1),           0x31,                      USAGE(1),           0x38,             
+  LOGICAL_MINIMUM(1), 0x81,                      LOGICAL_MAXIMUM(1), 0x7F,             
+  REPORT_SIZE(1),     0x08,                      REPORT_COUNT(1),    0x03,             
+  HIDINPUT(1),        0x06,             
   // Horizontal Wheel
-  USAGE_PAGE(1),      0x0C,             // USAGE_PAGE (Consumer)
-  USAGE(2),           0x38, 0x02,            // USAGE (AC Pan)
-  LOGICAL_MINIMUM(1), 0x81,             // LOGICAL_MINIMUM (-127)
-  LOGICAL_MAXIMUM(1), 0x7F,             // LOGICAL_MAXIMUM (127)
-  REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
-  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
-  HIDINPUT(1),        0x06,             // INPUT (Data,Var,Rel)
-  END_COLLECTION(0),                    // END_COLLECTION (Physical)
-  END_COLLECTION(0),                    // END_COLLECTION (Application)
+  USAGE_PAGE(1),      0x0C,                      USAGE(2),           0x38, 0x02,            
+  LOGICAL_MINIMUM(1), 0x81,                      LOGICAL_MAXIMUM(1), 0x7F,             
+  REPORT_SIZE(1),     0x08,                      REPORT_COUNT(1),    0x01,             
+  HIDINPUT(1),        0x06,                      END_COLLECTION(0),                    
+  END_COLLECTION(0),                    
   // ------------------------------------------------- GeminiPR Steno Protocol
-  USAGE_PAGE(1),       0xFF, 0x00,       // USAGE_PAGE (Vendor Defined)
-  USAGE(1),            0x01,             // USAGE (Vendor Usage 1)
-  COLLECTION(1),       0x01,             // COLLECTION (Application)
-  REPORT_ID(1),        GEMINIPR_ID,      // REPORT_ID
+  USAGE_PAGE(1),      0xFF, 0x00,                USAGE(1),           0x01,             
+  COLLECTION(1),      0x01,                      REPORT_ID(1),       GEMINIPR_ID,      
   // 6-byte GeminiPR packet (48 bits)
-  LOGICAL_MINIMUM(1),  0x00,             // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1),  0x01,             // LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),      0x01,             // REPORT_SIZE (1)
-  REPORT_COUNT(1),     0x30,             // REPORT_COUNT (48) - 48 bits
-  USAGE(1),            0x01,             // USAGE (Vendor Usage 1)
-  HIDINPUT(1),         0x02,             // INPUT (Data, Variable, Absolute)
-  END_COLLECTION(0),                      // END_COLLECTION (Physical)
+  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x01,             
+  REPORT_SIZE(1),     0x01,                      REPORT_COUNT(1),    0x30,             
+  USAGE(1),           0x01,                      HIDINPUT(1),        0x02,             
+  END_COLLECTION(0),                      
   // ------------------------------------------------- Pointers - Absolute/Digitizer
-  USAGE_PAGE(1),      0x0D,              // USAGE_PAGE (Digitizer)
-  USAGE(1),           0x01,              // USAGE (Stylus) - clearer than Touch Screen
-  COLLECTION(1),      0x01,              // COLLECTION (Application)
-  REPORT_ID(1),       DIGITIZER_ID,      // REPORT_ID
-  USAGE(1),           0x20,              // USAGE (Stylus) - repeated for Physical
-  COLLECTION(1),      0x00,              // COLLECTION (Physical)
+  USAGE_PAGE(1),      0x0D,                      USAGE(1),           0x01,              
+  COLLECTION(1),      0x01,                      REPORT_ID(1),       DIGITIZER_ID,      
+  USAGE(1),           0x20,                      COLLECTION(1),      0x00,              
   // Buttons: Barrel, Eraser (Tip Switch is separate, not a button)
-  USAGE_PAGE(1),      0x09,              // USAGE_PAGE (Button)
-  USAGE_MINIMUM(1),   0x01,              // USAGE_MINIMUM (Button 1)
-  USAGE_MAXIMUM(1),   0x02,              // USAGE_MAXIMUM (Button 2) - only 2 physical buttons
-  LOGICAL_MINIMUM(1), 0x00,              // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,              // LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),     0x01,              // REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x02,              // REPORT_COUNT (2)
-  HIDINPUT(1),        0x02,              // INPUT (Data,Var,Abs)
+  USAGE_PAGE(1),      0x09,                      USAGE_MINIMUM(1),   0x01,              
+  USAGE_MAXIMUM(1),   0x02,                      LOGICAL_MINIMUM(1), 0x00,              
+  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,              
+  REPORT_COUNT(1),    0x02,                      HIDINPUT(1),        0x02,              
   // Padding (6 bits)
-  REPORT_SIZE(1),     0x06,              // REPORT_SIZE (6)
-  REPORT_COUNT(1),    0x01,              // REPORT_COUNT (1)
-  HIDINPUT(1),        0x01,              // INPUT (Constant)
+  REPORT_SIZE(1),     0x06,                      REPORT_COUNT(1),    0x01,              
+  HIDINPUT(1),        0x01,              
   // Stylus state flags: In Range, Tip Switch, Invert (eraser), Barrel Switch
-  USAGE_PAGE(1),      0x0D,              // USAGE_PAGE (Digitizer)
-  USAGE(1),           0x32,              // USAGE (In Range)
-  USAGE(1),           0x42,              // USAGE (Tip Switch)
-  USAGE(1),           0x3C,              // USAGE (Invert) - for eraser detection
-  USAGE(1),           0x44,              // USAGE (Barrel Switch)
-  LOGICAL_MINIMUM(1), 0x00,              // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,              // LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),     0x01,              // REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x04,              // REPORT_COUNT (4)
-  HIDINPUT(1),        0x02,              // INPUT (Data,Var,Abs)
+  USAGE_PAGE(1),      0x0D,                      USAGE(1),           0x32,              
+  USAGE(1),           0x42,                      USAGE(1),           0x3C,              
+  USAGE(1),           0x44,                      LOGICAL_MINIMUM(1), 0x00,              
+  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,              
+  REPORT_COUNT(1),    0x04,                      HIDINPUT(1),        0x02,              
   // Padding (4 bits)
-  REPORT_SIZE(1),     0x04,              // REPORT_SIZE (4)
-  REPORT_COUNT(1),    0x01,              // REPORT_COUNT (1)
-  HIDINPUT(1),        0x01,              // INPUT (Constant) 
+  REPORT_SIZE(1),     0x04,                      REPORT_COUNT(1),    0x01,              
+  HIDINPUT(1),        0x01,              
   // X, Y coordinates (absolute)
-  USAGE_PAGE(1),      0x01,              // USAGE_PAGE (Generic Desktop)
-  USAGE(1),           0x30,              // USAGE (X)
-  USAGE(1),           0x31,              // USAGE (Y)
-  LOGICAL_MINIMUM(1), 0x00,              // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,        // LOGICAL_MAXIMUM (32767)
-  REPORT_SIZE(1),     0x10,              // REPORT_SIZE (16)
-  REPORT_COUNT(1),    0x02,              // REPORT_COUNT (2)
-  HIDINPUT(1),        0x02,              // INPUT (Data,Var,Abs)
+  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x30,              
+  USAGE(1),           0x31,                      LOGICAL_MINIMUM(1), 0x00,              
+  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,                REPORT_SIZE(1),     0x10,              
+  REPORT_COUNT(1),    0x02,                      HIDINPUT(1),        0x02,              
   // Pressure
-  USAGE_PAGE(1),      0x0D,              // USAGE_PAGE (Digitizer)
-  USAGE(1),           0x30,              // USAGE (Tip Pressure)
-  LOGICAL_MINIMUM(1), 0x00,              // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x7F,              // LOGICAL_MAXIMUM (127) - Android compatible
-  REPORT_SIZE(1),     0x08,              // REPORT_SIZE (8)
-  REPORT_COUNT(1),    0x01,              // REPORT_COUNT (1)
-  HIDINPUT(1),        0x02,              // INPUT (Data,Var,Abs)
-  END_COLLECTION(0),                       // END_COLLECTION (Physical)
-  END_COLLECTION(0),                       // END_COLLECTION (Application)
+  USAGE_PAGE(1),      0x0D,                      USAGE(1),           0x30,              
+  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x7F,              
+  REPORT_SIZE(1),     0x08,                      REPORT_COUNT(1),    0x01,              
+  HIDINPUT(1),        0x02,                      END_COLLECTION(0),                       
+  END_COLLECTION(0),                       
     // ------------------------------------------------- Gamepad
-  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
-  USAGE(1),           0x05,             // USAGE (Game Pad)
-  COLLECTION(1),      0x01,             // COLLECTION (Application)
-  REPORT_ID(1),       GAMEPAD_ID,       // REPORT_ID
+  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x05,             
+  COLLECTION(1),      0x01,                      REPORT_ID(1),       GAMEPAD_ID,       
   // 64 buttons in bitfield
-  USAGE_PAGE(1),      0x09,             // USAGE_PAGE (Button)
-  USAGE_MINIMUM(1),   0x01,             // USAGE_MINIMUM (Button 1)
-  USAGE_MAXIMUM(1),   0x40,             // USAGE_MAXIMUM (Button 64)
-  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x40,             // REPORT_COUNT (64)
-  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
+  USAGE_PAGE(1),      0x09,                      USAGE_MINIMUM(1),   0x01,             
+  USAGE_MAXIMUM(1),   0x40,                      LOGICAL_MINIMUM(1), 0x00,             
+  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,             
+  REPORT_COUNT(1),    0x40,                      HIDINPUT(1),        0x02,             
   // Hat Switch
-  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
-  USAGE(1),           0x39,             // USAGE (Hat Switch)
-  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x07,             // LOGICAL_MAXIMUM (7)
-  PHYSICAL_MINIMUM(1),0x00,             // PHYSICAL_MINIMUM (0)
-  PHYSICAL_MAXIMUM(2),0x3B, 0x01,       // PHYSICAL_MAXIMUM (315)
-  UNIT(1),            0x14,             // UNIT (Degrees)
-  REPORT_SIZE(1),     0x04,             // REPORT_SIZE (4)
-  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
-  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
-  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
-  REPORT_SIZE(1),     0x04,             // REPORT_SIZE  (4)
-  HIDINPUT(1),        0x03,             // INPUT (Cnst,Var,Abs)
+  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x39,             
+  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x07,             
+  PHYSICAL_MINIMUM(1),0x00,                      PHYSICAL_MAXIMUM(2),0x3B, 0x01,       
+  UNIT(1),            0x14,                      REPORT_SIZE(1),     0x04,             
+  REPORT_COUNT(1),    0x01,                      HIDINPUT(1),        0x02,             
+  REPORT_COUNT(1),    0x01,                      REPORT_SIZE(1),     0x04,             
+  HIDINPUT(1),        0x03,             
   // Left Stick X/Y
-  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
-  USAGE(1),           0x01,             // USAGE (Pointer)
-  COLLECTION(1),      0x00,             // COLLECTION (Physical)
-  USAGE(1),           0x30,             // USAGE (X)
-  USAGE(1),           0x31,             // USAGE (Y)
-  LOGICAL_MINIMUM(2), 0x01, 0x80,       // LOGICAL_MINIMUM (-32767)
-  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       // LOGICAL_MAXIMUM (32767)
-  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
-  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
-  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
-  END_COLLECTION(0),                    // END_COLLECTION (Physical)
+  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x01,             
+  COLLECTION(1),      0x00,                      USAGE(1),           0x30,             
+  USAGE(1),           0x31,                      LOGICAL_MINIMUM(2), 0x01, 0x80,       
+  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,                REPORT_SIZE(1),     0x10,             
+  REPORT_COUNT(1),    0x02,                      HIDINPUT(1),        0x02,             
+  END_COLLECTION(0),                    
   // Right Stick X/Y
-  USAGE(1),           0x01,             // USAGE (Pointer)
-  COLLECTION(1),      0x00,             // COLLECTION (Physical)
-  USAGE(1),           0x33,             // USAGE (Rx)
-  USAGE(1),           0x34,             // USAGE (Ry)
-  LOGICAL_MINIMUM(2), 0x01, 0x80,       // LOGICAL_MINIMUM (-32767)
-  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       // LOGICAL_MAXIMUM (32767)
-  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
-  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
-  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
-  END_COLLECTION(0),                    // END_COLLECTION (Physical)
+  USAGE(1),           0x01,                      COLLECTION(1),      0x00,             
+  USAGE(1),           0x33,                      USAGE(1),           0x34,             
+  LOGICAL_MINIMUM(2), 0x01, 0x80,                LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       
+  REPORT_SIZE(1),     0x10,                      REPORT_COUNT(1),    0x02,             
+  HIDINPUT(1),        0x02,                      END_COLLECTION(0),                    
   // Triggers
-  USAGE(1),           0x32,             // USAGE (Z) - Left Trigger
-  USAGE(1),           0x35,             // USAGE (Rz) - Right Trigger
-  LOGICAL_MINIMUM(2), 0x00, 0x00,       // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       // LOGICAL_MAXIMUM (32767)
-  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
-  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
-  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
-  // Haptic Motors
-  USAGE_PAGE(1),      0x0F,             // USAGE_PAGE (Physical Interface)
-  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0xFF,             // LOGICAL_MAXIMUM (255)
-  REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
-  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
-  USAGE(1),           0x97,             // USAGE (Magnitude) - Left Motor
-  USAGE(1),           0x97,             // USAGE (Magnitude) - Right Motor
-  HIDOUTPUT(1),       0x02,             // OUTPUT (Data,Var,Abs)
-  END_COLLECTION(0),                     // END_COLLECTION (Application)
+  USAGE(1),           0x32,                      USAGE(1),           0x35,             
+  LOGICAL_MINIMUM(2), 0x00, 0x00,                LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       
+  REPORT_SIZE(1),     0x10,                      REPORT_COUNT(1),    0x02,             
+  HIDINPUT(1),        0x02,                      END_COLLECTION(0),
 };
 
 // This is a "constructor". It takes that class from the BleKeyboard.h file, and turns it into "objects" that can actually be used.
@@ -311,7 +223,6 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
     , _screenWidth(1920)
     , _screenHeight(1080)
     , _digitizerConfigured(false)
-    , _onVibrateCallback(nullptr) 
     , lastPollTime(0) 
 {
   // Initialize reports
@@ -383,8 +294,8 @@ void BleKeyboard::begin(void) {
     inputDigitizer = hid->getInputReport(DIGITIZER_ID);
     inputGeminiPR  = hid->getInputReport(GEMINIPR_ID);
     inputGamepad   = hid->getInputReport(GAMEPAD_ID);
-    outputHaptics  = hid->getOutputReport(GAMEPAD_ID);
-
+    
+    // Set callbacks
     outputKeyboard->setCallbacks(this);
     if (inputNKRO) {inputNKRO->setCallbacks(this);}
     if (inputMediaKeys) {inputMediaKeys->setCallbacks(this);}
@@ -392,15 +303,54 @@ void BleKeyboard::begin(void) {
     if (inputDigitizer) {inputDigitizer->setCallbacks(this);}
     if (inputGeminiPR) {inputGeminiPR->setCallbacks(this);}
     if (inputGamepad) {inputGamepad->setCallbacks(this);}
-    if (outputHaptics) {outputHaptics->setCallbacks(this);}
     
     // Manufacturer / PnP / HID-info
     hid->setManufacturer(std::string(deviceManufacturer.c_str()));
-    hid->setHidInfo(0x00, 0x01);
+    hid->setHidInfo(0x11, 0x01);
 
     // Publish HID report map and start services
     hid->setReportMap((uint8_t *)_hidReportDescriptor, sizeof(_hidReportDescriptor));
     hid->startServices();
+    
+    // Create complete Device Information Service
+    BLEService* disService = pServer->createService(NimBLEUUID((uint16_t)0x180A));
+
+    // Manufacturer Name
+    BLECharacteristic* manufChar = disService->createCharacteristic(
+      (uint16_t)0x2A29, 
+      NIMBLE_PROPERTY::READ
+    );
+    manufChar->setValue(deviceManufacturer.c_str());
+
+    // Model Number
+    BLECharacteristic* modelChar = disService->createCharacteristic(
+      (uint16_t)0x2A24,
+      NIMBLE_PROPERTY::READ
+    );
+    modelChar->setValue(deviceName.c_str());
+
+    // Firmware Version
+    BLECharacteristic* fwChar = disService->createCharacteristic(
+      (uint16_t)0x2A26,
+      NIMBLE_PROPERTY::READ
+    );
+    fwChar->setValue(BLE_KEYBOARD_VERSION);
+
+    // PnP ID (required)
+    BLECharacteristic* pnpChar = disService->createCharacteristic(
+      (uint16_t)0x2A50,
+      NIMBLE_PROPERTY::READ
+    );
+
+    uint8_t pnpId[7] = {
+      0x02,           // Vendor ID source (USB-IF)
+      vid & 0xFF, vid >> 8,
+      pid & 0xFF, pid >> 8,
+      version & 0xFF, version >> 8
+    };
+    pnpChar->setValue(pnpId, 7);
+
+    disService->start();
 
     // Advertising setup
     advertising = pServer->getAdvertising();
@@ -421,8 +371,8 @@ void BleKeyboard::begin(void) {
     adv.addServiceUUID(hid->getHidService()->getUUID());
     adv.setManufacturerData((deviceManufacturer).c_str());
 
-    advertising->setMinInterval(32);    // 20ms in 0.625ms units
-    advertising->setMaxInterval(160);   // 100ms in 0.625ms units  
+    advertising->setMinInterval(32);   // 15ms  (12  * 0.625ms)
+    advertising->setMaxInterval(160);  // 100ms (160 * 0.625ms)  
     advertising->setAdvertisementData(adv);
     advertising->setScanResponseData(scan);
 
@@ -631,7 +581,30 @@ bool BleKeyboard::_shouldUseAbsoluteMode() {
 
 void BleKeyboard::sendNKROReport() {
   if (this->isConnected() && inputNKRO) {
-    inputNKRO->setValue((uint8_t*)&_keyReportNKRO, sizeof(KeyReportNKRO));
+    // If in NKRO mode, send the extended report (ID 2)
+    if (_useNKRO) {
+      inputNKRO->setValue((uint8_t*)&_keyReportNKRO, sizeof(KeyReportNKRO));
+    } else {
+      // 6KRO mode - extract first 6 pressed keys and send boot report
+      uint8_t bootReport[8];
+      bootReport[0] = _keyReportNKRO.modifiers;
+      bootReport[1] = 0; // reserved
+      
+      // Find up to 6 pressed keys
+      int keyIndex = 2;
+      for (int i = 0; i < NKRO_KEY_COUNT && keyIndex < 8; i++) {
+        if ((_keyReportNKRO.keys_bitmask[i/8] >> (i%8)) & 1) {
+          bootReport[keyIndex++] = i;
+        }
+      }
+      
+      // Fill remaining with 0
+      while (keyIndex < 8) {
+        bootReport[keyIndex++] = 0;
+      }
+      
+      inputNKRO->setValue(bootReport, 8);
+    }
     inputNKRO->notify();
     delay(_delay_ms);
   }
@@ -1272,11 +1245,6 @@ void BleKeyboard::gamepadGetRightStick(int16_t &x, int16_t &y) {
     y = gamepadGetAxis(AXIS_RY);
 }
 
-void BleKeyboard::onVibrate(void (*callback)(uint8_t leftMotor, uint8_t rightMotor)) {
-  _onVibrateCallback = callback;
-  Serial.printf("[%s] Vibrate callback registered\n", LOG_TAG);
-}
-
 void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
     Serial.printf("[%s] ESP-HID onConnect callback triggered - Security: %s, Encrypted: %s\n", LOG_TAG,
              isSecurityEnabled() ? "Enabled" : "Disabled", 
@@ -1313,24 +1281,7 @@ void BleKeyboard::onWrite(NimBLECharacteristic* me) {
   Serial.printf("[%s] ESP-HID onWrite callback triggered!\n", LOG_TAG);
   uint8_t* value = (uint8_t*)(me->getValue().c_str());
   size_t length = me->getValue().length();
-  
-  // Check if this is haptic data from the gamepad characteristic
-  if (me == inputGamepad && length >= 2) {
-    // Gamepad output report format for haptics: [LeftMotor, RightMotor]
-    // Most systems send 2 bytes for dual motor vibration
-    uint8_t leftMotor = value[0];
-    uint8_t rightMotor = value[1];
-    
-    Serial.printf("[%s] Haptic feedback received: left=%d, right=%d\n", LOG_TAG, leftMotor, rightMotor);
-    
-    // Call user callback if registered
-    if (_onVibrateCallback) {
-      _onVibrateCallback(leftMotor, rightMotor);
-    }
-  } else {
-    // Handle other characteristics (existing code)
-    Serial.printf("[%s] special keys: %d\n", LOG_TAG, *value);
-  }
+  Serial.printf("[%s] special keys: %d\n", LOG_TAG, *value);
   
 }
 
