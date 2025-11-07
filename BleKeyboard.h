@@ -60,20 +60,7 @@ typedef struct {
   int8_t relY;
   int8_t wheel;
   int8_t hWheel;
-  // Absolute mode fields (used when _useAbsolute = true)  
-  uint16_t absX;
-  uint16_t absY;
-  uint16_t pressure;
-  uint8_t tipSwitch : 1;
-  uint8_t padding : 7;
 } PointerReport;
-
-// Gamepad report structure
-typedef struct {
-  uint32_t buttons[2];
-  int16_t axes[GAMEPAD_AXIS_COUNT];
-  int8_t hat;
-} GamepadReport;
 
 // GeminiPR packet structure
 typedef struct {
@@ -84,6 +71,31 @@ typedef struct {
   uint8_t byte4;  // -P  to -D
   uint8_t byte5;  // #7  to -Z
 } GeminiPRReport;
+
+// Digitizer report structure
+typedef struct {
+    uint8_t buttons;
+    uint8_t flags;     // In range, tip switch, etc.
+    uint16_t x;
+    uint16_t y;
+    uint8_t pressure;  // 0-127 for Android compatibility
+} DigitizerReport;
+
+typedef struct {
+  uint32_t buttons[2];
+  int8_t hat;
+  int16_t axes[GAMEPAD_AXIS_COUNT];
+} GamepadReport;
+
+// Button bitmask constants (for the 'buttons' parameter)
+const uint8_t DIGITIZER_BTN1 = 0x01;    // Button 1 (tip button, if present)
+const uint8_t DIGITIZER_BTN2 = 0x02;    // Button 2 (barrel/side button)
+const uint8_t DIGITIZER_BTN3 = 0x04;    // Button 3 (eraser)
+// Flag constants (internal, for 'flags' field)
+const uint8_t DIGITIZER_FLAG_IN_RANGE     = 0x01;  // Bit 0
+const uint8_t DIGITIZER_FLAG_TIP_SWITCH   = 0x02;  // Bit 1
+const uint8_t DIGITIZER_FLAG_INVERT       = 0x04;  // Bit 2 (eraser)
+const uint8_t DIGITIZER_FLAG_BARREL_SW    = 0x08;  // Bit 3
 
 static const bool enabled = true;
 static const bool disabled = false;
@@ -569,6 +581,102 @@ const uint16_t KC_BRID = 0x0070;
 const uint16_t KC_CPNL = 0x0186;
 const uint16_t KC_LPAD = 0x0187;
 
+enum GeminiPRKeys {
+  // Byte 0
+  GEMINI_FN    = 0x80,
+  GEMINI_NUM1  = 0x40,
+//GEMINI_NUM2  = 0x20, <-
+//GEMINI_NUM3  = 0x10, <-   None of these 5 actually exist for some reason.
+//GEMINI_NUM4  = 0x08, <-   I've added them as comments to mourn what could have been.
+//GEMINI_NUM5  = 0x04, <-
+//GEMINI_NUM6  = 0x02, <-
+
+  // Byte 1
+  GEMINI_S1    = 0x80,
+  GEMINI_S2    = 0x40,
+  GEMINI_T     = 0x20,
+  GEMINI_K     = 0x10,
+  GEMINI_P     = 0x08,
+  GEMINI_W     = 0x04,
+  GEMINI_H     = 0x02,
+  
+  // Byte 2
+  GEMINI_R     = 0x80,
+  GEMINI_A     = 0x40,
+  GEMINI_O     = 0x20,
+  GEMINI_STAR1 = 0x10,
+  GEMINI_STAR2 = 0x08,
+  GEMINI_RES1  = 0x04,
+  GEMINI_RES2  = 0x02,
+  
+  // Byte 3
+  GEMINI_PWR   = 0x80,
+  GEMINI_STAR3 = 0x40,
+  GEMINI_STAR4 = 0x20,
+  GEMINI_E     = 0x10,
+  GEMINI_U     = 0x08,
+  GEMINI_F     = 0x04,
+  GEMINI_R2    = 0x02,
+  
+  // Byte 4
+  GEMINI_P2    = 0x80,
+  GEMINI_B     = 0x40,
+  GEMINI_L     = 0x20,
+  GEMINI_G     = 0x10,
+  GEMINI_T2    = 0x08,
+  GEMINI_S     = 0x04,
+  GEMINI_D     = 0x02,
+  
+  // Byte 5
+  GEMINI_NUM7  = 0x80,
+  GEMINI_NUM8  = 0x40,
+  GEMINI_NUM9  = 0x20,
+  GEMINI_NUM10 = 0x10,
+  GEMINI_NUM11 = 0x08,
+  GEMINI_NUM12 = 0x04,
+  GEMINI_Z     = 0x02
+};
+
+using StenoKey = int32_t;
+
+const StenoKey ST_FN    = GEMINI_FN;
+const StenoKey ST_1     = GEMINI_NUM1;
+const StenoKey ST_S1    = GEMINI_S1;
+const StenoKey ST_S2    = GEMINI_S2;
+const StenoKey ST_T     = GEMINI_T;
+const StenoKey ST_K     = GEMINI_K;
+const StenoKey ST_P     = GEMINI_P;
+const StenoKey ST_W     = GEMINI_W;
+const StenoKey ST_H     = GEMINI_H;
+const StenoKey ST_R     = GEMINI_R;
+const StenoKey ST_A     = GEMINI_A;
+const StenoKey ST_O     = GEMINI_O;
+const StenoKey ST_ST1   = GEMINI_STAR1;
+const StenoKey ST_ST2   = GEMINI_STAR2;
+const StenoKey ST_RS1   = GEMINI_RES1;
+const StenoKey ST_RS2   = GEMINI_RES2;
+const StenoKey ST_PWR   = GEMINI_PWR;
+const StenoKey ST_ST3   = GEMINI_STAR3;
+const StenoKey ST_ST4   = GEMINI_STAR4;
+const StenoKey ST_E     = GEMINI_E;
+const StenoKey ST_U     = GEMINI_U;
+const StenoKey ST_F     = GEMINI_F;
+const StenoKey ST_R2    = GEMINI_R2;
+const StenoKey ST_P2    = GEMINI_P2;
+const StenoKey ST_B     = GEMINI_B;
+const StenoKey ST_L     = GEMINI_L;
+const StenoKey ST_G     = GEMINI_G;
+const StenoKey ST_T2    = GEMINI_T2;
+const StenoKey ST_S     = GEMINI_S;
+const StenoKey ST_D     = GEMINI_D;
+const StenoKey ST_7     = GEMINI_NUM7;
+const StenoKey ST_8     = GEMINI_NUM8;
+const StenoKey ST_9     = GEMINI_NUM9;
+const StenoKey ST_10    = GEMINI_NUM10;
+const StenoKey ST_11    = GEMINI_NUM11;
+const StenoKey ST_12    = GEMINI_NUM12;
+const StenoKey ST_Z     = GEMINI_Z;
+
 const int8_t GAMEPAD_0 = 1;
 const int8_t GAMEPAD_SO = 1;
 const int8_t GAMEPAD_1 = 2;
@@ -743,15 +851,15 @@ const int8_t GA_RY = 3;
 const int8_t GA_LT = 4;
 const int8_t GA_RT = 5;
 
-const int8_t HAT_CENTER = 0x08;
-const int8_t HAT_UP = 0x00;
-const int8_t HAT_UP_RIGHT = 0x01;
-const int8_t HAT_RIGHT = 0x02;
-const int8_t HAT_DOWN_RIGHT = 0x03;
-const int8_t HAT_DOWN = 0x04;
-const int8_t HAT_DOWN_LEFT = 0x05;
-const int8_t HAT_LEFT = 0x06;
-const int8_t HAT_UP_LEFT = 0x07;
+const int8_t HAT_CE = 8;
+const int8_t HAT_UP = 0;
+const int8_t HAT_UR = 1;
+const int8_t HAT_RI = 2;
+const int8_t HAT_DR = 3;
+const int8_t HAT_DO = 4;
+const int8_t HAT_DL = 5;
+const int8_t HAT_LE = 6;
+const int8_t HAT_UL = 7;
 
 const int8_t GB_UP = 65;
 const int8_t GB_RI = 66;
@@ -759,112 +867,16 @@ const int8_t GB_DO = 67;
 const int8_t GB_LE = 68;
 
 static const int8_t hatPress[4][9] = {
-  { 0x00, 0x01, 0x01, 0x01, 0x00, 0x07, 0x07, 0x07, 0x00 }, // UP     |  UP     UP-RIGHT  RIGHT  DOWN-RIGHT  DOWN  DOWN-LEFT   LEFT   UP-LEFT   CENTER
-  { 0x01, 0x01, 0x02, 0x03, 0x03, 0x03, 0x02, 0x01, 0x02 }, // RIGHT  |  0x00     0x01     0x02     0x03     0x04     0x05     0x06     0x07     0x08
-  { 0x04, 0x03, 0x03, 0x03, 0x04, 0x05, 0x05, 0x05, 0x04 }, // DOWN   |  The numbers in both these arrays are in this order. This means, for the hatPress array,
-  { 0x07, 0x07, 0x06, 0x05, 0x05, 0x05, 0x06, 0x07, 0x06 }};// LEFT   |  the very last number says "When holding CENTER, pressing LEFT results in direction 0x06 (LEFT)						
+  { 0, 1, 1, 1, 0, 7, 7, 7, 0 }, // UP     |  UP     UP-RIGHT  RIGHT  DOWN-RIGHT  DOWN  DOWN-LEFT   LEFT   UP-LEFT   CENTER
+  { 1, 1, 2, 3, 3, 3, 2, 1, 2 }, // RIGHT  |  0x00     0x01     0x02     0x03     0x04     0x05     0x06     0x07     0x08
+  { 4, 3, 3, 3, 4, 5, 5, 5, 4 }, // DOWN   |  The numbers in both these arrays are in this order. This means, for the hatPress array,
+  { 7, 7, 6, 5, 5, 5, 6, 7, 6 }};// LEFT   |  the very last number says "When holding CENTER, pressing LEFT results in direction 0x06 (LEFT)						
   
 static const int8_t hatRelease[4][9] = {
-  { 0x08, 0x02, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06, 0x08}, // UP      |  { 0x08, 0x02, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06, 0x08 } // UP
-  { 0x00, 0x00, 0x08, 0x04, 0x04, 0x05, 0x06, 0x07, 0x08}, // RIGHT   |     ^
-  { 0x00, 0x01, 0x02, 0x02, 0x08, 0x06, 0x06, 0x07, 0x08}, // DOWN    |     This means, "If you're pressing UP and you release UP, the result is 0x08 (CENTER)
-  { 0x00, 0x01, 0x02, 0x03, 0x04, 0x04, 0x08, 0x00, 0x08}};// LEFT    |     First value, so "If pressing UP", first row of hatRelease so "and UP is released", code is the result.
-
-enum GeminiPRKeys {
-  // Byte 0
-  GEMINI_FN    = 0x80,
-  GEMINI_NUM1  = 0x40,
-//GEMINI_NUM2  = 0x20, <-
-//GEMINI_NUM3  = 0x10, <-   None of these 5 actually exist for some reason.
-//GEMINI_NUM4  = 0x08, <-   I've added them as comments to mourn what could have been.
-//GEMINI_NUM5  = 0x04, <-
-//GEMINI_NUM6  = 0x02, <-
-
-  // Byte 1
-  GEMINI_S1    = 0x80,
-  GEMINI_S2    = 0x40,
-  GEMINI_T     = 0x20,
-  GEMINI_K     = 0x10,
-  GEMINI_P     = 0x08,
-  GEMINI_W     = 0x04,
-  GEMINI_H     = 0x02,
-  
-  // Byte 2
-  GEMINI_R     = 0x80,
-  GEMINI_A     = 0x40,
-  GEMINI_O     = 0x20,
-  GEMINI_STAR1 = 0x10,
-  GEMINI_STAR2 = 0x08,
-  GEMINI_RES1  = 0x04,
-  GEMINI_RES2  = 0x02,
-  
-  // Byte 3
-  GEMINI_PWR   = 0x80,
-  GEMINI_STAR3 = 0x40,
-  GEMINI_STAR4 = 0x20,
-  GEMINI_E     = 0x10,
-  GEMINI_U     = 0x08,
-  GEMINI_F     = 0x04,
-  GEMINI_R2    = 0x02,
-  
-  // Byte 4
-  GEMINI_P2    = 0x80,
-  GEMINI_B     = 0x40,
-  GEMINI_L     = 0x20,
-  GEMINI_G     = 0x10,
-  GEMINI_T2    = 0x08,
-  GEMINI_S     = 0x04,
-  GEMINI_D     = 0x02,
-  
-  // Byte 5
-  GEMINI_NUM7  = 0x80,
-  GEMINI_NUM8  = 0x40,
-  GEMINI_NUM9  = 0x20,
-  GEMINI_NUM10 = 0x10,
-  GEMINI_NUM11 = 0x08,
-  GEMINI_NUM12 = 0x04,
-  GEMINI_Z     = 0x02
-};
-
-using StenoKey = int32_t;
-
-const StenoKey ST_FN    = GEMINI_FN;
-const StenoKey ST_1     = GEMINI_NUM1;
-const StenoKey ST_S1    = GEMINI_S1;
-const StenoKey ST_S2    = GEMINI_S2;
-const StenoKey ST_T     = GEMINI_T;
-const StenoKey ST_K     = GEMINI_K;
-const StenoKey ST_P     = GEMINI_P;
-const StenoKey ST_W     = GEMINI_W;
-const StenoKey ST_H     = GEMINI_H;
-const StenoKey ST_R     = GEMINI_R;
-const StenoKey ST_A     = GEMINI_A;
-const StenoKey ST_O     = GEMINI_O;
-const StenoKey ST_ST1   = GEMINI_STAR1;
-const StenoKey ST_ST2   = GEMINI_STAR2;
-const StenoKey ST_RS1   = GEMINI_RES1;
-const StenoKey ST_RS2   = GEMINI_RES2;
-const StenoKey ST_PWR   = GEMINI_PWR;
-const StenoKey ST_ST3   = GEMINI_STAR3;
-const StenoKey ST_ST4   = GEMINI_STAR4;
-const StenoKey ST_E     = GEMINI_E;
-const StenoKey ST_U     = GEMINI_U;
-const StenoKey ST_F     = GEMINI_F;
-const StenoKey ST_R2    = GEMINI_R2;
-const StenoKey ST_P2    = GEMINI_P2;
-const StenoKey ST_B     = GEMINI_B;
-const StenoKey ST_L     = GEMINI_L;
-const StenoKey ST_G     = GEMINI_G;
-const StenoKey ST_T2    = GEMINI_T2;
-const StenoKey ST_S     = GEMINI_S;
-const StenoKey ST_D     = GEMINI_D;
-const StenoKey ST_7     = GEMINI_NUM7;
-const StenoKey ST_8     = GEMINI_NUM8;
-const StenoKey ST_9     = GEMINI_NUM9;
-const StenoKey ST_10    = GEMINI_NUM10;
-const StenoKey ST_11    = GEMINI_NUM11;
-const StenoKey ST_12    = GEMINI_NUM12;
-const StenoKey ST_Z     = GEMINI_Z;
+  { 8, 2, 2, 3, 4, 5, 6, 6, 8}, // UP      |  { 0x08, 0x02, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06, 0x08 } // UP
+  { 0, 0, 8, 4, 4, 5, 6, 7, 8}, // RIGHT   |     ^
+  { 0, 1, 2, 2, 8, 6, 6, 7, 8}, // DOWN    |     This means, "If you're pressing UP and you release UP, the result is 0x08 (CENTER)
+  { 0, 1, 2, 3, 4, 4, 8, 0, 8}};// LEFT    |     First value, so "If pressing UP", first row of hatRelease so "and UP is released", code is the result.
 
 class BleKeyboard : public Print
     , public NimBLEServerCallbacks
@@ -881,13 +893,15 @@ private:
   BLECharacteristic* inputMediaKeys;
   BLECharacteristic* inputNKRO;
   BLECharacteristic* inputMouse;
-  BLECharacteristic* inputGamepad;
   BLECharacteristic* inputGeminiPR;
+  BLECharacteristic* inputDigitizer;
+  BLECharacteristic* inputGamepad;
   
   KeyReportNKRO      _keyReportNKRO;
   PointerReport      _pointerReport;
-  GamepadReport      _gamepadReport;
   GeminiPRReport     _geminiReport;
+  DigitizerReport    _digitizerReport;
+  GamepadReport      _gamepadReport;
   
   uint32_t           passkey = 0;           // PIN code (0 = no security)
   bool               bonding_enabled = true; 
@@ -897,22 +911,30 @@ private:
   uint32_t           _mediaKeyBitmask;
   uint8_t            _mouseButtons;
   uint32_t           _delay_ms = 7;
-  bool               _useNKRO = true;  // Default to NKRO
-  bool               _useAbsolute = false;
+  bool               _useNKRO = true;      // Default to NKRO
+  bool               _useAbsolute = false; // Default to relative mouse mode
 
   uint16_t vid       = 0x05ac; // I picked random numbers here and it worked fine,
   uint16_t pid       = 0x820a; // idk if these actually matter at all for anything
   uint16_t version   = 0x0210;
   
-  friend void pollConnection(void * arg);
-  uint8_t  last_connected_count = 0;   // previous poll result
-  uint32_t lastPollTime = 0;
-  static const uint32_t POLL_INTERVAL = 1000; // 1 second in milliseconds
-  static void securityCallback(uint32_t passkey); 
-  uint32_t mediaKeyToBitmask(uint16_t usageCode);
-  void updateNKROBitmask(uint8_t k, bool pressed);
-  uint8_t countPressedKeys();
-  void (*_onVibrateCallback)(uint8_t leftMotor, uint8_t rightMotor) = nullptr;
+  friend void           pollConnection(void * arg);
+  uint8_t               last_connected_count = 0;   // previous poll result
+  uint32_t              lastPollTime = 0;
+  static const uint32_t POLL_INTERVAL = 1000;       // 1 second in milliseconds
+  static void           securityCallback(uint32_t passkey); 
+  void                  updateNKROBitmask(uint8_t k, bool pressed);
+  uint8_t               countPressedKeys();
+  uint32_t              mediaKeyToBitmask(uint16_t usageCode);
+  uint16_t              _maxX = 32767;              // Maximum X coordinate
+  uint16_t              _maxY = 32767;              // Maximum Y coordinate
+  bool                  _autoMode = true;           // Auto-detect mode based on method calls
+  uint16_t              _screenWidth = 1920;        // Default screen width
+  uint16_t              _screenHeight = 1080;       // Default screen height
+  bool                  _digitizerConfigured = false;
+  void                  _detectModeFromAppearance();
+  bool                  _shouldUseAbsoluteMode();
+  void                  (*_onVibrateCallback)(uint8_t leftMotor, uint8_t rightMotor) = nullptr;
 
 public:
   BleKeyboard(std::string deviceName = "ESP32 Keyboard", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
@@ -938,18 +960,16 @@ public:
   size_t press(uint8_t k);           // I went with uint8_t for normal keycodes
   size_t press(int16_t modifier);    // I chose int16_t for modifiers
   size_t press(uint16_t mediaKey);   // I picked uint16_t for media keys
-  size_t press(int8_t button);       // Next, int8_t is for the gamepad buttons
   size_t press(char b = MOUSE_LEFT); // Finally, char is for mouse clicks . . .
   size_t press(int32_t stenoKey);    // . . . And int32_t is for the steno keys
-  size_t press(uint16_t x, uint16_t y, char b = MOUSE_LEFT);  // Feeding in coordinates makes it assume you're trying to use absolute pointer mode
+  size_t press(int8_t button);       // Next, int8_t is for the gamepad buttons
   
   size_t release(uint8_t k);
   size_t release(int16_t modifier);
   size_t release(uint16_t mediaKey);
-  size_t release(int8_t button);
   size_t release(char b = MOUSE_LEFT);
   size_t release(int32_t stenoKey);
-  size_t release(uint16_t x, uint16_t y, char b = MOUSE_LEFT);
+  size_t release(int8_t button);
   
   size_t write(uint8_t c);
   size_t write(int16_t modifier);
@@ -962,6 +982,7 @@ public:
   
   void sendNKROReport();
   void sendMediaReport();
+  void sendDigitizerReport();
   void sendGeminiPRReport();
   void sendGamepadReport();
   
@@ -992,29 +1013,27 @@ public:
   void addMediaKey(uint16_t mediaKey);
   void removeMediaKey(uint16_t mediaKey);
 
-  // Pointer helper functions (Duplicates are so the same commands can support relative or absolute depending upon whether you feed in coordinates)
+  // Pointer helper functions
   void click(char b = MOUSE_LEFT);
   void click(uint16_t x, uint16_t y, char b = MOUSE_LEFT);
   void move(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
-  void moveTo(uint16_t x, uint16_t y, signed char wheel = 0, signed char hWheel = 0);
   bool mouseIsPressed(char b = MOUSE_LEFT);
   
-  // Absolute pointer helpers
-  void useAbsolute(bool enable = true);
-  void useRelative(bool enable = true);
-  void setAbsoluteRange(uint16_t minVal = 0, uint16_t maxVal = 32767);
-  bool isAbsoluteEnabled();
-  
-   // Pressure-sensitive drawing helpers
-  void moveToWithPressure(uint16_t x, uint16_t y, uint16_t pressure = 512, bool touching = true);
-  void clickWithPressure(uint16_t x, uint16_t y, uint16_t pressure = 1023, uint8_t button = MOUSE_LEFT);
-  void beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 1);
+  // Digitizer helper functions
+  void moveTo(uint16_t x, uint16_t y, uint8_t pressure = 0, uint8_t buttons = 0);
+  void beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 127);
   void updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
   void endStroke(uint16_t x, uint16_t y);
-  uint16_t getPressure() const;
-  bool getTipSwitch() const;
-  void setPressure(uint16_t pressure);  // Pressure values are 0-1023
-  void setTipSwitch(bool state);
+  void useAbsoluteMode(bool state = true);
+  bool isAbsoluteMode();
+  void useAutoMode(bool state = true);
+  void setDigitizerRange(uint16_t maxX, uint16_t maxY);
+  bool isAutoModeEnabled();
+  
+  void geminiStroke(const int32_t* keys, size_t count);
+  
+  // Helper to convert steno notation to key codes
+  uint8_t stenoCharToKey(char c);
   
   // Gamepad helpers
   bool gamepadIsPressed(int8_t button);
@@ -1027,13 +1046,6 @@ public:
   int16_t gamepadGetAxis(int8_t axis);
   void gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
   void onVibrate(void (*callback)(uint8_t leftMotor, uint8_t rightMotor));
-  bool isHapticsSupported() const;
-  
-  // GeminiPR methods
-  void geminiStroke(const int32_t* keys, size_t count);
-  
-  // Helper to convert steno notation to key codes
-  uint8_t stenoCharToKey(char c);
   
 protected:
   virtual void onStarted(BLEServer *pServer) { };
