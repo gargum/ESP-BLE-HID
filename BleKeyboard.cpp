@@ -10,12 +10,13 @@ static const char* LOG_TAG = "BleKeyboard";
 bool getInitialized = false;
 
 // Report IDs:
-#define KEYBOARD_ID 0x01
-#define NKRO_KEYBOARD_ID 0x02
+#define KEYBOARD_ID   0x01
+#define NKRO_ID       0x02
 #define MEDIA_KEYS_ID 0x03
-#define MOUSE_ID 0x04
-#define GEMINIPR_ID 0x05
-#define GAMEPAD_ID 0x06
+#define MOUSE_ID      0x04
+#define DIGITIZER_ID  0x05
+#define GEMINIPR_ID   0x06
+#define GAMEPAD_ID    0x07
 
 void pollConnection(void * arg);
 
@@ -49,7 +50,7 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
   USAGE(1),           0x06,             // USAGE (Keyboard)
   COLLECTION(1),      0x01,             // COLLECTION (Application)
-  REPORT_ID(1),       NKRO_KEYBOARD_ID, // REPORT_ID
+  REPORT_ID(1),       NKRO_ID, // REPORT_ID
   USAGE_PAGE(1),      0x07,             // USAGE_PAGE (Key Codes)
   USAGE_MINIMUM(1),   0xE0,             // USAGE_MINIMUM (Keyboard LeftControl)
   USAGE_MAXIMUM(1),   0xE7,             // USAGE_MAXIMUM (Keyboard Right GUI)
@@ -118,7 +119,7 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_COUNT(1),    0x1C,             // REPORT_COUNT (28)
   HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
   END_COLLECTION(0),                    // END_COLLECTION
-  // ------------------------------------------------- Pointers - Relative & Absolute
+  // ------------------------------------------------- Pointers - Relative/Mouse
   USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
   USAGE(1),           0x02,             // USAGE (Mouse)
   COLLECTION(1),      0x01,             // COLLECTION (Application)
@@ -156,34 +157,6 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_SIZE(1),     0x08,             // REPORT_SIZE (8)
   REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
   HIDINPUT(1),        0x06,             // INPUT (Data,Var,Rel)
-  // Absolute X, Y (16-bit)
-  USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
-  USAGE(1),           0x30,             // USAGE (X)
-  USAGE(1),           0x31,             // USAGE (Y)
-  LOGICAL_MINIMUM(2), 0x00, 0x00,       // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       // LOGICAL_MAXIMUM (32767)
-  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
-  REPORT_COUNT(1),    0x02,             // REPORT_COUNT (2)
-  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
-  // Pressure (Vendor-defined)
-  USAGE_PAGE(2),      0xFF, 0x00,       // USAGE_PAGE (Vendor Defined)
-  USAGE(1),           0x01,             // USAGE (Vendor Usage 1)
-  LOGICAL_MINIMUM(2), 0x00, 0x00,       // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(2), 0xFF, 0x03,       // LOGICAL_MAXIMUM (1023)
-  REPORT_SIZE(1),     0x10,             // REPORT_SIZE (16)
-  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
-  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
-  // Tip Switch (Vendor-defined)
-  USAGE(1),           0x02,             // USAGE (Vendor Usage 2)
-  LOGICAL_MINIMUM(1), 0x00,             // LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,             // LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),     0x01,             // REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
-  HIDINPUT(1),        0x02,             // INPUT (Data,Var,Abs)
-  // Tip Switch padding (7 bits)
-  REPORT_SIZE(1),     0x07,             // REPORT_SIZE (7)
-  REPORT_COUNT(1),    0x01,             // REPORT_COUNT (1)
-  HIDINPUT(1),        0x03,             // INPUT (Constant)
   END_COLLECTION(0),                    // END_COLLECTION (Physical)
   END_COLLECTION(0),                    // END_COLLECTION (Application)
   // ------------------------------------------------- GeminiPR Steno Protocol
@@ -198,8 +171,62 @@ static const uint8_t _hidReportDescriptor[] = {
   REPORT_COUNT(1),     0x30,             // REPORT_COUNT (48) - 48 bits
   USAGE(1),            0x01,             // USAGE (Vendor Usage 1)
   HIDINPUT(1),         0x02,             // INPUT (Data, Variable, Absolute)
-  END_COLLECTION(0),                      // END_COLLECTION
-  // ------------------------------------------------- Gamepad
+  END_COLLECTION(0),                      // END_COLLECTION (Physical)
+  // ------------------------------------------------- Pointers - Absolute/Digitizer
+  USAGE_PAGE(1),      0x0D,              // USAGE_PAGE (Digitizer)
+  USAGE(1),           0x01,              // USAGE (Stylus) - clearer than Touch Screen
+  COLLECTION(1),      0x01,              // COLLECTION (Application)
+  REPORT_ID(1),       DIGITIZER_ID,      // REPORT_ID
+  USAGE(1),           0x20,              // USAGE (Stylus) - repeated for Physical
+  COLLECTION(1),      0x00,              // COLLECTION (Physical)
+  // Buttons: Barrel, Eraser (Tip Switch is separate, not a button)
+  USAGE_PAGE(1),      0x09,              // USAGE_PAGE (Button)
+  USAGE_MINIMUM(1),   0x01,              // USAGE_MINIMUM (Button 1)
+  USAGE_MAXIMUM(1),   0x02,              // USAGE_MAXIMUM (Button 2) - only 2 physical buttons
+  LOGICAL_MINIMUM(1), 0x00,              // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x01,              // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),     0x01,              // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x02,              // REPORT_COUNT (2)
+  HIDINPUT(1),        0x02,              // INPUT (Data,Var,Abs)
+  // Padding (6 bits)
+  REPORT_SIZE(1),     0x06,              // REPORT_SIZE (6)
+  REPORT_COUNT(1),    0x01,              // REPORT_COUNT (1)
+  HIDINPUT(1),        0x01,              // INPUT (Constant)
+  // Stylus state flags: In Range, Tip Switch, Invert (eraser), Barrel Switch
+  USAGE_PAGE(1),      0x0D,              // USAGE_PAGE (Digitizer)
+  USAGE(1),           0x32,              // USAGE (In Range)
+  USAGE(1),           0x42,              // USAGE (Tip Switch)
+  USAGE(1),           0x3C,              // USAGE (Invert) - for eraser detection
+  USAGE(1),           0x44,              // USAGE (Barrel Switch)
+  LOGICAL_MINIMUM(1), 0x00,              // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x01,              // LOGICAL_MAXIMUM (1)
+  REPORT_SIZE(1),     0x01,              // REPORT_SIZE (1)
+  REPORT_COUNT(1),    0x04,              // REPORT_COUNT (4)
+  HIDINPUT(1),        0x02,              // INPUT (Data,Var,Abs)
+  // Padding (4 bits)
+  REPORT_SIZE(1),     0x04,              // REPORT_SIZE (4)
+  REPORT_COUNT(1),    0x01,              // REPORT_COUNT (1)
+  HIDINPUT(1),        0x01,              // INPUT (Constant) 
+  // X, Y coordinates (absolute)
+  USAGE_PAGE(1),      0x01,              // USAGE_PAGE (Generic Desktop)
+  USAGE(1),           0x30,              // USAGE (X)
+  USAGE(1),           0x31,              // USAGE (Y)
+  LOGICAL_MINIMUM(1), 0x00,              // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,        // LOGICAL_MAXIMUM (32767)
+  REPORT_SIZE(1),     0x10,              // REPORT_SIZE (16)
+  REPORT_COUNT(1),    0x02,              // REPORT_COUNT (2)
+  HIDINPUT(1),        0x02,              // INPUT (Data,Var,Abs)
+  // Pressure
+  USAGE_PAGE(1),      0x0D,              // USAGE_PAGE (Digitizer)
+  USAGE(1),           0x30,              // USAGE (Tip Pressure)
+  LOGICAL_MINIMUM(1), 0x00,              // LOGICAL_MINIMUM (0)
+  LOGICAL_MAXIMUM(1), 0x7F,              // LOGICAL_MAXIMUM (127) - Android compatible
+  REPORT_SIZE(1),     0x08,              // REPORT_SIZE (8)
+  REPORT_COUNT(1),    0x01,              // REPORT_COUNT (1)
+  HIDINPUT(1),        0x02,              // INPUT (Data,Var,Abs)
+  END_COLLECTION(0),                       // END_COLLECTION (Physical)
+  END_COLLECTION(0),                       // END_COLLECTION (Application)
+    // ------------------------------------------------- Gamepad
   USAGE_PAGE(1),      0x01,             // USAGE_PAGE (Generic Desktop)
   USAGE(1),           0x05,             // USAGE (Game Pad)
   COLLECTION(1),      0x01,             // COLLECTION (Application)
@@ -279,16 +306,21 @@ BleKeyboard::BleKeyboard(std::string deviceName, std::string deviceManufacturer,
     , _mediaKeyBitmask(0) 
     , _useNKRO(true)
     , _mouseButtons(0)
-    , _useAbsolute(false)
+    , _useAbsolute(false) 
+    , _autoMode(true)
+    , _screenWidth(1920)
+    , _screenHeight(1080)
+    , _digitizerConfigured(false)
     , _onVibrateCallback(nullptr) 
     , lastPollTime(0) 
 {
   // Initialize reports
   memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
   memset(&_pointerReport, 0, sizeof(_pointerReport));
-  memset(&_gamepadReport, 0, sizeof(_gamepadReport));
+  memset(&_digitizerReport, 0, sizeof(_digitizerReport));
   memset(&_geminiReport, 0, sizeof(_geminiReport));
-  _gamepadReport.hat = HAT_CENTER; // Initialize hat to center position 
+  memset(&_gamepadReport, 0, sizeof(_gamepadReport));
+  _gamepadReport.hat = HAT_CE;
   _activeBleKeyboardInstance = this;
 }
 // This is a "destructor". It takes objects the contructor made, and destroys them whenever you tell it to. 
@@ -345,9 +377,10 @@ void BleKeyboard::begin(void) {
 
     // Obtain report-characteristic pointers
     outputKeyboard = hid->getOutputReport(KEYBOARD_ID);
-    inputNKRO      = hid->getInputReport(NKRO_KEYBOARD_ID);
+    inputNKRO      = hid->getInputReport(NKRO_ID);
     inputMediaKeys = hid->getInputReport(MEDIA_KEYS_ID);
     inputMouse     = hid->getInputReport(MOUSE_ID);
+    inputDigitizer = hid->getInputReport(DIGITIZER_ID);
     inputGeminiPR  = hid->getInputReport(GEMINIPR_ID);
     inputGamepad   = hid->getInputReport(GAMEPAD_ID);
 
@@ -355,6 +388,7 @@ void BleKeyboard::begin(void) {
     if (inputNKRO) {inputNKRO->setCallbacks(this);}
     if (inputMediaKeys) {inputMediaKeys->setCallbacks(this);}
     if (inputMouse) {inputMouse->setCallbacks(this);}
+    if (inputDigitizer) {inputDigitizer->setCallbacks(this);}
     if (inputGeminiPR) {inputGeminiPR->setCallbacks(this);}
     if (inputGamepad) {inputGamepad->setCallbacks(this);}
     
@@ -497,7 +531,11 @@ bool BleKeyboard::onSecurityRequest() {
 
 void BleKeyboard::setAppearance(uint16_t newAppearance) {
   this->appearance = newAppearance;
-  Serial.printf("[%s] Appearance set to: 0x%04X\n", LOG_TAG, newAppearance);
+  
+  // If auto-mode is enabled, detect the default pointer mode from appearance
+  if (_autoMode) {_detectModeFromAppearance();}
+  // Actually inform the user which mode is the default for debugging purposes
+  Serial.printf("[%s] Appearance set to: 0x%04X, Mode: %s\n", LOG_TAG, newAppearance, _useAbsolute ? "absolute" : "relative");
 }
 
 bool BleKeyboard::isConnected(void) {
@@ -563,6 +601,40 @@ void BleKeyboard::set_version(uint16_t version) {
 	this->version = version; 
 }
 
+void BleKeyboard::_detectModeFromAppearance() {
+    // If appearance is set to digitizer or tablet, default pointer is the digitizer
+    if (this->appearance == DIGITIZER || this->appearance == DIGITAL_PEN || this->appearance == TABLET) {
+        _useAbsolute = true;
+        Serial.printf("[%s] Auto-detected absolute mode from appearance: 0x%04X\n", LOG_TAG, this->appearance);
+    // For all other appearances, default pointer is the mouse
+    } else {
+        _useAbsolute = false;
+        Serial.printf("[%s] Auto-detected relative mode from appearance: 0x%04X\n", LOG_TAG, this->appearance);
+    }
+}
+
+bool BleKeyboard::_shouldUseAbsoluteMode() {
+    // If the user explicitly says they don't want it to switch by itself, then respect their decision
+    if (!_autoMode) {return _useAbsolute;}
+    
+    // If the digitizer was explicitly configured, use absolute mode
+    if (_digitizerConfigured) { return true;}
+    
+    // If the user would reasonably assume they configured it, make it still work
+    if (this->appearance == DIGITIZER || this->appearance == DIGITAL_PEN || this->appearance == TABLET) {return true;}
+    
+    // Default to relative pointers because having digitizers be the default is definitely gonna confuse people
+    return false;
+}
+
+void BleKeyboard::sendNKROReport() {
+  if (this->isConnected() && inputNKRO) {
+    inputNKRO->setValue((uint8_t*)&_keyReportNKRO, sizeof(KeyReportNKRO));
+    inputNKRO->notify();
+    delay(_delay_ms);
+  }
+}
+
 void BleKeyboard::sendMediaReport() {
   if (this->isConnected()) {
     // Send the current media key bitmask
@@ -572,12 +644,18 @@ void BleKeyboard::sendMediaReport() {
   }	
 }
 
-void BleKeyboard::sendNKROReport() {
-  if (this->isConnected() && inputNKRO) {
-    inputNKRO->setValue((uint8_t*)&_keyReportNKRO, sizeof(KeyReportNKRO));
-    inputNKRO->notify();
+void BleKeyboard::sendGeminiPRReport() {
+    if (!isConnected() || !inputGeminiPR) return;
+    inputGeminiPR->setValue((uint8_t*)&_geminiReport, sizeof(_geminiReport));
+    inputGeminiPR->notify();
     delay(_delay_ms);
-  }
+}
+
+void BleKeyboard::sendGamepadReport() {
+    if (!isConnected() || !inputGamepad) return;
+    inputGamepad->setValue((uint8_t*)&_gamepadReport, sizeof(_gamepadReport));
+    inputGamepad->notify();
+    delay(_delay_ms);
 }
 
 void BleKeyboard::updateNKROBitmask(uint8_t k, bool pressed) {
@@ -669,10 +747,7 @@ static uint8_t charToKeyCode(char c, bool *needShift) {
 }
 
 size_t BleKeyboard::press(uint8_t k) {
-  // This function ONLY handles regular keycodes (uint8_t)
-  if (k >= 136) { 
-    k = k - 136;
-  }
+  if (k >= 136) { k = k - 136; }
   
   if (k != 0) {
     // Check if we're already at 6 non-modifier keys
@@ -690,9 +765,6 @@ size_t BleKeyboard::press(uint8_t k) {
 }
 
 size_t BleKeyboard::press(int16_t modifier) {
-  // This function ONLY handles modifier keys (0x0100-0x8000)
-  
-  // Convert internal modifier code to HID modifier code
   uint8_t hidModifier = 0;
   if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
     hidModifier = modifier >> 8;
@@ -710,45 +782,13 @@ size_t BleKeyboard::press(uint16_t mediaKey) {
     return 1;
 }
 
-
-size_t BleKeyboard::press(int8_t button) {
-    if (button >= 1 && button <= 64) {
-        uint8_t field = (button - 1) / 32;
-        uint8_t bit = (button - 1) % 32;
-        _gamepadReport.buttons[field] |= (1UL << bit);
-    }
-    else if (button >= 65 && button <= 68) {
-        uint8_t currentHat = _gamepadReport.hat;
-        uint8_t directionIndex = button - 65; // Convert 65-68 to 0-3
-        
-        _gamepadReport.hat = hatPress[directionIndex][currentHat];
-    }
-    sendGamepadReport();
-}
-
 size_t BleKeyboard::press(char b) {
   _mouseButtons |= b;
-  _pointerReport.buttons = _mouseButtons;  // Use combined structure
-  
-  if (_useAbsolute) {
-    moveTo(_pointerReport.absX, _pointerReport.absY);
-  } else {
-    move(0, 0, 0, 0);
-  }
-}
-
-size_t BleKeyboard::press(uint16_t x, uint16_t y, char b) {
-  if (!_useAbsolute) {
-    useAbsolute(true);
-  }
-  
-  _pointerReport.buttons |= b;
-  moveTo(x, y);
+  _pointerReport.buttons = _mouseButtons;
+  move(0, 0, 0, 0);
 }
 
 size_t BleKeyboard::press(int32_t stenoKey) {
-  // Remove the _useGeminiPR check and auto-enable logic
-  // Convert int32_t to uint8_t (safe since steno keys are 0-255)
   uint8_t key = (uint8_t)(stenoKey & 0xFF);
   
   // Set the appropriate bit in the GeminiPR packet
@@ -763,9 +803,22 @@ size_t BleKeyboard::press(int32_t stenoKey) {
   return 1;
 }
 
-// This just sends a keyup event/unpresses a given key
+size_t BleKeyboard::press(int8_t button) {
+    if (button >= 1 && button <= 64) {
+        uint8_t field = (button - 1) / 32;
+        uint8_t bit = (button - 1) % 32;
+        _gamepadReport.buttons[field] |= (1UL << bit);
+    } else if (button >= 65 && button <= 68) {
+        uint8_t currentHat = _gamepadReport.hat;
+        uint8_t directionIndex = button - 65; // Convert 65-68 to 0-3
+        
+        _gamepadReport.hat = hatPress[directionIndex][currentHat];
+    }
+    sendGamepadReport();
+    return 1;
+}
+
 size_t BleKeyboard::release(uint8_t k) {
-  // This function ONLY handles regular keycodes
   if (k >= 136) {
     k = k - 136;
   }
@@ -779,9 +832,6 @@ size_t BleKeyboard::release(uint8_t k) {
 }
 
 size_t BleKeyboard::release(int16_t modifier) {
-  // This function ONLY handles modifier keys
-  
-  // Convert internal modifier code to HID modifier code
   uint8_t hidModifier = 0;
   if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
     hidModifier = modifier >> 8;
@@ -799,30 +849,10 @@ size_t BleKeyboard::release(uint16_t mediaKey) {
     return 1;
 }
 
-size_t BleKeyboard::release(int8_t button) {
-    if (button >= 1 && button <= 64) {
-        uint8_t field = (button - 1) / 32;
-        uint8_t bit = (button - 1) % 32;
-        _gamepadReport.buttons[field] &= ~(1UL << bit);
-    }
-    else if (button >= 65 && button <= 68) {
-        uint8_t currentHat = _gamepadReport.hat;
-        uint8_t directionIndex = button - 65; // Convert 65-68 to 0-3
-        
-        _gamepadReport.hat = hatRelease[directionIndex][currentHat];
-    }
-    sendGamepadReport();
-}
-
 size_t BleKeyboard::release(char b) {
   _mouseButtons &= ~b;
-  _pointerReport.buttons = _mouseButtons;  // Use combined structure
-  
-  if (_useAbsolute) {
-    moveTo(_pointerReport.absX, _pointerReport.absY);
-  } else {
-    move(0, 0, 0, 0);
-  }
+  _pointerReport.buttons = _mouseButtons;
+  move(0, 0, 0, 0);
 }
 
 size_t BleKeyboard::release(int32_t stenoKey) {
@@ -841,6 +871,21 @@ size_t BleKeyboard::release(int32_t stenoKey) {
   return 1;
 }
 
+size_t BleKeyboard::release(int8_t button) {
+    if (button >= 1 && button <= 64) {
+        uint8_t field = (button - 1) / 32;
+        uint8_t bit = (button - 1) % 32;
+        _gamepadReport.buttons[field] &= ~(1UL << bit);
+    } else if (button >= 65 && button <= 68) {
+        uint8_t currentHat = _gamepadReport.hat;
+        uint8_t directionIndex = button - 65; // Convert 65-68 to 0-3
+        
+        _gamepadReport.hat = hatRelease[directionIndex][currentHat];
+    }
+    sendGamepadReport();
+    return 1;
+}
+
 void BleKeyboard::releaseAll() {
   memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
   sendNKROReport();
@@ -848,13 +893,16 @@ void BleKeyboard::releaseAll() {
   sendMediaReport();
   memset(&_geminiReport, 0, sizeof(_geminiReport));
   sendGeminiPRReport();
-}
-
-void BleKeyboard::gamepadReleaseAll() {
   _gamepadReport.buttons[0] = 0;
   _gamepadReport.buttons[1] = 0;
-  _gamepadReport.hat = HAT_CENTER;
+  _gamepadReport.hat = HAT_CE;
   sendGamepadReport();
+}
+
+void BleKeyboard::mouseReleaseAll() {
+  _mouseButtons = 0;
+  _pointerReport.buttons = 0;
+  move(0, 0, 0, 0);
 }
 
 size_t BleKeyboard::write(uint8_t c) {
@@ -963,31 +1011,39 @@ uint8_t BleKeyboard::countPressedKeys() {
 }
 
 void BleKeyboard::click(char b) {
-  if (_useAbsolute) {
-    // In absolute mode without coordinates, use current position
-    click(_pointerReport.absX, _pointerReport.absY, b);
-  } else {
-    // Relative mode
-    _mouseButtons = b;
-    move(0, 0, 0, 0);
-    _mouseButtons = 0;
-    move(0, 0, 0, 0);
-  }
+  press(b);
+  delay(_delay_ms);
+  release(b);
 }
+
 void BleKeyboard::click(uint16_t x, uint16_t y, char b) {
-  // Auto-switch to absolute mode if coordinates are provided
-  if (!_useAbsolute) {
-    useAbsolute(true);
-  }
-  press(x, y, b);
-  release(x, y, b);
+    // Auto-detect mode based on parameters
+    bool shouldUseAbsolute = _shouldUseAbsoluteMode();
+    
+    // If coordinates are provided and we're not in absolute mode, auto-switch
+    if (_autoMode && !_useAbsolute && (x != 0 || y != 0)) {
+        _useAbsolute = true;
+        _digitizerConfigured = true;
+        Serial.printf("[%s] Auto-switched to absolute mode due to coordinate click\n", LOG_TAG);
+        shouldUseAbsolute = true;
+    }
+    
+    if (shouldUseAbsolute) {
+        // Map mouse button constants to digitizer button constants
+        uint8_t digitizerButtons = 0;
+        if (b & MOUSE_LEFT)   digitizerButtons |= DIGITIZER_BTN1;
+        if (b & MOUSE_RIGHT)  digitizerButtons |= DIGITIZER_BTN2;
+        if (b & MOUSE_MIDDLE) digitizerButtons |= DIGITIZER_BTN3;
+        moveTo(x, y, 127, digitizerButtons); // Press with pressure
+        delay(_delay_ms);
+        moveTo(x, y, 0, 0);   // Release
+    } else {
+        // Fall back to relative click
+        click(b);
+    }
 }
 
 void BleKeyboard::move(signed char x, signed char y, signed char wheel, signed char hWheel) {
-  if (_useAbsolute) {
-    useAbsolute(false);
-  }
-  
   if (this->isConnected() && inputMouse) {
     _pointerReport.buttons = _mouseButtons;
     
@@ -996,44 +1052,6 @@ void BleKeyboard::move(signed char x, signed char y, signed char wheel, signed c
     _pointerReport.relY = y;
     _pointerReport.wheel = wheel;
     _pointerReport.hWheel = hWheel;
-    
-    // Clear absolute fields when in relative mode
-    _pointerReport.absX = 0;
-    _pointerReport.absY = 0;
-    _pointerReport.pressure = 0;
-    _pointerReport.tipSwitch = 0;
-    
-    inputMouse->setValue((uint8_t*)&_pointerReport, sizeof(_pointerReport));
-    inputMouse->notify();
-    delay(_delay_ms);
-  }
-}
-
-void BleKeyboard::moveTo(uint16_t x, uint16_t y, signed char wheel, signed char hWheel) {
-  if (!_useAbsolute) {
-    useAbsolute(true);
-  }
-  
-  if (this->isConnected() && inputMouse) {
-    _pointerReport.buttons = _mouseButtons;
-    
-    // Set absolute fields
-    _pointerReport.absX = x;
-    _pointerReport.absY = y;
-    _pointerReport.wheel = wheel;
-    _pointerReport.hWheel = hWheel;
-    
-    // Set tip switch based on pressure
-    if (_pointerReport.pressure > 0) {
-      _pointerReport.tipSwitch = 1;
-    } else {
-      _pointerReport.tipSwitch = 0;
-    }
-    
-    // Clear relative fields when in absolute mode
-    _pointerReport.relX = 0;
-    _pointerReport.relY = 0;
-    
     inputMouse->setValue((uint8_t*)&_pointerReport, sizeof(_pointerReport));
     inputMouse->notify();
     delay(_delay_ms);
@@ -1044,189 +1062,91 @@ bool BleKeyboard::mouseIsPressed(char b) {
   return (_pointerReport.buttons & b) != 0;
 }
 
-void BleKeyboard::mouseReleaseAll() {
-  _mouseButtons = 0;
-  _pointerReport.buttons = 0;
-  
-  if (_useAbsolute) {
-    moveTo(_pointerReport.absX, _pointerReport.absY);
-  } else {
-    move(0, 0, 0, 0);
-  }
+void BleKeyboard::useAbsoluteMode(bool state) {
+    _useAbsolute = state;
+    _autoMode = false; // If they start managing the states manually, just assume they don't want it to switch automatically
+    _digitizerConfigured = state; // Digitizers actually get configured when you make digitizers the default pointer mode
+    Serial.printf("[%s] %s mode %s (auto-mode disabled)\n", LOG_TAG, state ? "Absolute" : "Relative", state ? "enabled" : "disabled");
 }
 
-void BleKeyboard::useAbsolute(bool enable) {
-  _useAbsolute = enable;
-  Serial.printf("[%s] Switched to %s pointer mode\n", LOG_TAG, _useAbsolute ? "absolute" : "relative");
+void BleKeyboard::useAutoMode(bool state) {
+    _autoMode = state;
+    if (state) {
+        _detectModeFromAppearance(); // Re-detect the default pointer mode when enabling auto-mode
+        Serial.printf("[%s] Auto-mode enabled, current mode: %s\n", LOG_TAG, _useAbsolute ? "absolute" : "relative");
+    } else {Serial.printf("[%s] Auto-mode disabled\n", LOG_TAG);}
 }
 
-void BleKeyboard::useRelative(bool enable) {
-  _useAbsolute = !enable;
-  Serial.printf("[%s] Switched to %s pointer mode\n", LOG_TAG, _useAbsolute ? "absolute" : "relative");
+void BleKeyboard::setDigitizerRange(uint16_t maxX, uint16_t maxY) {
+    _screenWidth = maxX;
+    _screenHeight = maxY;
+    _digitizerConfigured = true; // Mark that digitizer was explicitly configured
+    
+    // If auto-mode is enabled and digitizer is configured, switch to absolute mode
+    if (_autoMode && !_useAbsolute) {
+        _useAbsolute = true;
+        Serial.printf("[%s] Auto-switched to absolute mode due to digitizer configuration\n", LOG_TAG);
+    }
+    
+    Serial.printf("[%s] Digitizer range set to X:%u, Y:%u\n", LOG_TAG, _screenWidth, _screenHeight);
 }
 
-void BleKeyboard::setAbsoluteRange(uint16_t minVal, uint16_t maxVal) {
-  // This is just to scale your coordinates - the actual range is fixed to 32767 on both axes
-  Serial.printf("[%s] Absolute pointer range set to %d-%d\n", LOG_TAG, minVal, maxVal);
-}
-
-bool BleKeyboard::isAbsoluteEnabled() {
-  return _useAbsolute;
-}
-
-void BleKeyboard::setPressure(uint16_t pressure) {
-  _pointerReport.pressure = pressure;
-}
-
-void BleKeyboard::setTipSwitch(bool state) {
-  _pointerReport.tipSwitch = state ? 1 : 0;
-}
-
-void BleKeyboard::moveToWithPressure(uint16_t x, uint16_t y, uint16_t pressure, bool touching) {
-  if (!_useAbsolute) {
-    useAbsolute(true);
-  }
-  
-  _pointerReport.absX = x;
-  _pointerReport.absY = y;
-  _pointerReport.pressure = pressure;
-  _pointerReport.tipSwitch = touching ? 1 : 0;
-  
-  if (this->isConnected() && inputMouse) {
-    inputMouse->setValue((uint8_t*)&_pointerReport, sizeof(_pointerReport));
-    inputMouse->notify();
-    delay(_delay_ms);
-  }
-}
-
-void BleKeyboard::clickWithPressure(uint16_t x, uint16_t y, uint16_t pressure, uint8_t button) {
-  if (!_useAbsolute) {
-    useAbsolute(true);
-  }
-  
-  // Press with pressure
-  _pointerReport.buttons |= button;
-  moveToWithPressure(x, y, pressure, true);
-  
-  // Release
-  _pointerReport.buttons &= ~button;
-  moveToWithPressure(x, y, 0, false);
+void BleKeyboard::moveTo(uint16_t x, uint16_t y, uint8_t pressure, uint8_t buttons) { // "buttons" like the 3 digitizer pen buttons (tip, side/barrel, eraser)
+    if (_autoMode && !_useAbsolute) {
+        _useAbsolute = true;
+        _digitizerConfigured = true;
+        Serial.printf("[%s] Auto-switched to absolute mode\n", LOG_TAG);
+    }
+    
+    if (this->isConnected() && inputDigitizer) {
+        // Turn on absolute mode if it isn't on already
+        if(!_useAbsolute) {_useAbsolute = true;}
+        // Scale to HID descriptor's 0-32767 range
+        uint16_t scaledX = (x * 32767ULL) / _screenWidth;
+        uint16_t scaledY = (y * 32767ULL) / _screenHeight;
+        
+        _digitizerReport.buttons = buttons & 0x07;  // Mask to 3 bits
+        _digitizerReport.x = scaledX;
+        _digitizerReport.y = scaledY;
+        _digitizerReport.pressure = (pressure > 127) ? 127 : pressure; // Adding pressure automatically counts as the tip switch button beting pressed down
+        
+        // Set flags: ALWAYS report In Range when active
+        _digitizerReport.flags = DIGITIZER_FLAG_IN_RANGE;
+        // Tip Switch = ON when pressure > 0 (touching), OFF when hovering
+        if (pressure > 0) {
+            _digitizerReport.flags |= DIGITIZER_FLAG_TIP_SWITCH;
+        }
+        
+        sendDigitizerReport();
+    }
 }
 
 void BleKeyboard::beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure) {
-  moveToWithPressure(x, y, initialPressure, true);
+  moveTo(x, y, initialPressure);
 }
 
 void BleKeyboard::updateStroke(uint16_t x, uint16_t y, uint16_t pressure) {
-  moveToWithPressure(x, y, pressure, true);
+  moveTo(x, y, pressure);
 }
 
 void BleKeyboard::endStroke(uint16_t x, uint16_t y) {
-  moveToWithPressure(x, y, 0, false);
+  moveTo(x, y, 0);
 }
 
-uint16_t BleKeyboard::getPressure() const {
-  return _pointerReport.pressure;
-}
-
-bool BleKeyboard::getTipSwitch() const {
-  return _pointerReport.tipSwitch != 0;
-}
-
-bool BleKeyboard::gamepadIsPressed(int8_t button) {
-  // Handle regular buttons 1-64
-  if (button >= 1 && button <= 64) {
-    uint8_t field = (button - 1) / 32;
-    uint8_t bit = (button - 1) % 32;
-    return (_gamepadReport.buttons[field] & (1UL << bit)) != 0;
-  }
-  // Handle D-Pad as virtual buttons 65-68
-  else if (button >= 65 && button <= 68) {
-    uint8_t currentHat = _gamepadReport.hat;
-    
-    switch (button) {
-      case 65: // DPAD_UP
-        return (currentHat == HAT_UP || currentHat == HAT_UP_RIGHT || currentHat == HAT_UP_LEFT);
-      case 66: // DPAD_RIGHT
-        return (currentHat == HAT_RIGHT || currentHat == HAT_UP_RIGHT || currentHat == HAT_DOWN_RIGHT);
-      case 67: // DPAD_DOWN
-        return (currentHat == HAT_DOWN || currentHat == HAT_DOWN_RIGHT || currentHat == HAT_DOWN_LEFT);
-      case 68: // DPAD_LEFT
-        return (currentHat == HAT_LEFT || currentHat == HAT_UP_LEFT || currentHat == HAT_DOWN_LEFT);
+void BleKeyboard::sendDigitizerReport() {
+    if (this->isConnected() && inputDigitizer && _useAbsolute) {
+        inputDigitizer->setValue((uint8_t*)&_digitizerReport, sizeof(_digitizerReport));
+        inputDigitizer->notify();
+        delay(_delay_ms);
     }
-  }
-  return false;
 }
 
-void BleKeyboard::gamepadSetAxis(int8_t axis, int16_t value) {
-  if (axis < GAMEPAD_AXIS_COUNT) {
-    _gamepadReport.axes[axis] = value;
-  }
-  sendGamepadReport();
+bool BleKeyboard::isAbsoluteMode() {
+    return _shouldUseAbsoluteMode(); // Use the smart detection
 }
 
-int16_t BleKeyboard::gamepadGetAxis(int8_t axis) {
-  if (axis < GAMEPAD_AXIS_COUNT) {
-    return _gamepadReport.axes[axis];
-  }
-  return 0;
-}
-
-void BleKeyboard::gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]) {
-  memcpy(_gamepadReport.axes, values, sizeof(_gamepadReport.axes));
-  sendGamepadReport();
-}
-
-void BleKeyboard::gamepadSetLeftStick(int16_t x, int16_t y) {
-    _gamepadReport.axes[AXIS_LX] = x;
-    _gamepadReport.axes[AXIS_LY] = y;
-    sendGamepadReport();
-}
-
-void BleKeyboard::gamepadSetRightStick(int16_t x, int16_t y) {
-    _gamepadReport.axes[AXIS_RX] = x;
-    _gamepadReport.axes[AXIS_RY] = y;
-    sendGamepadReport();
-}
-
-void BleKeyboard::gamepadSetTriggers(int16_t left, int16_t right) {
-    _gamepadReport.axes[AXIS_LT] = left;
-    _gamepadReport.axes[AXIS_RT] = right;
-    sendGamepadReport();
-}
-
-void BleKeyboard::gamepadGetLeftStick(int16_t &x, int16_t &y) {
-    x = gamepadGetAxis(AXIS_LX);
-    y = gamepadGetAxis(AXIS_LY);
-}
-
-void BleKeyboard::gamepadGetRightStick(int16_t &x, int16_t &y) {
-    x = gamepadGetAxis(AXIS_RX);
-    y = gamepadGetAxis(AXIS_RY);
-}
-
-
-void BleKeyboard::onVibrate(void (*callback)(uint8_t leftMotor, uint8_t rightMotor)) {
-  _onVibrateCallback = callback;
-  Serial.printf("[%s] Vibrate callback registered\n", LOG_TAG);
-}
-
-bool BleKeyboard::isHapticsSupported() const {
-  return (inputGamepad != nullptr) && (_onVibrateCallback != nullptr);
-}
-
-void BleKeyboard::sendGamepadReport() {
-    if (!isConnected() || !inputGamepad) return;
-    inputGamepad->setValue((uint8_t*)&_gamepadReport, sizeof(_gamepadReport));
-    inputGamepad->notify();
-    delay(_delay_ms);
-}
-
-void BleKeyboard::sendGeminiPRReport() {
-    if (!isConnected() || !inputGeminiPR) return;
-    inputGeminiPR->setValue((uint8_t*)&_geminiReport, sizeof(_geminiReport));
-    inputGeminiPR->notify();
-    delay(_delay_ms);
+bool BleKeyboard::isAutoModeEnabled() {
+    return _autoMode;
 }
 
 void BleKeyboard::geminiStroke(const int32_t* keys, size_t count) {
@@ -1280,6 +1200,81 @@ uint8_t BleKeyboard::stenoCharToKey(char c) {
   }
 }
 
+bool BleKeyboard::gamepadIsPressed(int8_t button) {
+  if (button >= 1 && button <= 64) {
+    uint8_t field = (button - 1) / 32;
+    uint8_t bit = (button - 1) % 32;
+    return (_gamepadReport.buttons[field] & (1UL << bit)) != 0;
+    return false;
+  } else if (button >= 65 && button <= 68) {
+    uint8_t currentHat = _gamepadReport.hat;
+    
+    switch (button) {
+      case 65: // DPAD_UP
+        return (currentHat == HAT_UP || currentHat == HAT_UR || currentHat == HAT_UL);
+      case 66: // DPAD_RIGHT
+        return (currentHat == HAT_RI || currentHat == HAT_UR || currentHat == HAT_DR);
+      case 67: // DPAD_DOWN
+        return (currentHat == HAT_DO || currentHat == HAT_DR || currentHat == HAT_DL);
+      case 68: // DPAD_LEFT
+        return (currentHat == HAT_LE || currentHat == HAT_UL || currentHat == HAT_DL);
+    }
+  }
+  return false;
+} 
+
+void BleKeyboard::gamepadSetAxis(int8_t axis, int16_t value) {
+  if (axis < GAMEPAD_AXIS_COUNT) {
+    _gamepadReport.axes[axis] = value;
+  }
+  sendGamepadReport();
+}
+
+int16_t BleKeyboard::gamepadGetAxis(int8_t axis) {
+  if (axis < GAMEPAD_AXIS_COUNT) {
+    return _gamepadReport.axes[axis];
+  }
+  return 0;
+}
+
+void BleKeyboard::gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]) {
+  memcpy(_gamepadReport.axes, values, sizeof(_gamepadReport.axes));
+  sendGamepadReport();
+}
+
+void BleKeyboard::gamepadSetLeftStick(int16_t x, int16_t y) {
+    _gamepadReport.axes[AXIS_LX] = x;
+    _gamepadReport.axes[AXIS_LY] = y;
+    sendGamepadReport();
+}
+
+void BleKeyboard::gamepadSetRightStick(int16_t x, int16_t y) {
+    _gamepadReport.axes[AXIS_RX] = x;
+    _gamepadReport.axes[AXIS_RY] = y;
+    sendGamepadReport();
+}
+
+void BleKeyboard::gamepadSetTriggers(int16_t left, int16_t right) {
+    _gamepadReport.axes[AXIS_LT] = left;
+    _gamepadReport.axes[AXIS_RT] = right;
+    sendGamepadReport();
+}
+
+void BleKeyboard::gamepadGetLeftStick(int16_t &x, int16_t &y) {
+    x = gamepadGetAxis(AXIS_LX);
+    y = gamepadGetAxis(AXIS_LY);
+}
+
+void BleKeyboard::gamepadGetRightStick(int16_t &x, int16_t &y) {
+    x = gamepadGetAxis(AXIS_RX);
+    y = gamepadGetAxis(AXIS_RY);
+}
+
+void BleKeyboard::onVibrate(void (*callback)(uint8_t leftMotor, uint8_t rightMotor)) {
+  _onVibrateCallback = callback;
+  Serial.printf("[%s] Vibrate callback registered\n", LOG_TAG);
+}
+
 void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
     Serial.printf("[%s] ESP-HID onConnect callback triggered - Security: %s, Encrypted: %s\n", LOG_TAG,
              isSecurityEnabled() ? "Enabled" : "Disabled", 
@@ -1294,8 +1289,8 @@ void BleKeyboard::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
     
     if (inputNKRO) inputNKRO->notify();
     if (inputMediaKeys) inputMediaKeys->notify(); 
-    if (inputMediaKeys) inputMediaKeys->notify(); 
     if (inputMouse) inputMouse->notify();
+    if (inputDigitizer) inputDigitizer->notify();
     if (inputGeminiPR) inputGeminiPR->notify();
     if (inputGamepad) inputGamepad->notify();
     
@@ -1334,6 +1329,7 @@ void BleKeyboard::onWrite(NimBLECharacteristic* me) {
     // Handle other characteristics (existing code)
     Serial.printf("[%s] special keys: %d\n", LOG_TAG, *value);
   }
+  
 }
 
 void pollConnection(void * arg) {
