@@ -890,7 +890,6 @@ private:
   uint8_t            batteryLevel;
   
   BLECharacteristic* outputKeyboard;
-  BLECharacteristic* outputHaptics;
   BLECharacteristic* inputMediaKeys;
   BLECharacteristic* inputNKRO;
   BLECharacteristic* inputMouse;
@@ -917,7 +916,7 @@ private:
 
   uint16_t vid       = 0x05ac; // I picked random numbers here and it worked fine,
   uint16_t pid       = 0x820a; // idk if these actually matter at all for anything
-  uint16_t version   = 0x0210;
+  uint16_t version   = 0x0310;
   
   friend void           pollConnection(void * arg);
   uint8_t               last_connected_count = 0;   // previous poll result
@@ -935,7 +934,6 @@ private:
   bool                  _digitizerConfigured = false;
   void                  _detectModeFromAppearance();
   bool                  _shouldUseAbsoluteMode();
-  void                  (*_onVibrateCallback)(uint8_t leftMotor, uint8_t rightMotor) = nullptr;
 
 public:
   BleKeyboard(std::string deviceName = "ESP32 Keyboard", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
@@ -1046,7 +1044,6 @@ public:
   void gamepadSetAxis(int8_t axis, int16_t value);
   int16_t gamepadGetAxis(int8_t axis);
   void gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
-  void onVibrate(void (*callback)(uint8_t leftMotor, uint8_t rightMotor));
   
 protected:
   virtual void onStarted(BLEServer *pServer) { };
