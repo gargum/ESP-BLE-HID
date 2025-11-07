@@ -11,9 +11,9 @@ All development/testing is performed on boards *without* USB host mode, like the
 | CORE FEATURES                       | EXTENDED FUNCTIONS                                                        | QOL & ADVANCED FUNCTIONS                                                                                             |
 | ----------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------                                                      |
 | Keyboard emulation                  | *NKRO + 6KRO with full support for modifiers & media keys*                | *Send full text strings, press/release keys, and send full keystrokes*                                               |
-| Mouse emulation                     | *Absolute & Relative pointers you can hotswap between*                    | *Automatic context-aware switching between both pointer modes*                                                       |
+| Mouse emulation                     | *Absolute & Relative pointers you can hotswap between*                    | *Automatic context-aware switching between both pointer modes + full Android & iOS compatibility*                    |
 | Gamepad emulation                   | *64 buttons + 1 D-pad, 2 analogue sticks, 2 analogue triggers, + haptics* | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                             |
-| Digitizer emulation                 | *Pressure sensitivity + tip-switch support*                               | *Programmable brushstroke macro support with variable pressure all throughout*                                       |
+| Digitizer emulation                 | *Pressure sensitivity + tip-switch, barrel, & eraser support*             | *Programmable brushstroke macro support with variable pressure all throughout*                                       |
 | Stenotype emulation                 | *GeminiPR keys and reports are fully supported*                           | *No settings to worry about. Mix-and-match stenotype keys with all other input methods to your heart's content!*     |
 | Set the PID, VID, and version       | *Set the name, manufacturer, and the battery level*                       | *Set what type of device the ESP32 advertises itself as. Choose anything from keyboard to keyring to insulin pump!*  |
 | 6-Digit PIN (Optional)              | *Hotswap between using a PIN to connect & Just Works no-PIN mode*         | *Change your PIN, even after you've already flashed and connected to the device!*                                    |
@@ -21,11 +21,11 @@ All development/testing is performed on boards *without* USB host mode, like the
 
 ## Compatibility
 
- - [x] Compatible with Android* *(Android itself lacks absolute pointer support)*
+ - [x] Compatible with Android
  - [x] Compatible with Windows
  - [x] Compatible with Linux
  - [x] Compatible with MacOS
- - [x] Compatible with iOS* *(iOS itself lacks absolute pointer support)*
+ - [x] Compatible with iOS
 
 ## Features Currently in Development
 
