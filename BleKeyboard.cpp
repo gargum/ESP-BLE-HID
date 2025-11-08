@@ -250,12 +250,15 @@ void BleKeyboard::begin(void) {
         end();
         delay(100);
     } else { NimBLEDevice::init(deviceName.c_str()); }
+
+    // Power settings    
+    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
     
     // Configure security if enabled
     if (isSecurityEnabled()) {
         // Enhanced security configuration for bonding
         NimBLEDevice::setSecurityAuth(true, true, true); // Bonding, MITM, Secure Connections
-        NimBLEDevice::setSecurityPasskey(passkey);
+        NimBLEDevice::setSecurityPasskey(passkey);       // Actually set a passkey
         NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
         
         // Configure bonding parameters
@@ -269,12 +272,12 @@ void BleKeyboard::begin(void) {
     } else {
         // For "Just Works" pairing, still enable bonding if requested
         if (bonding_enabled) {
-            NimBLEDevice::setSecurityAuth(true, false, false); // Bonding only, no MITM
+            NimBLEDevice::setSecurityAuth(true, true, true); // Bonding, MITM, Secure Connections
             NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC);
             NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC);
             Serial.printf("[%s] Just Works pairing with bonding enabled\n", LOG_TAG);
         } else {
-            NimBLEDevice::setSecurityAuth(false, false, false);
+            NimBLEDevice::setSecurityAuth(false, true, true); // MITM & Secure Connections only
             Serial.printf("[%s] Running without security (Just Works)\n", LOG_TAG);
         }
     }
@@ -356,22 +359,24 @@ void BleKeyboard::begin(void) {
     advertising = pServer->getAdvertising();
     BLEAdvertisementData adv, scan;
     
-    scan.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
-    scan.setName(deviceName.c_str());
-    scan.setShortName(deviceName.substr(0, 8).c_str());
-    scan.setAppearance(this->appearance);
+    auto configureAdvertisement = [&](BLEAdvertisementData &ad) {
+        ad.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
+        ad.setName(deviceName.c_str());
+        ad.setShortName(deviceName.substr(0, 8).c_str());
+        ad.setAppearance(this->appearance);
+        ad.setManufacturerData(deviceManufacturer.c_str());
+    };
+    
+    // Configure both advertisements
+    configureAdvertisement(scan);
+    configureAdvertisement(adv);
+    
+    // Add unique elements to each
     scan.addServiceUUID(hid->getHidService()->getUUID());
-    scan.setManufacturerData((deviceManufacturer).c_str());
-
-    adv.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
-    adv.setName(deviceName.c_str());
-    adv.setShortName(deviceName.substr(0, 8).c_str());
-    adv.setAppearance(this->appearance);
     adv.setCompleteServices(hid->getHidService()->getUUID());
     adv.addServiceUUID(hid->getHidService()->getUUID());
-    adv.setManufacturerData((deviceManufacturer).c_str());
 
-    advertising->setMinInterval(32);   // 15ms  (12  * 0.625ms)
+    advertising->setMinInterval(40);   // 25ms  (40  * 0.625ms)
     advertising->setMaxInterval(160);  // 100ms (160 * 0.625ms)  
     advertising->setAdvertisementData(adv);
     advertising->setScanResponseData(scan);
