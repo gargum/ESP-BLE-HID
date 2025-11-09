@@ -729,3 +729,13 @@ const char MOUSE_MIDDLE  = 4;
 const char MOUSE_BACK    = 8;
 const char MOUSE_FORWARD = 16;
 const char MOUSE_ALL     = (MOUSE_LEFT | MOUSE_RIGHT | MOUSE_MIDDLE);
+
+// Button bitmask constants (for the 'buttons' parameter)
+const uint8_t DIGITIZER_BTN1 = 0x01;    // Button 1 (tip button, if present)
+const uint8_t DIGITIZER_BTN2 = 0x02;    // Button 2 (barrel/side button)
+const uint8_t DIGITIZER_BTN3 = 0x04;    // Button 3 (eraser)
+// Flag constants (internal, for 'flags' field)
+const uint8_t DIGITIZER_FLAG_IN_RANGE     = 0x01;  // Bit 0
+const uint8_t DIGITIZER_FLAG_TIP_SWITCH   = 0x02;  // Bit 1
+const uint8_t DIGITIZER_FLAG_INVERT       = 0x04;  // Bit 2 (eraser)
+const uint8_t DIGITIZER_FLAG_BARREL_SW    = 0x08;  // Bit 3
