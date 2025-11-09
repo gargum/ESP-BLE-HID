@@ -142,16 +142,6 @@ typedef struct {
   int16_t axes[GAMEPAD_AXIS_COUNT];
 } GamepadReport;
 
-// Button bitmask constants (for the 'buttons' parameter)
-const uint8_t DIGITIZER_BTN1 = 0x01;    // Button 1 (tip button, if present)
-const uint8_t DIGITIZER_BTN2 = 0x02;    // Button 2 (barrel/side button)
-const uint8_t DIGITIZER_BTN3 = 0x04;    // Button 3 (eraser)
-// Flag constants (internal, for 'flags' field)
-const uint8_t DIGITIZER_FLAG_IN_RANGE     = 0x01;  // Bit 0
-const uint8_t DIGITIZER_FLAG_TIP_SWITCH   = 0x02;  // Bit 1
-const uint8_t DIGITIZER_FLAG_INVERT       = 0x04;  // Bit 2 (eraser)
-const uint8_t DIGITIZER_FLAG_BARREL_SW    = 0x08;  // Bit 3
-
 static const bool enabled = true;
 static const bool disabled = false;
 
