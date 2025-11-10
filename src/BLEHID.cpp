@@ -1,5 +1,12 @@
 #include "BLEHID.h"
 
+#if GEMINIPR_ENABLE
+// SPP UUIDs (Standard Serial Port Service)
+const char* BLEHID::SERIAL_SERVICE_UUID = "00001101-0000-1000-8000-00805f9b34fb";
+const char* BLEHID::SERIAL_CHARACTERISTIC_UUID_TX = "00001102-0000-1000-8000-00805f9b34fb";
+const char* BLEHID::SERIAL_CHARACTERISTIC_UUID_RX = "00001103-0000-1000-8000-00805f9b34fb";
+#endif
+
 #define KEYBOARD_ID   0x01
 
 static const uint8_t _basicReportDescriptor[] = {
@@ -45,10 +52,6 @@ const size_t       descriptorSize = 0
   +  sizeof(_digitizerReportDescriptor)
 #endif
 
-#if GEMINIPR_ENABLE
-  +  sizeof(_geminiPRReportDescriptor)
-#endif
-
 #if GAMEPAD_ENABLE
   +  sizeof(_gamepadReportDescriptor)
 #endif
@@ -84,11 +87,6 @@ public:
         currentPosition += sizeof(_digitizerReportDescriptor);
         #endif
         
-        #if GEMINIPR_ENABLE
-        memcpy(_hidReportDescriptor + currentPosition, _geminiPRReportDescriptor, sizeof(_geminiPRReportDescriptor));
-        currentPosition += sizeof(_geminiPRReportDescriptor);
-        #endif
-        
         #if GAMEPAD_ENABLE
         memcpy(_hidReportDescriptor + currentPosition, _gamepadReportDescriptor, sizeof(_gamepadReportDescriptor));
         currentPosition += sizeof(_gamepadReportDescriptor);
@@ -104,6 +102,13 @@ BLEHID::BLEHID(std::string deviceName, std::string deviceManufacturer, uint8_t b
     , deviceName(std::string(deviceName).substr(0, 15))
     , deviceManufacturer(std::string(deviceManufacturer).substr(0,15))
     , batteryLevel(batteryLevel) 
+    #if GEMINIPR_ENABLE
+    , serialService(nullptr)
+    , serialInput(nullptr)
+    , serialOutput(nullptr)
+    , serialOutputDescriptor(nullptr)
+    , serialConnected(false)
+    #endif
     #if KEYBOARD_ENABLE
     , _useNKRO(true)
     #endif
@@ -143,10 +148,18 @@ BLEHID::BLEHID(std::string deviceName, std::string deviceManufacturer, uint8_t b
 }
 // This is a "destructor". It takes objects the contructor made, and destroys them whenever you tell it to. 
 BLEHID::~BLEHID() { 
-  // Unregister this instance
-  if (_activeBLEHIDInstance == this) {
-    _activeBLEHIDInstance = nullptr;
-  }
+    // Unregister this instance
+    if (_activeBLEHIDInstance == this) {
+        _activeBLEHIDInstance = nullptr;
+    }
+    
+    #if GEMINIPR_ENABLE
+    // Clean up SPP resources
+    if (serialOutputDescriptor) {
+        delete serialOutputDescriptor;
+        serialOutputDescriptor = nullptr;
+    } // Remember, serialService, serialInput, serialOutput are managed by BLE stack so they don't go here
+    #endif
 }
 
 void BLEHID::begin(void) {
@@ -156,9 +169,6 @@ void BLEHID::begin(void) {
         end();
         delay(100);
     } else { NimBLEDevice::init(deviceName.c_str()); }
-
-    // Power settings    
-    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
     
     // Configure security if enabled
     if (isSecurityEnabled()) {
@@ -200,7 +210,13 @@ void BLEHID::begin(void) {
     #endif
     
     #if GEMINIPR_ENABLE
-    inputGeminiPR  = hid->getInputReport(GEMINIPR_ID);
+      serialService = pServer->createService(SERIAL_SERVICE_UUID);
+
+      // Create TX Characteristic (device -> client)
+      serialInput = serialService->createCharacteristic(SERIAL_CHARACTERISTIC_UUID_TX, NIMBLE_PROPERTY::NOTIFY);
+
+      // Create RX Characteristic (client -> device)  
+      serialOutput = serialService->createCharacteristic(SERIAL_CHARACTERISTIC_UUID_RX, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
     #endif
     
     #if GAMEPAD_ENABLE
@@ -223,7 +239,7 @@ void BLEHID::begin(void) {
     #endif
     
     #if GEMINIPR_ENABLE
-    if (inputGeminiPR) {inputGeminiPR->setCallbacks(this);}
+    serialOutput->setCallbacks(this);
     #endif
     
     #if GAMEPAD_ENABLE
@@ -237,6 +253,15 @@ void BLEHID::begin(void) {
     // Publish HID report map and start services
     hid->setReportMap((uint8_t *)_hidReportDescriptor, sizeof(_hidReportDescriptor));
     hid->startServices();
+    
+    #if GEMINIPR_ENABLE
+    // Add CCCD descriptor for TX characteristic
+    serialOutputDescriptor = new BLE2904();
+    serialInput->addDescriptor(serialOutputDescriptor);
+    
+    // Start the serial service
+    serialService->start();
+    #endif
     
     // Create complete Device Information Service
     BLEService* disService = pServer->createService(NimBLEUUID((uint16_t)0x180A));
@@ -298,7 +323,15 @@ void BLEHID::begin(void) {
     scan.addServiceUUID(hid->getHidService()->getUUID());
     adv.setCompleteServices(hid->getHidService()->getUUID());
     adv.addServiceUUID(hid->getHidService()->getUUID());
-
+    
+    #if GEMINIPR_ENABLE
+      // Add SPP service
+      NimBLEUUID serialUUID(SERIAL_SERVICE_UUID);
+      scan.addServiceUUID(serialUUID);
+      adv.addServiceUUID(serialUUID);
+      adv.setCompleteServices(serialUUID);
+    #endif
+    
     advertising->setMinInterval(40);   // 25ms  (40  * 0.625ms)
     advertising->setMaxInterval(160);  // 100ms (160 * 0.625ms)  
     advertising->setAdvertisementData(adv);
@@ -897,31 +930,114 @@ bool BLEHID::isAutoModeEnabled() {
 
 #if GEMINIPR_ENABLE
 size_t BLEHID::press(int32_t stenoKey) {
-  uint8_t key = (uint8_t)(stenoKey & 0xFF);
-  
-  // Set the appropriate bit in the GeminiPR packet
-  if (key & 0x80) _geminiReport.byte0 |= (key & 0xC0);
-  else if (key & 0x40) _geminiReport.byte1 |= key;
-  else if (key & 0x20) _geminiReport.byte2 |= key;
-  else if (key & 0x10) _geminiReport.byte3 |= key;
-  else if (key & 0x08) _geminiReport.byte4 |= key;
-  else if (key & 0x04) _geminiReport.byte5 |= key;
+  // Set the appropriate bit in the correct byte position
+  switch (stenoKey) {
+    // Byte 0
+    case GEMINI_FN:   _geminiReport.byte0 |= 0x01; break;
+    case GEMINI_NUM1: _geminiReport.byte0 |= 0x02; break;
+    
+    // Byte 1  
+    case GEMINI_S1:   _geminiReport.byte1 |= 0x01; break;
+    case GEMINI_S2:   _geminiReport.byte1 |= 0x02; break;
+    case GEMINI_T:    _geminiReport.byte1 |= 0x04; break;
+    case GEMINI_K:    _geminiReport.byte1 |= 0x08; break;
+    case GEMINI_P:    _geminiReport.byte1 |= 0x10; break;
+    case GEMINI_W:    _geminiReport.byte1 |= 0x20; break;
+    case GEMINI_H:    _geminiReport.byte1 |= 0x40; break;
+    
+    // Byte 2
+    case GEMINI_R:    _geminiReport.byte2 |= 0x01; break;
+    case GEMINI_A:    _geminiReport.byte2 |= 0x02; break;
+    case GEMINI_O:    _geminiReport.byte2 |= 0x04; break;
+    case GEMINI_STAR1:_geminiReport.byte2 |= 0x08; break;
+    case GEMINI_STAR2:_geminiReport.byte2 |= 0x10; break;
+    case GEMINI_RES1: _geminiReport.byte2 |= 0x20; break;
+    case GEMINI_RES2: _geminiReport.byte2 |= 0x40; break;
+    
+    // Byte 3
+    case GEMINI_PWR:  _geminiReport.byte3 |= 0x01; break;
+    case GEMINI_STAR3:_geminiReport.byte3 |= 0x02; break;
+    case GEMINI_STAR4:_geminiReport.byte3 |= 0x04; break;
+    case GEMINI_E:    _geminiReport.byte3 |= 0x08; break;
+    case GEMINI_U:    _geminiReport.byte3 |= 0x10; break;
+    case GEMINI_F:    _geminiReport.byte3 |= 0x20; break;
+    case GEMINI_R2:   _geminiReport.byte3 |= 0x40; break;
+    
+    // Byte 4
+    case GEMINI_P2:   _geminiReport.byte4 |= 0x01; break;
+    case GEMINI_B:    _geminiReport.byte4 |= 0x02; break;
+    case GEMINI_L:    _geminiReport.byte4 |= 0x04; break;
+    case GEMINI_G:    _geminiReport.byte4 |= 0x08; break;
+    case GEMINI_T2:   _geminiReport.byte4 |= 0x10; break;
+    case GEMINI_S:    _geminiReport.byte4 |= 0x20; break;
+    case GEMINI_D:    _geminiReport.byte4 |= 0x40; break;
+    
+    // Byte 5
+    case GEMINI_NUM7: _geminiReport.byte5 |= 0x01; break;
+    case GEMINI_NUM8: _geminiReport.byte5 |= 0x02; break;
+    case GEMINI_NUM9: _geminiReport.byte5 |= 0x04; break;
+    case GEMINI_NUM10:_geminiReport.byte5 |= 0x08; break;
+    case GEMINI_NUM11:_geminiReport.byte5 |= 0x10; break;
+    case GEMINI_NUM12:_geminiReport.byte5 |= 0x20; break;
+    case GEMINI_Z:    _geminiReport.byte5 |= 0x40; break;
+  }
   
   sendGeminiPRReport();
   return 1;
 }
 
 size_t BLEHID::release(int32_t stenoKey) {
-  // Convert int32_t to uint8_t
-  uint8_t key = (uint8_t)(stenoKey & 0xFF);
-  
-  // Clear the appropriate bit in the GeminiPR packet
-  if (key & 0x80) _geminiReport.byte0 &= ~(key & 0xC0);
-  else if (key & 0x40) _geminiReport.byte1 &= ~key;
-  else if (key & 0x20) _geminiReport.byte2 &= ~key;
-  else if (key & 0x10) _geminiReport.byte3 &= ~key;
-  else if (key & 0x08) _geminiReport.byte4 &= ~key;
-  else if (key & 0x04) _geminiReport.byte5 &= ~key;
+  // Clear the appropriate bit
+  switch (stenoKey) {
+    // Byte 0
+    case GEMINI_FN:   _geminiReport.byte0 &= ~0x01; break;
+    case GEMINI_NUM1: _geminiReport.byte0 &= ~0x02; break;
+    
+    // Byte 1  
+    case GEMINI_S1:   _geminiReport.byte1 &= ~0x01; break;
+    case GEMINI_S2:   _geminiReport.byte1 &= ~0x02; break;
+    case GEMINI_T:    _geminiReport.byte1 &= ~0x04; break;
+    case GEMINI_K:    _geminiReport.byte1 &= ~0x08; break;
+    case GEMINI_P:    _geminiReport.byte1 &= ~0x10; break;
+    case GEMINI_W:    _geminiReport.byte1 &= ~0x20; break;
+    case GEMINI_H:    _geminiReport.byte1 &= ~0x40; break;
+    
+    // Byte 2
+    case GEMINI_R:    _geminiReport.byte2 &= ~0x01; break;
+    case GEMINI_A:    _geminiReport.byte2 &= ~0x02; break;
+    case GEMINI_O:    _geminiReport.byte2 &= ~0x04; break;
+    case GEMINI_STAR1:_geminiReport.byte2 &= ~0x08; break;
+    case GEMINI_STAR2:_geminiReport.byte2 &= ~0x10; break;
+    case GEMINI_RES1: _geminiReport.byte2 &= ~0x20; break;
+    case GEMINI_RES2: _geminiReport.byte2 &= ~0x40; break;
+    
+    // Byte 3
+    case GEMINI_PWR:  _geminiReport.byte3 &= ~0x01; break;
+    case GEMINI_STAR3:_geminiReport.byte3 &= ~0x02; break;
+    case GEMINI_STAR4:_geminiReport.byte3 &= ~0x04; break;
+    case GEMINI_E:    _geminiReport.byte3 &= ~0x08; break;
+    case GEMINI_U:    _geminiReport.byte3 &= ~0x10; break;
+    case GEMINI_F:    _geminiReport.byte3 &= ~0x20; break;
+    case GEMINI_R2:   _geminiReport.byte3 &= ~0x40; break;
+    
+    // Byte 4
+    case GEMINI_P2:   _geminiReport.byte4 &= ~0x01; break;
+    case GEMINI_B:    _geminiReport.byte4 &= ~0x02; break;
+    case GEMINI_L:    _geminiReport.byte4 &= ~0x04; break;
+    case GEMINI_G:    _geminiReport.byte4 &= ~0x08; break;
+    case GEMINI_T2:   _geminiReport.byte4 &= ~0x10; break;
+    case GEMINI_S:    _geminiReport.byte4 &= ~0x20; break;
+    case GEMINI_D:    _geminiReport.byte4 &= ~0x40; break;
+    
+    // Byte 5
+    case GEMINI_NUM7: _geminiReport.byte5 &= ~0x01; break;
+    case GEMINI_NUM8: _geminiReport.byte5 &= ~0x02; break;
+    case GEMINI_NUM9: _geminiReport.byte5 &= ~0x04; break;
+    case GEMINI_NUM10:_geminiReport.byte5 &= ~0x08; break;
+    case GEMINI_NUM11:_geminiReport.byte5 &= ~0x10; break;
+    case GEMINI_NUM12:_geminiReport.byte5 &= ~0x20; break;
+    case GEMINI_Z:    _geminiReport.byte5 &= ~0x40; break;
+  }
   
   sendGeminiPRReport();
   return 1;
@@ -979,10 +1095,43 @@ uint8_t BLEHID::stenoCharToKey(char c) {
 }
 
 void BLEHID::sendGeminiPRReport() {
-    if (!isConnected() || !inputGeminiPR) return;
-    inputGeminiPR->setValue((uint8_t*)&_geminiReport, sizeof(_geminiReport));
-    inputGeminiPR->notify();
+    // ONLY send over SPP as 6-byte raw data (for Plover compatibility)
+    if (isSerialConnected()) {
+        uint8_t serialData[6] = {
+            _geminiReport.byte0,
+            _geminiReport.byte1, 
+            _geminiReport.byte2,
+            _geminiReport.byte3,
+            _geminiReport.byte4,
+            _geminiReport.byte5
+        };
+        
+        sendSerialData(serialData, 6);
+        Serial.printf("[%s] Sending GeminiPR SPP: %02X %02X %02X %02X %02X %02X\n", LOG_TAG,
+                     serialData[0], serialData[1], serialData[2],
+                     serialData[3], serialData[4], serialData[5]);
+    } else {
+        Serial.printf("[%s] GeminiPR stroke ready but SPP not connected: %02X %02X %02X %02X %02X %02X\n", LOG_TAG,
+                     _geminiReport.byte0, _geminiReport.byte1, _geminiReport.byte2,
+                     _geminiReport.byte3, _geminiReport.byte4, _geminiReport.byte5);
+    }
+    
     delay(_delay_ms);
+}
+
+void BLEHID::sendSerialData(const uint8_t* data, size_t length) {
+    if (serialConnected && serialInput) {
+        serialInput->setValue(data, length);
+        serialInput->notify();
+    }
+}
+
+bool BLEHID::isSerialConnected() {
+    // If serial is neither on nor connected, then just return false
+    if (!serialService || !serialInput) return false;
+    
+    // Fall back to the connection flag if the above all fails
+    return serialConnected;
 }
 #endif
 
@@ -1129,14 +1278,22 @@ void BLEHID::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
     #endif
     
     #if GEMINIPR_ENABLE
-    if (inputGeminiPR) inputGeminiPR->notify();
+    serialConnected = true;
+    Serial.printf("[%s] SPP Serial connected\n", LOG_TAG);
     #endif
     
     #if GAMEPAD_ENABLE
     if (inputGamepad) inputGamepad->notify();
     #endif
     
-    Serial.printf("[%s] Client connected - Actual connection count: %d\n", LOG_TAG, NimBLEDevice::getServer()->getConnectedCount());
+    Serial.printf("[%s] Client connected - Connection count: %d, Services: HID%s\n", LOG_TAG,
+    NimBLEDevice::getServer()->getConnectedCount(),
+    #if GEMINIPR_ENABLE
+      "+SPP"
+    #else
+      ""
+    #endif
+    );
 }
 
 bool BLEHID::isConnected(void) {
@@ -1192,7 +1349,10 @@ void pollConnection(void * arg) {
 
 void BLEHID::onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) {
   NimBLEServerCallbacks::onDisconnect(pServer, connInfo, reason);
-  
+  #if GEMINIPR_ENABLE
+    serialConnected = false;
+    Serial.printf("[%s] SPP Serial disconnected\n", LOG_TAG);
+  #endif
   // Restart advertising immediately when disconnected
   if (advertising) {
     advertising->start();
@@ -1201,11 +1361,25 @@ void BLEHID::onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int r
 }
 
 void BLEHID::onWrite(NimBLECharacteristic* me) {
-  Serial.printf("[%s] ESP-HID onWrite callback triggered!\n", LOG_TAG);
-  uint8_t* value = (uint8_t*)(me->getValue().c_str());
-  size_t length = me->getValue().length();
-  Serial.printf("[%s] special keys: %d\n", LOG_TAG, *value);
-  
+    #if GEMINIPR_ENABLE
+    if (me->getUUID().toString() == SERIAL_CHARACTERISTIC_UUID_RX) {
+        // Handle incoming serial data if needed
+        std::string value = me->getValue();
+        Serial.printf("[%s] Received serial data: %s\n", LOG_TAG, value.c_str());
+    } else {
+        // Existing HID write handling
+        Serial.printf("[%s] ESP-HID onWrite callback triggered!\n", LOG_TAG);
+        uint8_t* value = (uint8_t*)(me->getValue().c_str());
+        size_t length = me->getValue().length();
+        Serial.printf("[%s] special keys: %d\n", LOG_TAG, *value);
+    }
+    #else
+    // HID-only write handling when GeminiPR is disabled
+    Serial.printf("[%s] ESP-HID onWrite callback triggered!\n", LOG_TAG);
+    uint8_t* value = (uint8_t*)(me->getValue().c_str());
+    size_t length = me->getValue().length();
+    Serial.printf("[%s] special keys: %d\n", LOG_TAG, *value);
+    #endif
 }
 
 size_t BLEHID::write(const uint8_t *buf, size_t len) {
