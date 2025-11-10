@@ -313,6 +313,7 @@ void BLEHID::begin(void) {
         ad.setShortName(deviceName.substr(0, 8).c_str());
         ad.setAppearance(this->appearance);
         ad.setManufacturerData(deviceManufacturer.c_str());
+        ad.addServiceUUID(BLEUUID((uint16_t)0x180F));
     };
     
     // Configure both advertisements
@@ -355,6 +356,7 @@ void BLEHID::begin(void) {
 // Update/polling function
 void BLEHID::update() {
   static uint32_t lastUpdateTime = 0;
+  static uint32_t lastBatteryUpdateTime = 0;
   uint32_t currentTime = millis();
   
   if (currentTime - lastUpdateTime >= SCAN_INTERVAL) {
@@ -372,6 +374,21 @@ void BLEHID::update() {
       if (currentPollTime - lastPollTime >= POLL_INTERVAL) {
         lastPollTime = currentPollTime;
         pollConnection(this);
+      }
+    }
+  }
+  
+  // Update battery level every 30 seconds if connected
+  if (isConnected() && (currentTime - lastBatteryUpdateTime >= 30000)) {
+    lastBatteryUpdateTime = currentTime;
+    // This ensures the host device always has the current battery level
+    if (hid != 0) {
+      BLEService* batteryService = hid->getBatteryService();
+      if (batteryService) {
+        BLECharacteristic* batteryLevelChar = batteryService->getCharacteristic((uint16_t)0x2A19);
+        if (batteryLevelChar) {
+          batteryLevelChar->setValue(&batteryLevel, 1);
+        }
       }
     }
   }
@@ -399,8 +416,16 @@ void BLEHID::setAppearance(uint16_t newAppearance) {
 
 void BLEHID::setBatteryLevel(uint8_t level) {
   this->batteryLevel = level;
-  if (hid != 0)
+  if (hid != 0) {
     this->hid->setBatteryLevel(this->batteryLevel);
+    
+    // Force an update to the BLE characteristic
+    if (isConnected()) {
+      // This ensures the host device receives the updated battery level
+      hid->getBatteryService()->getCharacteristic((uint16_t)0x2A19)->setValue(&batteryLevel, 1);
+      hid->getBatteryService()->getCharacteristic((uint16_t)0x2A19)->notify();
+    }
+  }
 }
 
 //must be called before begin in order to set the name
