@@ -21,11 +21,13 @@ All development/testing is performed on boards *without* USB host mode, like the
 
 ## Compatibility
 
- - [x] Compatible with Android
- - [x] Compatible with Windows
- - [x] Compatible with Linux
- - [x] Compatible with MacOS
- - [x] Compatible with iOS
+ - [x] Compatible with Android devices with BLE
+ - [x] Compatible with Windows devices with BLE
+ - [x] Compatible with Linux devices with BLE
+ - [x] Compatible with MacOS devices with BLE
+ - [x] Compatible with iOS devices with BLE
+
+ Some systems support older forms of Bluetooth like Bluedroid, but not the more modern NimBLE stack. Contemporary hardware in general and any hardware with support for things like BLE Audio will work with this library however.
 
 ## Features Currently in Development
 
