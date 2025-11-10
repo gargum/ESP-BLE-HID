@@ -8,11 +8,13 @@
 #define NIMBLE_CFG_TRANSPORT_HCI_UART 0
 #define NIMBLE_CFG_TRANSPORT_HCI_IPC 0
 
+#include "NimBLE2904.h"
 #include "NimBLEDevice.h"
 #include "NimBLEHIDDevice.h"
 #include "NimBLECharacteristic.h"
 #include "NimBLEAdvertising.h"
 #include "NimBLEServer.h"
+#include "NimBLEService.h"
 #include "NimBLEUUID.h"
 #include "NimBLEUtils.h"
 #include "NimBLEUUID.h"
@@ -121,12 +123,22 @@ private:
   #endif
   
   #if GEMINIPR_ENABLE
-    BLECharacteristic*    inputGeminiPR;
     GeminiPRReport        _geminiReport;
+    // SPP (Serial Port Profile) members
+    BLEService*         serialService;
+    BLECharacteristic*  serialInput;
+    BLECharacteristic*  serialOutput;
+    BLE2904*            serialOutputDescriptor;
+    bool                serialConnected;
+    // SPP UUIDs
+    static const char* SERIAL_SERVICE_UUID;
+    static const char* SERIAL_CHARACTERISTIC_UUID_TX;
+    static const char* SERIAL_CHARACTERISTIC_UUID_RX;
   #endif
   
   #if GAMEPAD_ENABLE
     BLECharacteristic*    inputGamepad;
+    BLECharacteristic*    outputGamepad;
     GamepadReport         _gamepadReport;
   #endif
   
@@ -214,6 +226,9 @@ public:
     void geminiStroke(const int32_t* keys, size_t count);
     uint8_t stenoCharToKey(char c);
     void sendGeminiPRReport();
+    // SPP Methods
+    void sendSerialData(const uint8_t* data, size_t length);
+    bool isSerialConnected();
   #endif
   
   #if GAMEPAD_ENABLE
