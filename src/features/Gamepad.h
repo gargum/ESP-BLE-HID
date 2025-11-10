@@ -43,7 +43,7 @@ static const uint8_t _gamepadReportDescriptor[] = {
   HIDINPUT(1),        0x02,             
   // Hat Switch
   USAGE_PAGE(1),      0x01,                      USAGE(1),           0x39,             
-  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x07,             
+  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x08,             
   REPORT_SIZE(1),     0x08,                      REPORT_COUNT(1),    0x01,             
   HIDINPUT(1),        0x02,         
   END_COLLECTION(0),                     
