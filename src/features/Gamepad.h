@@ -11,8 +11,9 @@
 
 typedef struct {
   uint32_t buttons[2];
-  int16_t axes[GAMEPAD_AXIS_COUNT];
   int8_t hat;
+  uint8_t padding;
+  int16_t axes[GAMEPAD_AXIS_COUNT];
 } GamepadReport;
 
 static const uint8_t _gamepadReportDescriptor[] = {
@@ -22,7 +23,15 @@ static const uint8_t _gamepadReportDescriptor[] = {
   USAGE_PAGE(1),      0x09,                      USAGE_MINIMUM(1),   0x01,             
   USAGE_MAXIMUM(1),   0x40,                      LOGICAL_MINIMUM(1), 0x00,             
   LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,             
-  REPORT_COUNT(1),    0x40,                      HIDINPUT(1),        0x02,             
+  REPORT_COUNT(1),    0x40,                      HIDINPUT(1),        0x02,       
+  // Hat Switch
+  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x39,             
+  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x07,             
+  REPORT_SIZE(1),     0x08,                      REPORT_COUNT(1),    0x01,             
+  HIDINPUT(1),        0x02,         
+  // Padding
+  REPORT_SIZE(1),     0x08,                      REPORT_COUNT(1),    0x01,
+  HIDINPUT(1),        0x03,
   // Left Stick X/Y
   USAGE_PAGE(1),      0x01,                      USAGE(1),           0x01,             
   COLLECTION(1),      0x00,                      USAGE(1),           0x30,             
@@ -40,12 +49,7 @@ static const uint8_t _gamepadReportDescriptor[] = {
   USAGE(1),           0x32,                      USAGE(1),           0x35,             
   LOGICAL_MINIMUM(2), 0x00, 0x00,                LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       
   REPORT_SIZE(1),     0x10,                      REPORT_COUNT(1),    0x02,             
-  HIDINPUT(1),        0x02,             
-  // Hat Switch
-  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x39,             
-  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x07,             
-  REPORT_SIZE(1),     0x08,                      REPORT_COUNT(1),    0x01,             
-  HIDINPUT(1),        0x02,         
+  HIDINPUT(1),        0x02,                   
   END_COLLECTION(0),                     
 };
 
