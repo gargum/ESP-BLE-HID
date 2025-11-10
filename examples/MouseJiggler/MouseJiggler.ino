@@ -6,9 +6,9 @@
  * Boards like the ESP32-C3 Super Mini, which this example was originally tested on, make this especially useful!
  */
 
-#include <BleKeyboard.h>
+#include <BLEHID.h>
 
-BleKeyboard jig("MiniMed 780G", "Medtronic", 100); // Setting name, manufacturer, battery level
+BLEHID jig("MiniMed 780G", "Medtronic", 100); // Setting name, manufacturer, battery level
 
 void setup() {
   jig.setAppearance(INSULIN_PUMP);
@@ -18,7 +18,8 @@ void setup() {
 }
 
 void loop() {
-
+  jig.update();
+  
   jig.move(20,0);
   delay(50);
   jig.move(0,20);
