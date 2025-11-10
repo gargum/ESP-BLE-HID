@@ -4,7 +4,7 @@
 # Class
 #######################################
 
-BleKeyboard	KEYWORD1
+BLEHID   	KEYWORD1
 
 #######################################
 # Types
@@ -34,9 +34,9 @@ setManufacturer        KEYWORD2
 
 setDelay	       KEYWORD2
 
-set_vendor_id	       KEYWORD2
-set_product_id	       KEYWORD2
-set_version	       KEYWORD2
+setVendorId	       KEYWORD2
+setProductId	       KEYWORD2
+setVersion	       KEYWORD2
 
 setModifiers           KEYWORD2
 getModifiers           KEYWORD2
