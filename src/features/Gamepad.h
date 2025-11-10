@@ -43,7 +43,7 @@ static const uint8_t _gamepadReportDescriptor[] = {
   HIDINPUT(1),        0x02,             
   // Hat Switch
   USAGE_PAGE(1),      0x01,                      USAGE(1),           0x39,             
-  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x08,             
+  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x07,             
   REPORT_SIZE(1),     0x08,                      REPORT_COUNT(1),    0x01,             
   HIDINPUT(1),        0x02,         
   END_COLLECTION(0),                     
@@ -225,7 +225,6 @@ const int8_t GA_RY = 3;
 const int8_t GA_LT = 4;
 const int8_t GA_RT = 5;
 
-const int8_t HAT_CE = 8;
 const int8_t HAT_UP = 0;
 const int8_t HAT_UR = 1;
 const int8_t HAT_RI = 2;
@@ -234,20 +233,21 @@ const int8_t HAT_DO = 4;
 const int8_t HAT_DL = 5;
 const int8_t HAT_LE = 6;
 const int8_t HAT_UL = 7;
+const int8_t HAT_CE = 8;
 
 const int8_t GB_UP = 65;
 const int8_t GB_RI = 66;
 const int8_t GB_DO = 67;
 const int8_t GB_LE = 68;
 
-static const int8_t hatPress[4][9] = {
-  { 0, 1, 1, 1, 0, 7, 7, 7, 0 }, // UP     |  UP     UP-RIGHT  RIGHT  DOWN-RIGHT  DOWN  DOWN-LEFT   LEFT   UP-LEFT   CENTER
-  { 1, 1, 2, 3, 3, 3, 2, 1, 2 }, // RIGHT  |  0x00     0x01     0x02     0x03     0x04     0x05     0x06     0x07     0x08
-  { 4, 3, 3, 3, 4, 5, 5, 5, 4 }, // DOWN   |  The numbers in both these arrays are in this order. This means, for the hatPress array,
-  { 7, 7, 6, 5, 5, 5, 6, 7, 6 }};// LEFT   |  the very last number says "When holding CENTER, pressing LEFT results in direction 0x06 (LEFT)						
+const int8_t hatPress[4][9] = {
+  { HAT_UP, HAT_UR, HAT_UR, HAT_UR, HAT_UP, HAT_UL, HAT_UL, HAT_UL, HAT_UP }, // UP     |  UP     UP-RIGHT  RIGHT  DOWN-RIGHT  DOWN  DOWN-LEFT   LEFT   UP-LEFT   CENTER
+  { HAT_UR, HAT_UR, HAT_RI, HAT_DR, HAT_DR, HAT_DR, HAT_RI, HAT_UR, HAT_RI }, // RIGHT  |  0x00     0x01     0x02     0x03     0x04     0x05     0x06     0x07     0x08
+  { HAT_DO, HAT_DR, HAT_DR, HAT_DR, HAT_DO, HAT_DL, HAT_DL, HAT_DL, HAT_DO }, // DOWN   |  The numbers in both these arrays are in this order. This means, for the hatPress array,
+  { HAT_UL, HAT_UL, HAT_LE, HAT_DL, HAT_DL, HAT_DL, HAT_LE, HAT_UL, HAT_LE }};// LEFT   |  the very last number says "When holding CENTER, pressing LEFT results in direction 0x06 (LEFT)						
   
-static const int8_t hatRelease[4][9] = {
-  { 8, 2, 2, 3, 4, 5, 6, 6, 8}, // UP      |  { 0x08, 0x02, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06, 0x08 } // UP
-  { 0, 0, 8, 4, 4, 5, 6, 7, 8}, // RIGHT   |     ^
-  { 0, 1, 2, 2, 8, 6, 6, 7, 8}, // DOWN    |     This means, "If you're pressing UP and you release UP, the result is 0x08 (CENTER)
-  { 0, 1, 2, 3, 4, 4, 8, 0, 8}};// LEFT    |     First value, so "If pressing UP", first row of hatRelease so "and UP is released", code is the result.
+const int8_t hatRelease[4][9] = {
+  { HAT_CE, HAT_RI, HAT_RI, HAT_DR, HAT_DO, HAT_DL, HAT_LE, HAT_LE, HAT_CE}, // UP      |  { 0x08, 0x02, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06, 0x08 } // UP
+  { HAT_UP, HAT_UP, HAT_CE, HAT_DO, HAT_DO, HAT_DL, HAT_LE, HAT_UL, HAT_CE}, // RIGHT   |     ^
+  { HAT_UP, HAT_UR, HAT_RI, HAT_RI, HAT_CE, HAT_LE, HAT_LE, HAT_UL, HAT_CE}, // DOWN    |     This means, "If you're pressing UP and you release UP, the result is 0x08 (CENTER)
+  { HAT_UP, HAT_UR, HAT_RI, HAT_DR, HAT_DO, HAT_DO, HAT_CE, HAT_UP, HAT_CE}};// LEFT    |     First value, so "If pressing UP", first row of hatRelease so "and UP is released", code is the result.
