@@ -1,21 +1,8 @@
 #include "BLEHID.h"
 
-#include <NimBLEDevice.h>
-#include <NimBLEServer.h>
-#include <NimBLEUtils.h>
-#include <NimBLEHIDDevice.h>
-#include <NimBLEUUID.h>
-#include "HIDTypes.h"
+#define KEYBOARD_ID   0x01
 
-static const char* LOG_TAG = "BLEHID";
-bool getInitialized = false;
-
-void pollConnection(void * arg);
-
-// Global instance tracking
-static BLEHID* _activeBLEHIDInstance = nullptr;
-
-static const uint8_t _nkroReportDescriptor[] = {
+static const uint8_t _basicReportDescriptor[] = {
   // ------------------------------------------------- Keyboard
   USAGE_PAGE(1),      0x01,                      USAGE(1),           0x06,                      
   COLLECTION(1),      0x01,                      REPORT_ID(1),       KEYBOARD_ID,               
@@ -39,188 +26,73 @@ static const uint8_t _nkroReportDescriptor[] = {
   USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0x00,
   USAGE_MAXIMUM(1),   0x65,                      HIDINPUT(1),        0x00,                   
   END_COLLECTION(0),
-  // NKRO Extended Report (6KRO is emulated)
-  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x06,
-  COLLECTION(1),      0x01,                      REPORT_ID(1),       NKRO_ID,                
-  // Modifiers (8 bits)
-  USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0xE0,
-  USAGE_MAXIMUM(1),   0xE7,                      LOGICAL_MINIMUM(1), 0x00,
-  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,
-  REPORT_COUNT(1),    0x08,                      HIDINPUT(1),        0x02,
-  // Reserved byte
-  REPORT_COUNT(1),    0x01,                      REPORT_SIZE(1),     0x08,
-  HIDINPUT(1),        0x01,
-  // 252-key bitmap
-  USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0x00,
-  USAGE_MAXIMUM(2),   0xFC, 0x00,                LOGICAL_MINIMUM(1), 0x00,
-  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,
-  REPORT_COUNT(2),    0xFC, 0x00,                HIDINPUT(1),        0x02,
-  END_COLLECTION(0),
 };
 
-static const uint8_t _mediakeyReportDescriptor[] = {
-  // ------------------------------------------------- Media Keys
-  USAGE_PAGE(1),      0x0C,                      USAGE(1),           0x01,             
-  COLLECTION(1),      0x01,                      REPORT_ID(1),       MEDIA_KEYS_ID,    
-  USAGE(2),           0x30, 0x01,                USAGE(2),           0x34, 0x01,       
-  USAGE(2),           0x35, 0x01,                USAGE(1),           0xB5,             
-  USAGE(1),           0xB6,                      USAGE(1),           0xB7,             
-  USAGE(1),           0xCD,                      USAGE(1),           0xB3,             
-  USAGE(1),           0xB4,                      USAGE(1),           0xB8,             
-  USAGE(1),           0xE2,                      USAGE(1),           0xE9,             
-  USAGE(1),           0xEA,                      USAGE(1),           0x6F,             
-  USAGE(1),           0x70,                      USAGE(2),           0x94, 0x01,       
-  USAGE(2),           0x92, 0x01,                USAGE(2),           0x8A, 0x01,       
-  USAGE(2),           0x83, 0x01,                USAGE(2),           0x86, 0x01,       
-  USAGE(2),           0x87, 0x01,                USAGE(2),           0x23, 0x02,       
-  USAGE(2),           0x2A, 0x02,                USAGE(2),           0x21, 0x02,       
-  USAGE(2),           0x26, 0x02,                USAGE(2),           0x24, 0x02,       
-  USAGE(2),           0x25, 0x02,                USAGE(2),           0x27, 0x02,       
-  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(2), 0xFF, 0x03,       
-  REPORT_SIZE(1),     0x01,                      REPORT_COUNT(1),    0x1C,             
-  HIDINPUT(1),        0x02,                      END_COLLECTION(0),   
-};
+const size_t       descriptorSize = 0
 
-static const uint8_t _mouseReportDescriptor[] = {
-  // ------------------------------------------------- Pointers - Relative/Mouse
-  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x02,             
-  COLLECTION(1),      0x01,                      REPORT_ID(1),       MOUSE_ID,         
-  USAGE(1),           0x01,                      COLLECTION(1),      0x00,             
-  // Buttons (5 bits)
-  USAGE_PAGE(1),      0x09,                      USAGE_MINIMUM(1),   0x01,             
-  USAGE_MAXIMUM(1),   0x05,                      LOGICAL_MINIMUM(1), 0x00,             
-  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,             
-  REPORT_COUNT(1),    0x05,                      HIDINPUT(1),        0x02,             
-  // Button padding (3 bits)
-  REPORT_SIZE(1),     0x03,                      REPORT_COUNT(1),    0x01,             
-  HIDINPUT(1),        0x03,             
-  // Relative X, Y, Wheel
-  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x30,             
-  USAGE(1),           0x31,                      USAGE(1),           0x38,             
-  LOGICAL_MINIMUM(1), 0x81,                      LOGICAL_MAXIMUM(1), 0x7F,             
-  REPORT_SIZE(1),     0x08,                      REPORT_COUNT(1),    0x03,             
-  HIDINPUT(1),        0x06,             
-  // Horizontal Wheel
-  USAGE_PAGE(1),      0x0C,                      USAGE(2),           0x38, 0x02,            
-  LOGICAL_MINIMUM(1), 0x81,                      LOGICAL_MAXIMUM(1), 0x7F,             
-  REPORT_SIZE(1),     0x08,                      REPORT_COUNT(1),    0x01,             
-  HIDINPUT(1),        0x06,                      END_COLLECTION(0),                    
-  END_COLLECTION(0),   
-};
-
-static const uint8_t _geminiPRReportDescriptor[] = {
-  // ------------------------------------------------- GeminiPR Steno Protocol
-  USAGE_PAGE(1),      0xFF, 0x00,                USAGE(1),           0x01,             
-  COLLECTION(1),      0x01,                      REPORT_ID(1),       GEMINIPR_ID,      
-  // 6-byte GeminiPR packet (48 bits)
-  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x01,             
-  REPORT_SIZE(1),     0x01,                      REPORT_COUNT(1),    0x30,             
-  USAGE(1),           0x01,                      HIDINPUT(1),        0x02,             
-  END_COLLECTION(0),   
-};
-
-static const uint8_t _digitizerReportDescriptor[] = {               
-  // ------------------------------------------------- Pointers - Absolute/Digitizer
-  USAGE_PAGE(1),      0x0D,                      USAGE(1),           0x01,              
-  COLLECTION(1),      0x01,                      REPORT_ID(1),       DIGITIZER_ID,      
-  USAGE(1),           0x20,                      COLLECTION(1),      0x00,              
-  // Buttons: Barrel, Eraser (Tip Switch is separate, not a button)
-  USAGE_PAGE(1),      0x09,                      USAGE_MINIMUM(1),   0x01,              
-  USAGE_MAXIMUM(1),   0x02,                      LOGICAL_MINIMUM(1), 0x00,              
-  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,              
-  REPORT_COUNT(1),    0x02,                      HIDINPUT(1),        0x02,              
-  // Padding (6 bits)
-  REPORT_SIZE(1),     0x06,                      REPORT_COUNT(1),    0x01,              
-  HIDINPUT(1),        0x01,              
-  // Stylus state flags: In Range, Tip Switch, Invert (eraser), Barrel Switch
-  USAGE_PAGE(1),      0x0D,                      USAGE(1),           0x32,              
-  USAGE(1),           0x42,                      USAGE(1),           0x3C,              
-  USAGE(1),           0x44,                      LOGICAL_MINIMUM(1), 0x00,              
-  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,              
-  REPORT_COUNT(1),    0x04,                      HIDINPUT(1),        0x02,              
-  // Padding (4 bits)
-  REPORT_SIZE(1),     0x04,                      REPORT_COUNT(1),    0x01,              
-  HIDINPUT(1),        0x01,              
-  // X, Y coordinates (absolute)
-  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x30,              
-  USAGE(1),           0x31,                      LOGICAL_MINIMUM(1), 0x00,              
-  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,                REPORT_SIZE(1),     0x10,              
-  REPORT_COUNT(1),    0x02,                      HIDINPUT(1),        0x02,              
-  // Pressure
-  USAGE_PAGE(1),      0x0D,                      USAGE(1),           0x30,              
-  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x7F,              
-  REPORT_SIZE(1),     0x08,                      REPORT_COUNT(1),    0x01,              
-  HIDINPUT(1),        0x02,                      END_COLLECTION(0),                       
-  END_COLLECTION(0),   
-};
-
-static const uint8_t _gamepadReportDescriptor[] = {
-    // ------------------------------------------------- Gamepad
-  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x05,             
-  COLLECTION(1),      0x01,                      REPORT_ID(1),       GAMEPAD_ID,       
-  // 64 buttons in bitfield
-  USAGE_PAGE(1),      0x09,                      USAGE_MINIMUM(1),   0x01,             
-  USAGE_MAXIMUM(1),   0x40,                      LOGICAL_MINIMUM(1), 0x00,             
-  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,             
-  REPORT_COUNT(1),    0x40,                      HIDINPUT(1),        0x02,             
-  // Hat Switch
-  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x39,             
-  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x07,             
-  REPORT_SIZE(1),     0x08,                      REPORT_COUNT(1),    0x01,             
-  HIDINPUT(1),        0x02,          
-  // Left Stick X/Y
-  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x01,             
-  COLLECTION(1),      0x00,                      USAGE(1),           0x30,             
-  USAGE(1),           0x31,                      LOGICAL_MINIMUM(2), 0x01, 0x80,       
-  LOGICAL_MAXIMUM(2), 0xFF, 0x7F,                REPORT_SIZE(1),     0x10,             
-  REPORT_COUNT(1),    0x02,                      HIDINPUT(1),        0x02,             
-  END_COLLECTION(0),                    
-  // Right Stick X/Y
-  USAGE(1),           0x01,                      COLLECTION(1),      0x00,             
-  USAGE(1),           0x33,                      USAGE(1),           0x34,             
-  LOGICAL_MINIMUM(2), 0x01, 0x80,                LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       
-  REPORT_SIZE(1),     0x10,                      REPORT_COUNT(1),    0x02,             
-  HIDINPUT(1),        0x02,                      END_COLLECTION(0),                    
-  // Triggers
-  USAGE(1),           0x32,                      USAGE(1),           0x35,             
-  LOGICAL_MINIMUM(2), 0x00, 0x00,                LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       
-  REPORT_SIZE(1),     0x10,                      REPORT_COUNT(1),    0x02,             
-  HIDINPUT(1),        0x02,                      END_COLLECTION(0),
-};
-
-const size_t descriptorSize = 0
+  +  sizeof(_basicReportDescriptor)  
+  
+#if KEYBOARD_ENABLE
   +  sizeof(_nkroReportDescriptor)  
+#endif
+
+#if MEDIA_ENABLE
   +  sizeof(_mediakeyReportDescriptor)
+#endif
+
+#if POINTER_ENABLE
   +  sizeof(_mouseReportDescriptor)
-  +  sizeof(_geminiPRReportDescriptor)
   +  sizeof(_digitizerReportDescriptor)
+#endif
+
+#if GEMINIPR_ENABLE
+  +  sizeof(_geminiPRReportDescriptor)
+#endif
+
+#if GAMEPAD_ENABLE
   +  sizeof(_gamepadReportDescriptor)
+#endif
   ;                      
                         
-static uint8_t _hidReportDescriptor[descriptorSize];
+static uint8_t     _hidReportDescriptor[descriptorSize];
+static const char* LOG_TAG = "BLEHID";
+static             BLEHID* _activeBLEHIDInstance = nullptr;
+void               pollConnection(void * arg);
+bool               getInitialized = false;
 
 class HIDDescriptorInitializer {
 public:
     HIDDescriptorInitializer() {
         size_t currentPosition = 0;
-        
+        memcpy(_hidReportDescriptor + currentPosition, _basicReportDescriptor, sizeof(_basicReportDescriptor));
+        currentPosition += sizeof(_basicReportDescriptor);
+        #if KEYBOARD_ENABLE
         memcpy(_hidReportDescriptor + currentPosition, _nkroReportDescriptor, sizeof(_nkroReportDescriptor));
         currentPosition += sizeof(_nkroReportDescriptor);
+        #endif
         
+        #if MEDIA_ENABLE
         memcpy(_hidReportDescriptor + currentPosition, _mediakeyReportDescriptor, sizeof(_mediakeyReportDescriptor));
         currentPosition += sizeof(_mediakeyReportDescriptor);
+        #endif
         
+        #if POINTER_ENABLE
         memcpy(_hidReportDescriptor + currentPosition, _mouseReportDescriptor, sizeof(_mouseReportDescriptor));
         currentPosition += sizeof(_mouseReportDescriptor);
         
-        memcpy(_hidReportDescriptor + currentPosition, _geminiPRReportDescriptor, sizeof(_geminiPRReportDescriptor));
-        currentPosition += sizeof(_geminiPRReportDescriptor);
-        
         memcpy(_hidReportDescriptor + currentPosition, _digitizerReportDescriptor, sizeof(_digitizerReportDescriptor));
         currentPosition += sizeof(_digitizerReportDescriptor);
+        #endif
         
+        #if GEMINIPR_ENABLE
+        memcpy(_hidReportDescriptor + currentPosition, _geminiPRReportDescriptor, sizeof(_geminiPRReportDescriptor));
+        currentPosition += sizeof(_geminiPRReportDescriptor);
+        #endif
+        
+        #if GAMEPAD_ENABLE
         memcpy(_hidReportDescriptor + currentPosition, _gamepadReportDescriptor, sizeof(_gamepadReportDescriptor));
         currentPosition += sizeof(_gamepadReportDescriptor);
+        #endif
     }
 };
 
@@ -232,23 +104,41 @@ BLEHID::BLEHID(std::string deviceName, std::string deviceManufacturer, uint8_t b
     , deviceName(std::string(deviceName).substr(0, 15))
     , deviceManufacturer(std::string(deviceManufacturer).substr(0,15))
     , batteryLevel(batteryLevel) 
-    , _mediaKeyBitmask(0) 
+    #if KEYBOARD_ENABLE
     , _useNKRO(true)
+    #endif
+    #if MEDIA_ENABLE
+    , _mediaKeyBitmask(0) 
+    #endif
+    #if POINTER_ENABLE
     , _mouseButtons(0)
     , _useAbsolute(false) 
     , _autoMode(true)
     , _screenWidth(1920)
     , _screenHeight(1080)
     , _digitizerConfigured(false)
+    #endif
     , lastPollTime(0) 
 {
   // Initialize reports
+  #if KEYBOARD_ENABLE
   memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
+  #endif
+  
+  #if POINTER_ENABLE
   memset(&_pointerReport, 0, sizeof(_pointerReport));
   memset(&_digitizerReport, 0, sizeof(_digitizerReport));
+  #endif
+  
+  #if GEMINIPR_ENABLE
   memset(&_geminiReport, 0, sizeof(_geminiReport));
+  #endif
+  
+  #if GAMEPAD_ENABLE
   memset(&_gamepadReport, 0, sizeof(_gamepadReport));
   _gamepadReport.hat = HAT_CE;
+  #endif
+  
   _activeBLEHIDInstance = this;
 }
 // This is a "destructor". It takes objects the contructor made, and destroys them whenever you tell it to. 
@@ -260,7 +150,6 @@ BLEHID::~BLEHID() {
 }
 
 void BLEHID::begin(void) {
-  
     // Initialise BLE stack only once
     if (getInitialized) {
         Serial.printf("[%s] BLE already initialized, cleaning up first...\n", LOG_TAG);
@@ -274,7 +163,7 @@ void BLEHID::begin(void) {
     // Configure security if enabled
     if (isSecurityEnabled()) {
         // Enhanced security configuration for bonding
-        NimBLEDevice::setSecurityAuth(true, true, true); // Bonding, MITM, Secure Connections
+        NimBLEDevice::setSecurityAuth(true, true, true); // Bonding, MITM, Secure Connections enabled
         NimBLEDevice::setSecurityPasskey(passkey);       // Actually set a passkey
         NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
         
@@ -284,10 +173,8 @@ void BLEHID::begin(void) {
         
         Serial.printf("[%s] Security configured with PIN: %06lu \n", LOG_TAG, passkey);
     } else {
-        NimBLEDevice::setSecurityAuth(true, true, true); // Bonding, MITM, Secure Connections
-        NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC);
-        NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC);
-        Serial.printf("[%s] Just Works pairing with bonding enabled\n", LOG_TAG);
+        NimBLEDevice::setSecurityAuth(false, false, false); // Bonding, MITM, Secure Connections disabled
+        Serial.printf("[%s] Just Works simple pairing enabled\n", LOG_TAG);
     }
     
     // Create server & install callbacks
@@ -299,21 +186,49 @@ void BLEHID::begin(void) {
 
     // Obtain report-characteristic pointers
     outputKeyboard = hid->getOutputReport(KEYBOARD_ID);
+    #if KEYBOARD_ENABLE
     inputNKRO      = hid->getInputReport(NKRO_ID);
+    #endif
+    
+    #if MEDIA_ENABLE
     inputMediaKeys = hid->getInputReport(MEDIA_KEYS_ID);
+    #endif
+    
+    #if POINTER_ENABLE
     inputMouse     = hid->getInputReport(MOUSE_ID);
     inputDigitizer = hid->getInputReport(DIGITIZER_ID);
+    #endif
+    
+    #if GEMINIPR_ENABLE
     inputGeminiPR  = hid->getInputReport(GEMINIPR_ID);
+    #endif
+    
+    #if GAMEPAD_ENABLE
     inputGamepad   = hid->getInputReport(GAMEPAD_ID);
+    #endif
     
     // Set callbacks
     outputKeyboard->setCallbacks(this);
+    #if KEYBOARD_ENABLE
     if (inputNKRO) {inputNKRO->setCallbacks(this);}
+    #endif
+    
+    #if MEDIA_ENABLE
     if (inputMediaKeys) {inputMediaKeys->setCallbacks(this);}
+    #endif
+    
+    #if POINTER_ENABLE
     if (inputMouse) {inputMouse->setCallbacks(this);}
     if (inputDigitizer) {inputDigitizer->setCallbacks(this);}
+    #endif
+    
+    #if GEMINIPR_ENABLE
     if (inputGeminiPR) {inputGeminiPR->setCallbacks(this);}
+    #endif
+    
+    #if GAMEPAD_ENABLE
     if (inputGamepad) {inputGamepad->setCallbacks(this);}
+    #endif
     
     // Manufacturer / PnP / HID-info
     hid->setManufacturer(std::string(deviceManufacturer.c_str()));
@@ -439,108 +354,14 @@ void BLEHID::end(void) {
   Serial.printf("[%s] BLE Keyboard stopped\n", LOG_TAG);
 }
 
-// Security callback - displays PIN to user
-void BLEHID::securityCallback(uint32_t passkey) {
-  Serial.printf("[%s] Pairing PIN: %06lu\n", LOG_TAG, passkey);
-  // You could add display output here if you have an LCD/OLED
-}
-
-void BLEHID::onAuthenticationComplete(ble_gap_conn_desc* desc) {
-    Serial.printf("[%s] Authentication complete - encrypted: %s, authenticated: %s\n", LOG_TAG,
-             desc->sec_state.encrypted ? "yes" : "no",
-             desc->sec_state.authenticated ? "yes" : "no");
-}
-
-void BLEHID::setPIN(const char* pin) {
-  if (pin == nullptr) {
-    disableSecurity();
-    return;
-  }
-  
-  if (strlen(pin) == 6) {
-    this->passkey = atoi(pin);
-    Serial.printf("[%s] Security enabled with PIN: %s\n", LOG_TAG, pin);
-  } else {
-    Serial.printf("[%s] PIN must be 6 digits, security disabled\n", LOG_TAG);
-    this->passkey = 0;
-  }
-}
-
-void BLEHID::setPIN(uint32_t pin) {
-  if (pin >= 1 && pin <= 999999) {  // 0 means no security
-    this->passkey = pin;
-    Serial.printf("[%s] Security enabled with PIN: %06lu\n", LOG_TAG, pin);
-  } else {
-    Serial.printf("[%s] PIN must be between 000001 and 999999, security disabled\n", LOG_TAG);
-    this->passkey = 0;
-  }
-}
-
-void BLEHID::disableSecurity(bool enable) {
-  if (!enable) {
-    this->passkey = 0;
-    Serial.printf("[%s] Security disabled\n", LOG_TAG);
-  } else {
-    Serial.printf("[%s] Security remains enabled (call setPIN to enable)\n", LOG_TAG);
-  }
-}
-
-bool BLEHID::isSecurityEnabled() const {
-  return passkey != 0;
-}
-
-// Update the security callbacks to check passkey directly
-uint32_t BLEHID::onPassKeyRequest() {
-  Serial.printf("[%s] PassKeyRequest received\n", LOG_TAG);
-  if (isSecurityEnabled()) {
-    securityCallback(passkey);
-    return passkey;
-  }
-  return 0; // No PIN = Just Works
-}
-
-bool BLEHID::onSecurityRequest() {
-  Serial.printf("[%s] Security request received\n", LOG_TAG);
-  return isSecurityEnabled(); // Only require auth if we have a PIN
-}
-
 void BLEHID::setAppearance(uint16_t newAppearance) {
   this->appearance = newAppearance;
-  
+  #if POINTER_ENABLE
   // If auto-mode is enabled, detect the default pointer mode from appearance
   if (_autoMode) {_detectModeFromAppearance();}
   // Actually inform the user which mode is the default for debugging purposes
   Serial.printf("[%s] Appearance set to: 0x%04X, Mode: %s\n", LOG_TAG, newAppearance, _useAbsolute ? "absolute" : "relative");
-}
-
-bool BLEHID::isConnected(void) {
-    // Always check the actual BLE state - relying on cached flags kept breaking for some reason
-    if (NimBLEDevice::getServer()) {
-        int connectedClients = NimBLEDevice::getServer()->getConnectedCount();
-        
-        // Debug logging (every 10 seconds)
-        static uint64_t lastLogTime = 0;
-        uint64_t currentTime = micros();
-        
-        if (currentTime - lastLogTime > 10000000) { // This is just 10 seconds in microseconds
-            Serial.printf("[%s] BLE Status - Connected clients: %d, Advertising: %s\n", LOG_TAG,
-                    connectedClients,
-                    advertising ? (advertising->isAdvertising() ? "Yes" : "No") : "Null");
-            lastLogTime = currentTime;
-        }
-        
-        return (connectedClients > 0);
-    }
-    
-    static uint64_t lastLogTime = 0;
-    uint64_t currentTime = micros();
-    
-    if (currentTime - lastLogTime > 10000000) {
-        Serial.printf("[%s] BLE Status: No server instance available\n", LOG_TAG);
-        lastLogTime = currentTime;
-    }
-    
-    return false;
+  #endif
 }
 
 void BLEHID::setBatteryLevel(uint8_t level) {
@@ -559,101 +380,126 @@ void BLEHID::setManufacturer(std::string deviceManufacturer) {
   this->deviceManufacturer = deviceManufacturer;
 }
 
-// Sets the waiting time (in milliseconds) between multiple keystrokes in NimBLE mode.
+// Sets the waiting time (in milliseconds) between multiple keystrokes
 void BLEHID::setDelay(uint32_t ms) {
   _delay_ms = ms;
 }
 
-void BLEHID::set_vendor_id(uint16_t vid) { 
+void BLEHID::setVendorId(uint16_t vid) { 
 	this->vid = vid; 
 }
 
-void BLEHID::set_product_id(uint16_t pid) { 
+void BLEHID::setProductId(uint16_t pid) { 
 	this->pid = pid; 
 }
 
-void BLEHID::set_version(uint16_t version) { 
+void BLEHID::setVersion(uint16_t version) { 
 	this->version = version; 
 }
 
-void BLEHID::_detectModeFromAppearance() {
-    // If appearance is set to digitizer or tablet, default pointer is the digitizer
-    if (this->appearance == DIGITIZER || this->appearance == DIGITAL_PEN || this->appearance == TABLET) {
-        _useAbsolute = true;
-        Serial.printf("[%s] Auto-detected absolute mode from appearance: 0x%04X\n", LOG_TAG, this->appearance);
-    // For all other appearances, default pointer is the mouse
-    } else {
-        _useAbsolute = false;
-        Serial.printf("[%s] Auto-detected relative mode from appearance: 0x%04X\n", LOG_TAG, this->appearance);
-    }
-}
+//
+// ----------------------------------------- NKRO Keyboard Block
+//
 
-bool BLEHID::_shouldUseAbsoluteMode() {
-    // If the user explicitly says they don't want it to switch by itself, then respect their decision
-    if (!_autoMode) {return _useAbsolute;}
-    
-    // If the digitizer was explicitly configured, use absolute mode
-    if (_digitizerConfigured) { return true;}
-    
-    // If the user would reasonably assume they configured it, make it still work
-    if (this->appearance == DIGITIZER || this->appearance == DIGITAL_PEN || this->appearance == TABLET) {return true;}
-    
-    // Default to relative pointers because having digitizers be the default is definitely gonna confuse people
-    return false;
-}
-
-void BLEHID::sendNKROReport() {
-  if (this->isConnected() && inputNKRO) {
-    // If in NKRO mode, send the extended report (ID 2)
-    if (_useNKRO) {
-      inputNKRO->setValue((uint8_t*)&_keyReportNKRO, sizeof(KeyReportNKRO));
-    } else {
-      // 6KRO mode - extract first 6 pressed keys and send boot report
-      uint8_t bootReport[8];
-      bootReport[0] = _keyReportNKRO.modifiers;
-      bootReport[1] = 0; // reserved
-      
-      // Find up to 6 pressed keys
-      int keyIndex = 2;
-      for (int i = 0; i < NKRO_KEY_COUNT && keyIndex < 8; i++) {
-        if ((_keyReportNKRO.keys_bitmask[i/8] >> (i%8)) & 1) {
-          bootReport[keyIndex++] = i;
-        }
-      }
-      
-      // Fill remaining with 0
-      while (keyIndex < 8) {
-        bootReport[keyIndex++] = 0;
-      }
-      
-      inputNKRO->setValue(bootReport, 8);
+#if KEYBOARD_ENABLE
+size_t BLEHID::press(uint8_t k) {
+  if (k >= 136) { k = k - 136; }
+  
+  if (k != 0) {
+    // Check if we're already at 6 non-modifier keys
+    if (!_useNKRO && countPressedKeys() >= 6) {
+      setWriteError();                
+      return 0;
     }
-    inputNKRO->notify();
-    delay(_delay_ms);
+    
+    // Update the bitmask - ONLY for regular keys
+    updateNKROBitmask(k, true);
   }
+  
+  sendNKROReport();
+  return 1;
 }
 
-void BLEHID::sendMediaReport() {
-  if (this->isConnected()) {
-    // Send the current media key bitmask
-    inputMediaKeys->setValue((uint8_t*)&_mediaKeyBitmask, sizeof(uint32_t));
-    inputMediaKeys->notify();
-    delay(_delay_ms);
-  }	
+size_t BLEHID::press(int16_t modifier) {
+  uint8_t hidModifier = 0;
+  if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
+    hidModifier = modifier >> 8;
+  } else {
+    return 0; // Invalid modifier
+  }
+  
+  _keyReportNKRO.modifiers |= hidModifier;
+  sendNKROReport();
+  return 1;
 }
 
-void BLEHID::sendGeminiPRReport() {
-    if (!isConnected() || !inputGeminiPR) return;
-    inputGeminiPR->setValue((uint8_t*)&_geminiReport, sizeof(_geminiReport));
-    inputGeminiPR->notify();
-    delay(_delay_ms);
+size_t BLEHID::release(uint8_t k) {
+  if (k >= 136) {
+    k = k - 136;
+  }
+  
+  if (k != 0) {
+    updateNKROBitmask(k, false);
+  }
+  
+  sendNKROReport();
+  return 1;
 }
 
-void BLEHID::sendGamepadReport() {
-    if (!isConnected() || !inputGamepad) return;
-    inputGamepad->setValue((uint8_t*)&_gamepadReport, sizeof(_gamepadReport));
-    inputGamepad->notify();
-    delay(_delay_ms);
+size_t BLEHID::release(int16_t modifier) {
+  uint8_t hidModifier = 0;
+  if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
+    hidModifier = modifier >> 8;
+  } else {
+    return 0; // Invalid modifier
+  }
+  
+  _keyReportNKRO.modifiers &= ~hidModifier;
+  sendNKROReport();
+  return 1;
+}
+
+size_t BLEHID::write(uint8_t c) {
+    bool shift;
+    uint8_t key = BLEHID::charToKeyCode((char)c, &shift);
+    if (key == 0) return 0;                     // character not supported
+
+    if (shift) press(KEY_LEFT_SHIFT);           // hold shift
+    press(key);                                 // key-down
+    release(key);                               // key-up
+    if (shift) release(KEY_LEFT_SHIFT);         // release shift
+    return 1;
+}
+
+size_t BLEHID::write(int16_t modifier) {
+  uint16_t p = press(modifier);  // Modifier down
+  release(modifier);             // Modifier up
+  return p;
+}
+
+void BLEHID::useNKRO(bool state) {
+  _useNKRO = state; // state = enabled, therefore _useNKRO = true/enabled
+  Serial.printf("[%s] Switched to %s mode\n", LOG_TAG, _useNKRO ? "NKRO" : "6KRO");
+}
+
+void BLEHID::use6KRO(bool state) {
+  _useNKRO = !state; // state = enabled, therefore _useNKRO = not true/enabled = false
+  Serial.printf("[%s] Switched to %s mode\n", LOG_TAG, _useNKRO ? "NKRO" : "6KRO");
+}
+
+bool BLEHID::isNKROEnabled() {
+  return _useNKRO;
+}
+
+uint8_t BLEHID::countPressedKeys() {
+  uint8_t count = 0;
+  // Only count non-modifier keys in the main key area
+  // This ensures modifiers don't count toward the 6-key limit
+  for (int i = 0; i < (NKRO_KEY_COUNT / 8); i++) {
+    uint8_t byte = _keyReportNKRO.keys_bitmask[i];
+    count += __builtin_popcount(byte);
+  }
+  return count;
 }
 
 void BLEHID::updateNKROBitmask(uint8_t k, bool pressed) {
@@ -669,22 +515,16 @@ void BLEHID::updateNKROBitmask(uint8_t k, bool pressed) {
   }
 }
 
-// NKRO/6KRO mode switching functions
-void BLEHID::useNKRO(bool state) {
-  _useNKRO = state; // state = enabled, therefore _useNKRO = true/enabled
-  Serial.printf("[%s] Switched to %s mode\n", LOG_TAG, _useNKRO ? "NKRO" : "6KRO");
+void BLEHID::setModifiers(uint8_t modifiers) {
+    _keyReportNKRO.modifiers = modifiers;
+    sendNKROReport();
 }
 
-void BLEHID::use6KRO(bool state) {
-  _useNKRO = !state; // state = enabled, therefore _useNKRO = not true/enabled = false
-  Serial.printf("[%s] Switched to %s mode\n", LOG_TAG, _useNKRO ? "NKRO" : "6KRO");
+uint8_t BLEHID::getModifiers() {
+    return _keyReportNKRO.modifiers;
 }
 
-bool BLEHID::isNKROEnabled() {
-  return _useNKRO;
-}
-
-static uint8_t charToKeyCode(char c, bool *needShift) {
+uint8_t BLEHID::charToKeyCode(char c, bool *needShift) {
     *needShift = false;
 
     if (c >= '0' && c <= '9')            return (c - '0') + 0x27;   // 0x27…0x30
@@ -744,102 +584,46 @@ static uint8_t charToKeyCode(char c, bool *needShift) {
     }
 }
 
-size_t BLEHID::press(uint8_t k) {
-  if (k >= 136) { k = k - 136; }
-  
-  if (k != 0) {
-    // Check if we're already at 6 non-modifier keys
-    if (!_useNKRO && countPressedKeys() >= 6) {
-      setWriteError();                
-      return 0;
+void BLEHID::sendNKROReport() {
+  if (this->isConnected() && inputNKRO) {
+    // If in NKRO mode, send the extended report (ID 2)
+    if (_useNKRO) {
+      inputNKRO->setValue((uint8_t*)&_keyReportNKRO, sizeof(KeyReportNKRO));
+    } else {
+      // 6KRO mode - extract first 6 pressed keys and send boot report
+      uint8_t bootReport[8];
+      bootReport[0] = _keyReportNKRO.modifiers;
+      bootReport[1] = 0; // reserved
+      
+      // Find up to 6 pressed keys
+      int keyIndex = 2;
+      for (int i = 0; i < NKRO_KEY_COUNT && keyIndex < 8; i++) {
+        if ((_keyReportNKRO.keys_bitmask[i/8] >> (i%8)) & 1) {
+          bootReport[keyIndex++] = i;
+        }
+      }
+      
+      // Fill remaining with 0
+      while (keyIndex < 8) {
+        bootReport[keyIndex++] = 0;
+      }
+      
+      inputNKRO->setValue(bootReport, 8);
     }
-    
-    // Update the bitmask - ONLY for regular keys
-    updateNKROBitmask(k, true);
+    inputNKRO->notify();
+    delay(_delay_ms);
   }
-  
-  sendNKROReport();
-  return 1;
 }
+#endif
 
-size_t BLEHID::press(int16_t modifier) {
-  uint8_t hidModifier = 0;
-  if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
-    hidModifier = modifier >> 8;
-  } else {
-    return 0; // Invalid modifier
-  }
-  
-  _keyReportNKRO.modifiers |= hidModifier;
-  sendNKROReport();
-  return 1;
-}
+//
+// ----------------------------------------- Media key Block
+//
 
+#if MEDIA_ENABLE
 size_t BLEHID::press(uint16_t mediaKey) {
     addMediaKey(mediaKey);
     return 1;
-}
-
-size_t BLEHID::press(char b) {
-  _mouseButtons |= b;
-  _pointerReport.buttons = _mouseButtons;
-  move(0, 0, 0, 0);
-}
-
-size_t BLEHID::press(int32_t stenoKey) {
-  uint8_t key = (uint8_t)(stenoKey & 0xFF);
-  
-  // Set the appropriate bit in the GeminiPR packet
-  if (key & 0x80) _geminiReport.byte0 |= (key & 0xC0);
-  else if (key & 0x40) _geminiReport.byte1 |= key;
-  else if (key & 0x20) _geminiReport.byte2 |= key;
-  else if (key & 0x10) _geminiReport.byte3 |= key;
-  else if (key & 0x08) _geminiReport.byte4 |= key;
-  else if (key & 0x04) _geminiReport.byte5 |= key;
-  
-  sendGeminiPRReport();
-  return 1;
-}
-
-size_t BLEHID::press(int8_t button) {
-    if (button >= 1 && button <= 64) {
-        uint8_t field = (button - 1) / 32;
-        uint8_t bit = (button - 1) % 32;
-        _gamepadReport.buttons[field] |= (1UL << bit);
-    } else if (button >= 65 && button <= 68) {
-        uint8_t currentHat = _gamepadReport.hat;
-        uint8_t directionIndex = button - 65; // Convert 65-68 to 0-3
-        
-        _gamepadReport.hat = hatPress[directionIndex][currentHat];
-    }
-    sendGamepadReport();
-    return 1;
-}
-
-size_t BLEHID::release(uint8_t k) {
-  if (k >= 136) {
-    k = k - 136;
-  }
-  
-  if (k != 0) {
-    updateNKROBitmask(k, false);
-  }
-  
-  sendNKROReport();
-  return 1;
-}
-
-size_t BLEHID::release(int16_t modifier) {
-  uint8_t hidModifier = 0;
-  if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
-    hidModifier = modifier >> 8;
-  } else {
-    return 0; // Invalid modifier
-  }
-  
-  _keyReportNKRO.modifiers &= ~hidModifier;
-  sendNKROReport();
-  return 1;
 }
 
 size_t BLEHID::release(uint16_t mediaKey) {
@@ -847,99 +631,10 @@ size_t BLEHID::release(uint16_t mediaKey) {
     return 1;
 }
 
-size_t BLEHID::release(char b) {
-  _mouseButtons &= ~b;
-  _pointerReport.buttons = _mouseButtons;
-  move(0, 0, 0, 0);
-}
-
-size_t BLEHID::release(int32_t stenoKey) {
-  // Convert int32_t to uint8_t
-  uint8_t key = (uint8_t)(stenoKey & 0xFF);
-  
-  // Clear the appropriate bit in the GeminiPR packet
-  if (key & 0x80) _geminiReport.byte0 &= ~(key & 0xC0);
-  else if (key & 0x40) _geminiReport.byte1 &= ~key;
-  else if (key & 0x20) _geminiReport.byte2 &= ~key;
-  else if (key & 0x10) _geminiReport.byte3 &= ~key;
-  else if (key & 0x08) _geminiReport.byte4 &= ~key;
-  else if (key & 0x04) _geminiReport.byte5 &= ~key;
-  
-  sendGeminiPRReport();
-  return 1;
-}
-
-size_t BLEHID::release(int8_t button) {
-    if (button >= 1 && button <= 64) {
-        uint8_t field = (button - 1) / 32;
-        uint8_t bit = (button - 1) % 32;
-        _gamepadReport.buttons[field] &= ~(1UL << bit);
-    } else if (button >= 65 && button <= 68) {
-        uint8_t currentHat = _gamepadReport.hat;
-        uint8_t directionIndex = button - 65; // Convert 65-68 to 0-3
-        
-        _gamepadReport.hat = hatRelease[directionIndex][currentHat];
-    }
-    sendGamepadReport();
-    return 1;
-}
-
-void BLEHID::releaseAll() {
-  memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
-  sendNKROReport();
-  _mediaKeyBitmask = 0;
-  sendMediaReport();
-  memset(&_geminiReport, 0, sizeof(_geminiReport));
-  sendGeminiPRReport();
-  _gamepadReport.buttons[0] = 0;
-  _gamepadReport.buttons[1] = 0;
-  _gamepadReport.hat = HAT_CE;
-  sendGamepadReport();
-}
-
-void BLEHID::mouseReleaseAll() {
-  _mouseButtons = 0;
-  _pointerReport.buttons = 0;
-  move(0, 0, 0, 0);
-}
-
-size_t BLEHID::write(uint8_t c) {
-    bool shift;
-    uint8_t key = charToKeyCode((char)c, &shift);
-    if (key == 0) return 0;                     // character not supported
-
-    if (shift) press(KEY_LEFT_SHIFT);           // hold shift
-    press(key);                                 // key-down
-    release(key);                               // key-up
-    if (shift) release(KEY_LEFT_SHIFT);         // release shift
-    return 1;
-}
-
-size_t BLEHID::write(int16_t modifier) {
-  uint16_t p = press(modifier);  // Modifier down
-  release(modifier);             // Modifier up
-  return p;
-}
-
 size_t BLEHID::write(uint16_t mediaKey) {
 	uint16_t p = press(mediaKey);  // Keydown
 	release(mediaKey);            // Keyup
 	return p;
-}
-
-size_t BLEHID::write(const uint8_t *buf, size_t len) {
-    size_t n = 0;
-    while (len--) n += write(*buf++);
-    return n;
-}
-
-void BLEHID::setModifiers(uint8_t modifiers) {
-    _keyReportNKRO.modifiers = modifiers;
-    sendNKROReport();
-}
-
-uint8_t BLEHID::getModifiers() {
-    return _keyReportNKRO.modifiers;
 }
 
 void BLEHID::setMediaKeyBitmask(uint32_t bitmask) {
@@ -997,21 +692,69 @@ void BLEHID::removeMediaKey(uint16_t mediaKey) {
     sendMediaReport();
 }
 
-uint8_t BLEHID::countPressedKeys() {
-  uint8_t count = 0;
-  // Only count non-modifier keys in the main key area
-  // This ensures modifiers don't count toward the 6-key limit
-  for (int i = 0; i < (NKRO_KEY_COUNT / 8); i++) {
-    uint8_t byte = _keyReportNKRO.keys_bitmask[i];
-    count += __builtin_popcount(byte);
-  }
-  return count;
+void BLEHID::sendMediaReport() {
+  if (this->isConnected()) {
+    // Send the current media key bitmask
+    inputMediaKeys->setValue((uint8_t*)&_mediaKeyBitmask, sizeof(uint32_t));
+    inputMediaKeys->notify();
+    delay(_delay_ms);
+  }	
+}
+#endif
+
+//
+// ----------------------------------------- Relative/Absolute Pointer Block
+//
+
+#if POINTER_ENABLE
+size_t BLEHID::press(char b) {
+  _mouseButtons |= b;
+  _pointerReport.buttons = _mouseButtons;
+  move(0, 0, 0, 0);
+}
+
+size_t BLEHID::release(char b) {
+  _mouseButtons &= ~b;
+  _pointerReport.buttons = _mouseButtons;
+  move(0, 0, 0, 0);
+}
+
+void BLEHID::mouseReleaseAll() {
+  _mouseButtons = 0;
+  _pointerReport.buttons = 0;
+  move(0, 0, 0, 0);
 }
 
 void BLEHID::click(char b) {
   press(b);
   delay(_delay_ms);
   release(b);
+}
+
+void BLEHID::_detectModeFromAppearance() {
+    // If appearance is set to digitizer or tablet, default pointer is the digitizer
+    if (this->appearance == DIGITIZER || this->appearance == DIGITAL_PEN || this->appearance == TABLET) {
+        _useAbsolute = true;
+        Serial.printf("[%s] Auto-detected absolute mode from appearance: 0x%04X\n", LOG_TAG, this->appearance);
+    // For all other appearances, default pointer is the mouse
+    } else {
+        _useAbsolute = false;
+        Serial.printf("[%s] Auto-detected relative mode from appearance: 0x%04X\n", LOG_TAG, this->appearance);
+    }
+}
+
+bool BLEHID::_shouldUseAbsoluteMode() {
+    // If the user explicitly says they don't want it to switch by itself, then respect their decision
+    if (!_autoMode) {return _useAbsolute;}
+    
+    // If the digitizer was explicitly configured, use absolute mode
+    if (_digitizerConfigured) { return true;}
+    
+    // If the user would reasonably assume they configured it, make it still work
+    if (this->appearance == DIGITIZER || this->appearance == DIGITAL_PEN || this->appearance == TABLET) {return true;}
+    
+    // Default to relative pointers because having digitizers be the default is definitely gonna confuse people
+    return false;
 }
 
 void BLEHID::click(uint16_t x, uint16_t y, char b) {
@@ -1146,6 +889,43 @@ bool BLEHID::isAbsoluteMode() {
 bool BLEHID::isAutoModeEnabled() {
     return _autoMode;
 }
+#endif
+
+//
+// ----------------------------------------- GeminiPR Stenotype Block
+//
+
+#if GEMINIPR_ENABLE
+size_t BLEHID::press(int32_t stenoKey) {
+  uint8_t key = (uint8_t)(stenoKey & 0xFF);
+  
+  // Set the appropriate bit in the GeminiPR packet
+  if (key & 0x80) _geminiReport.byte0 |= (key & 0xC0);
+  else if (key & 0x40) _geminiReport.byte1 |= key;
+  else if (key & 0x20) _geminiReport.byte2 |= key;
+  else if (key & 0x10) _geminiReport.byte3 |= key;
+  else if (key & 0x08) _geminiReport.byte4 |= key;
+  else if (key & 0x04) _geminiReport.byte5 |= key;
+  
+  sendGeminiPRReport();
+  return 1;
+}
+
+size_t BLEHID::release(int32_t stenoKey) {
+  // Convert int32_t to uint8_t
+  uint8_t key = (uint8_t)(stenoKey & 0xFF);
+  
+  // Clear the appropriate bit in the GeminiPR packet
+  if (key & 0x80) _geminiReport.byte0 &= ~(key & 0xC0);
+  else if (key & 0x40) _geminiReport.byte1 &= ~key;
+  else if (key & 0x20) _geminiReport.byte2 &= ~key;
+  else if (key & 0x10) _geminiReport.byte3 &= ~key;
+  else if (key & 0x08) _geminiReport.byte4 &= ~key;
+  else if (key & 0x04) _geminiReport.byte5 &= ~key;
+  
+  sendGeminiPRReport();
+  return 1;
+}
 
 void BLEHID::geminiStroke(const int32_t* keys, size_t count) {
   releaseAll();
@@ -1196,6 +976,49 @@ uint8_t BLEHID::stenoCharToKey(char c) {
     case 'N': return GEMINI_FN;
     default: return 0;
   }
+}
+
+void BLEHID::sendGeminiPRReport() {
+    if (!isConnected() || !inputGeminiPR) return;
+    inputGeminiPR->setValue((uint8_t*)&_geminiReport, sizeof(_geminiReport));
+    inputGeminiPR->notify();
+    delay(_delay_ms);
+}
+#endif
+
+//
+// ----------------------------------------- Gamepad Block
+//
+
+#if GAMEPAD_ENABLE
+size_t BLEHID::press(int8_t button) {
+    if (button >= 1 && button <= 64) {
+        uint8_t field = (button - 1) / 32;
+        uint8_t bit = (button - 1) % 32;
+        _gamepadReport.buttons[field] |= (1UL << bit);
+    } else if (button >= 65 && button <= 68) {
+        uint8_t currentHat = _gamepadReport.hat;
+        uint8_t directionIndex = button - 65; // Convert 65-68 to 0-3
+        
+        _gamepadReport.hat = hatPress[directionIndex][currentHat];
+    }
+    sendGamepadReport();
+    return 1;
+}
+
+size_t BLEHID::release(int8_t button) {
+    if (button >= 1 && button <= 64) {
+        uint8_t field = (button - 1) / 32;
+        uint8_t bit = (button - 1) % 32;
+        _gamepadReport.buttons[field] &= ~(1UL << bit);
+    } else if (button >= 65 && button <= 68) {
+        uint8_t currentHat = _gamepadReport.hat;
+        uint8_t directionIndex = button - 65; // Convert 65-68 to 0-3
+        
+        _gamepadReport.hat = hatRelease[directionIndex][currentHat];
+    }
+    sendGamepadReport();
+    return 1;
 }
 
 bool BLEHID::gamepadIsPressed(int8_t button) {
@@ -1268,6 +1091,18 @@ void BLEHID::gamepadGetRightStick(int16_t &x, int16_t &y) {
     y = gamepadGetAxis(AXIS_RY);
 }
 
+void BLEHID::sendGamepadReport() {
+    if (!isConnected() || !inputGamepad) return;
+    inputGamepad->setValue((uint8_t*)&_gamepadReport, sizeof(_gamepadReport));
+    inputGamepad->notify();
+    delay(_delay_ms);
+}
+#endif
+
+//
+// ----------------------------------------- Global Function Block
+//
+
 void BLEHID::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
     Serial.printf("[%s] ESP-HID onConnect callback triggered - Security: %s, Encrypted: %s\n", LOG_TAG,
              isSecurityEnabled() ? "Enabled" : "Disabled", 
@@ -1280,32 +1115,58 @@ void BLEHID::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
         }
     }
     
-    if (inputNKRO) inputNKRO->notify();
+    #if KEYBOARD_ENABLE
+      if (inputNKRO) inputNKRO->notify();
+    #endif
+    
+    #if MEDIA_ENABLE
     if (inputMediaKeys) inputMediaKeys->notify(); 
+    #endif
+    
+    #if POINTER_ENABLE
     if (inputMouse) inputMouse->notify();
     if (inputDigitizer) inputDigitizer->notify();
+    #endif
+    
+    #if GEMINIPR_ENABLE
     if (inputGeminiPR) inputGeminiPR->notify();
+    #endif
+    
+    #if GAMEPAD_ENABLE
     if (inputGamepad) inputGamepad->notify();
+    #endif
     
     Serial.printf("[%s] Client connected - Actual connection count: %d\n", LOG_TAG, NimBLEDevice::getServer()->getConnectedCount());
 }
 
-void BLEHID::onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) {
-  NimBLEServerCallbacks::onDisconnect(pServer, connInfo, reason);
-  
-  // Restart advertising immediately when disconnected
-  if (advertising) {
-    advertising->start();
-    Serial.printf("[%s] Advertising restarted after disconnect (reason: %d)\n", LOG_TAG, reason);
-  }
-}
-
-void BLEHID::onWrite(NimBLECharacteristic* me) {
-  Serial.printf("[%s] ESP-HID onWrite callback triggered!\n", LOG_TAG);
-  uint8_t* value = (uint8_t*)(me->getValue().c_str());
-  size_t length = me->getValue().length();
-  Serial.printf("[%s] special keys: %d\n", LOG_TAG, *value);
-  
+bool BLEHID::isConnected(void) {
+    // Always check the actual BLE state - relying on cached flags kept breaking for some reason
+    if (NimBLEDevice::getServer()) {
+        int connectedClients = NimBLEDevice::getServer()->getConnectedCount();
+        
+        // Debug logging (every 10 seconds)
+        static uint64_t lastLogTime = 0;
+        uint64_t currentTime = micros();
+        
+        if (currentTime - lastLogTime > 10000000) { // This is just 10 seconds in microseconds
+            Serial.printf("[%s] BLE Status - Connected clients: %d, Advertising: %s\n", LOG_TAG,
+                    connectedClients,
+                    advertising ? (advertising->isAdvertising() ? "Yes" : "No") : "Null");
+            lastLogTime = currentTime;
+        }
+        
+        return (connectedClients > 0);
+    }
+    
+    static uint64_t lastLogTime = 0;
+    uint64_t currentTime = micros();
+    
+    if (currentTime - lastLogTime > 10000000) {
+        Serial.printf("[%s] BLE Status: No server instance available\n", LOG_TAG);
+        lastLogTime = currentTime;
+    }
+    
+    return false;
 }
 
 void pollConnection(void * arg) {
@@ -1327,4 +1188,115 @@ void pollConnection(void * arg) {
         }
     }
     kb->last_connected_count = cnt;
+}
+
+void BLEHID::onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) {
+  NimBLEServerCallbacks::onDisconnect(pServer, connInfo, reason);
+  
+  // Restart advertising immediately when disconnected
+  if (advertising) {
+    advertising->start();
+    Serial.printf("[%s] Advertising restarted after disconnect (reason: %d)\n", LOG_TAG, reason);
+  }
+}
+
+void BLEHID::onWrite(NimBLECharacteristic* me) {
+  Serial.printf("[%s] ESP-HID onWrite callback triggered!\n", LOG_TAG);
+  uint8_t* value = (uint8_t*)(me->getValue().c_str());
+  size_t length = me->getValue().length();
+  Serial.printf("[%s] special keys: %d\n", LOG_TAG, *value);
+  
+}
+
+size_t BLEHID::write(const uint8_t *buf, size_t len) {
+    size_t n = 0;
+    while (len--) n += write(*buf++);
+    return n;
+}
+
+void BLEHID::releaseAll() {
+  #if KEYBOARD_ENABLE
+  memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
+  sendNKROReport();
+  #endif
+  
+  #if MEDIA_ENABLE
+  _mediaKeyBitmask = 0;
+  sendMediaReport();
+  #endif
+  
+  #if GEMINIPR_ENABLE
+  memset(&_geminiReport, 0, sizeof(_geminiReport));
+  sendGeminiPRReport();
+  #endif
+  
+  #if GAMEPAD_ENABLE
+  _gamepadReport.buttons[0] = 0;
+  _gamepadReport.buttons[1] = 0;
+  _gamepadReport.hat = HAT_CE;
+  sendGamepadReport();
+  #endif
+}
+
+void BLEHID::securityCallback(uint32_t passkey) {
+  Serial.printf("[%s] Pairing PIN: %06lu\n", LOG_TAG, passkey);
+  // You could add display output here if you have an LCD/OLED
+}
+
+void BLEHID::onAuthenticationComplete(ble_gap_conn_desc* desc) {
+    Serial.printf("[%s] Authentication complete - encrypted: %s, authenticated: %s\n", LOG_TAG,
+             desc->sec_state.encrypted ? "yes" : "no",
+             desc->sec_state.authenticated ? "yes" : "no");
+}
+
+void BLEHID::setPIN(const char* pin) {
+  if (pin == nullptr) {
+    disableSecurity();
+    return;
+  }
+  
+  if (strlen(pin) == 6) {
+    this->passkey = atoi(pin);
+    Serial.printf("[%s] Security enabled with PIN: %s\n", LOG_TAG, pin);
+  } else {
+    Serial.printf("[%s] PIN must be 6 digits, security disabled\n", LOG_TAG);
+    this->passkey = 0;
+  }
+}
+
+void BLEHID::setPIN(uint32_t pin) {
+  if (pin >= 1 && pin <= 999999) {  // 0 means no security
+    this->passkey = pin;
+    Serial.printf("[%s] Security enabled with PIN: %06lu\n", LOG_TAG, pin);
+  } else {
+    Serial.printf("[%s] PIN must be between 000001 and 999999, security disabled\n", LOG_TAG);
+    this->passkey = 0;
+  }
+}
+
+void BLEHID::disableSecurity(bool enable) {
+  if (!enable) {
+    this->passkey = 0;
+    Serial.printf("[%s] Security disabled\n", LOG_TAG);
+  } else {
+    Serial.printf("[%s] Security remains enabled (call setPIN to enable)\n", LOG_TAG);
+  }
+}
+
+bool BLEHID::isSecurityEnabled() const {
+  return passkey != 0;
+}
+
+uint32_t BLEHID::onPassKeyRequest() {
+  Serial.printf("[%s] PassKeyRequest received\n", LOG_TAG);
+  if (isSecurityEnabled()) {
+    securityCallback(passkey);
+    return passkey;
+  }
+  return 0; // No PIN = Just Works
+}
+
+bool BLEHID::onSecurityRequest() {
+  Serial.printf("[%s] Security request received\n", LOG_TAG);
+  return isSecurityEnabled(); // Only require auth if we have a PIN
 }
