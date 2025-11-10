@@ -5,9 +5,9 @@
  */
 
 
-#include <BleKeyboard.h>
+#include <BLEHID.h>
 
-BleKeyboard esp("ESP32-TEST", "gargum", 100);   // Here, we set the name to "ESP32-TEST", the manufacturer to "gargum", and the battery level to 100%
+BLEHID esp("ESP32-TEST", "gargum", 100);   // Here, we set the name to "ESP32-TEST", the manufacturer to "gargum", and the battery level to 100%
 
 void setup() {
   esp.setAppearance(CYCLING_COMPUTER);          // You can set the device to advertise itself as a wide array of different things!
@@ -15,6 +15,7 @@ void setup() {
 }
 
 void loop() {
+  esp.update();            // ESP-BLE-HID requires you to call the 'update()' function in sketches. This is used to control things like the scanning interval.
 
   esp.press(KC_SLSH);      // ESP-BLE-HID allows you to press down individual keys using the 'press' function!
   delay(2000);
@@ -33,12 +34,10 @@ void loop() {
 
   esp.press(MOUSE_RIGHT);  // The press function allows supports mouse buttons. 
   delay(2000);  
-  esp.press(5000, 5000, MOUSE_RIGHT); // When using the press function with a mouse button, you are even able to feed in coordinates!
-  delay(2000);
   esp.press(GAMEPAD_R1);   // All gamepad buttons are also supported by the press function.
   delay(2000);
-  esp.mouseReleaseAll();   // Do keep in mind, 'releaseAll' only releases keyboard buttons, not mouse or gamepad inputs.
-  esp.gamepadReleaseAll(); // This was done to prevent 'releaseAll' from causing problems for more complex designs.
+  esp.releaseAll();
+  esp.mouseReleaseAll();   // Do keep in mind, 'releaseAll' only releases keyboard and gamepad buttons, not mouse inputs.
   delay(2000);
   
   esp.press(GAMEPAD_L1);   // The 'release' function on the other hand can parse all the same things 'press' can.
