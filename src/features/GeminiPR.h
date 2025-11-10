@@ -2,10 +2,6 @@
 // | GeminiPR Stenotype Feature - Constants |
 //  ----------------------------------------
 
-#include "HIDTypes.h"
-
-#define GEMINIPR_ID   0x06
-
 typedef struct {
   uint8_t byte0;  // Fn  to #6
   uint8_t byte1;  // S1- to H-
@@ -15,73 +11,56 @@ typedef struct {
   uint8_t byte5;  // #7  to -Z
 } GeminiPRReport;
 
-static const uint8_t _geminiPRReportDescriptor[] = {
-  // ------------------------------------------------- GeminiPR Steno Protocol
-  USAGE_PAGE(1),      0xFF, 0x00,                USAGE(1),           0x01,             
-  COLLECTION(1),      0x01,                      REPORT_ID(1),       GEMINIPR_ID,      
-  // 6-byte GeminiPR packet (48 bits)
-  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x01,             
-  REPORT_SIZE(1),     0x01,                      REPORT_COUNT(1),    0x30,             
-  USAGE(1),           0x01,                      HIDINPUT(1),        0x02,             
-  END_COLLECTION(0),   
-};
-
-// GeminiPR steno codes
-
+// GeminiPR steno codes - UNIQUE VALUES FOR EACH KEY
 enum GeminiPRKeys {
   // Byte 0
-  GEMINI_FN    = 0x80,
-  GEMINI_NUM1  = 0x40,
-//GEMINI_NUM2  = 0x20, <-
-//GEMINI_NUM3  = 0x10, <-   None of these 5 actually exist for some reason.
-//GEMINI_NUM4  = 0x08, <-   I've added them as comments to mourn what could have been.
-//GEMINI_NUM5  = 0x04, <-
-//GEMINI_NUM6  = 0x02, <-
-
-  // Byte 1
-  GEMINI_S1    = 0x80,
-  GEMINI_S2    = 0x40,
-  GEMINI_T     = 0x20,
-  GEMINI_K     = 0x10,
-  GEMINI_P     = 0x08,
-  GEMINI_W     = 0x04,
-  GEMINI_H     = 0x02,
+  GEMINI_FN    = 0x0100,
+  GEMINI_NUM1  = 0x0101,
+  
+  // Byte 1  
+  GEMINI_S1    = 0x0200,
+  GEMINI_S2    = 0x0201,
+  GEMINI_T     = 0x0202,
+  GEMINI_K     = 0x0203,
+  GEMINI_P     = 0x0204,
+  GEMINI_W     = 0x0205,
+  GEMINI_H     = 0x0206,
   
   // Byte 2
-  GEMINI_R     = 0x80,
-  GEMINI_A     = 0x40,
-  GEMINI_O     = 0x20,
-  GEMINI_STAR1 = 0x10,
-  GEMINI_STAR2 = 0x08,
-  GEMINI_RES1  = 0x04,
-  GEMINI_RES2  = 0x02,
+  GEMINI_R     = 0x0300,
+  GEMINI_A     = 0x0301,
+  GEMINI_O     = 0x0302,
+  GEMINI_STAR1 = 0x0303,
+  GEMINI_STAR2 = 0x0304,
+  GEMINI_RES1  = 0x0305,
+  GEMINI_RES2  = 0x0306,
   
   // Byte 3
-  GEMINI_PWR   = 0x80,
-  GEMINI_STAR3 = 0x40,
-  GEMINI_STAR4 = 0x20,
-  GEMINI_E     = 0x10,
-  GEMINI_U     = 0x08,
-  GEMINI_F     = 0x04,
-  GEMINI_R2    = 0x02,
+  GEMINI_PWR   = 0x0400,
+  GEMINI_STAR3 = 0x0401,
+  GEMINI_STAR4 = 0x0402,
+  GEMINI_E     = 0x0403,
+  GEMINI_U     = 0x0404,
+  GEMINI_F     = 0x0405,
+  GEMINI_R2    = 0x0406,
   
   // Byte 4
-  GEMINI_P2    = 0x80,
-  GEMINI_B     = 0x40,
-  GEMINI_L     = 0x20,
-  GEMINI_G     = 0x10,
-  GEMINI_T2    = 0x08,
-  GEMINI_S     = 0x04,
-  GEMINI_D     = 0x02,
+  GEMINI_P2    = 0x0500,
+  GEMINI_B     = 0x0501,
+  GEMINI_L     = 0x0502,
+  GEMINI_G     = 0x0503,
+  GEMINI_T2    = 0x0504,
+  GEMINI_S     = 0x0505,
+  GEMINI_D     = 0x0506,
   
   // Byte 5
-  GEMINI_NUM7  = 0x80,
-  GEMINI_NUM8  = 0x40,
-  GEMINI_NUM9  = 0x20,
-  GEMINI_NUM10 = 0x10,
-  GEMINI_NUM11 = 0x08,
-  GEMINI_NUM12 = 0x04,
-  GEMINI_Z     = 0x02
+  GEMINI_NUM7  = 0x0600,
+  GEMINI_NUM8  = 0x0601,
+  GEMINI_NUM9  = 0x0602,
+  GEMINI_NUM10 = 0x0603,
+  GEMINI_NUM11 = 0x0604,
+  GEMINI_NUM12 = 0x0605,
+  GEMINI_Z     = 0x0606
 };
 
 using StenoKey = int32_t;
