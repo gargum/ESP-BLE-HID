@@ -1,8 +1,12 @@
 //  ----------------------------------------------
 // | Relative Pointer / Mouse Feature - Constants |
 //  ----------------------------------------------
+#ifndef MOUSE_H
+#define MOUSE_H
 
 #include "HIDTypes.h"
+#include "NimBLECharacteristic.h"
+#include <stdint.h>
 
 #define MOUSE_ID      0x04
 
@@ -12,7 +16,7 @@ typedef struct {
   int8_t relY;
   int8_t wheel;
   int8_t hWheel;
-} PointerReport;
+} MouseReport;
 
 static const uint8_t _mouseReportDescriptor[] = {
   // ------------------------------------------------- Pointers - Relative/Mouse
@@ -49,3 +53,27 @@ const char MOUSE_MIDDLE  = 4;
 const char MOUSE_BACK    = 8;
 const char MOUSE_FORWARD = 16;
 const char MOUSE_ALL     = (MOUSE_LEFT | MOUSE_RIGHT | MOUSE_MIDDLE);
+
+class BLEMOUSE {
+private:
+    NimBLECharacteristic* inputMouse;
+    MouseReport _mouseReport;
+    uint8_t _mouseButtons;
+    uint32_t _delay_ms;
+    
+public:
+    BLEMOUSE();
+    
+    void begin(NimBLECharacteristic* mouseChar, uint32_t delay_ms = 7);
+    bool isConnected();
+    
+    // Mouse methods
+    size_t press(char b = MOUSE_LEFT);
+    size_t release(char b = MOUSE_LEFT);
+    void click(char b = MOUSE_LEFT);
+    void move(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
+    bool mouseIsPressed(char b = MOUSE_LEFT);
+    void sendMouseReport();
+    void releaseAll();
+};
+#endif
