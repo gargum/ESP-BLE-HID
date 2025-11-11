@@ -1,12 +1,19 @@
 //  -----------------------------------
 // | NKRO Keyboard Feature - Constants |
 //  -----------------------------------
+#ifndef NKRO_H
+#define NKRO_H
 
 #include "HIDTypes.h"
+#include "NimBLECharacteristic.h"
+#include <stdint.h>
 
 #define NKRO_KEY_COUNT 252 // Surprise! "N" in "N-Key Rollover" stands for "252" in my implementation.
 
 #define NKRO_ID       0x02
+
+static const bool enabled = true;
+static const bool disabled = false;
 
 typedef struct {
   uint8_t modifiers;
@@ -399,3 +406,37 @@ const uint8_t KC_P0   = 0x62;
 const uint8_t KC_PDOT = 0x63;
 const uint8_t KC_PEQL = 0x67;
 const uint8_t KC_PCMM = 0x85;
+
+class BLENKRO {
+private:
+  NimBLECharacteristic* inputNKRO;
+  KeyReportNKRO         _keyReportNKRO;
+  bool                  _useNKRO = true; // Default to NKRO
+  uint32_t              _delay_ms = 7;  
+    
+  uint8_t               countPressedKeys();
+  uint8_t               charToKeyCode(char c, bool *needShift);
+  void                  updateNKROBitmask(uint8_t k, bool pressed);
+public:
+  BLENKRO();
+    
+  void    begin(NimBLECharacteristic* nkroChar, uint32_t delay_ms = 7);
+  bool    isConnected();
+
+  size_t  press(uint8_t k);           // I went with uint8_t for normal keycodes
+  size_t  press(int16_t modifier);    // I chose int16_t for modifiers
+  size_t  release(uint8_t k);
+  size_t  release(int16_t modifier);
+  void    releaseAll();
+  size_t  write(uint8_t c);
+  size_t  write(int16_t modifier);
+  void    useNKRO(bool state = enabled);
+  void    use6KRO(bool state = enabled);
+  bool    isNKROEnabled();
+  void    setModifiers(uint8_t modifiers);
+  uint8_t getModifiers();
+  void    sendNKROReport();
+    
+};
+
+#endif
