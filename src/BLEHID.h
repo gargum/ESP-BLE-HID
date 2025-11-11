@@ -33,24 +33,27 @@
 #include "features/Appearance.h"
 
 #if KEYBOARD_ENABLE
-  #include "features/NKRO.h"
+  #include "features/NKRO/NKRO.h"
 #endif
 
 #if MEDIA_ENABLE
-  #include "features/Media.h"
+  #include "features/Media/Media.h"
 #endif
 
 #if GEMINIPR_ENABLE
-  #include "features/GeminiPR.h"
+  #include "features/Steno/GeminiPR.h"
 #endif
 
 #if GAMEPAD_ENABLE
-  #include "features/Gamepad.h"
+  #include "features/Gamepad/Gamepad.h"
 #endif
 
-#if POINTER_ENABLE
-  #include "features/Mouse.h"
-  #include "features/Digitizer.h"
+#if MOUSE_ENABLE
+  #include "features/Mouse/Mouse.h"
+#endif
+
+#if DIGITIZER_ENABLE
+  #include "features/Digitizer/Digitizer.h"
 #endif
 
 #define BLE_KEYBOARD_VERSION "0.3.4"
@@ -61,8 +64,15 @@
 // Scanning/Polling interval
 #define SCAN_INTERVAL 10
 
-static const bool enabled = true;
-static const bool disabled = false;
+// Define the mouse buttons if we need them but don't have the file where they normally live
+#if DIGITIZER_ENABLE && !MOUSE_ENABLE
+  const uint8_t MOUSE_LEFT    = 1;
+  const uint8_t MOUSE_RIGHT   = 2;
+  const uint8_t MOUSE_MIDDLE  = 4;
+  const uint8_t MOUSE_BACK    = 8;
+  const uint8_t MOUSE_FORWARD = 16;
+  const uint8_t MOUSE_ALL     = (MOUSE_LEFT | MOUSE_RIGHT | MOUSE_MIDDLE);
+#endif
 
 class BLEHID : public Print
     , public NimBLEServerCallbacks
@@ -91,45 +101,27 @@ private:
   uint32_t              _delay_ms = 7; 
   
   #if KEYBOARD_ENABLE
+    BLENKRO nkro;
     BLECharacteristic*    inputNKRO;
-    KeyReportNKRO         _keyReportNKRO;
-    bool                  _useNKRO = true;      // Default to NKRO
-    uint8_t               countPressedKeys();
-    uint8_t               charToKeyCode(char c, bool *needShift);
-    void                  updateNKROBitmask(uint8_t k, bool pressed);
   #endif
   
   #if MEDIA_ENABLE
+    BLEMEDIA media;
     BLECharacteristic*    inputMediaKeys;
-    uint32_t              _mediaKeyBitmask;
-    uint32_t              mediaKeyToBitmask(uint16_t usageCode);
   #endif
   
-  #if POINTER_ENABLE
+  #if MOUSE_ENABLE
+    BLEMOUSE              mouse;
     BLECharacteristic*    inputMouse;
-    PointerReport         _pointerReport;
-    uint8_t               _mouseButtons;
+  #endif
+  
+  #if DIGITIZER_ENABLE
+    BLEDIGI               digitizer;
     BLECharacteristic*    inputDigitizer;
-    DigitizerReport       _digitizerReport;
-    bool                  _useAbsolute = false; // Default to relative mouse mode
-    uint16_t              _maxX = 32767;              // Maximum X coordinate
-    uint16_t              _maxY = 32767;              // Maximum Y coordinate
-    bool                  _autoMode = true;           // Auto-detect mode based on method calls
-    uint16_t              _screenWidth = 1920;        // Default screen width
-    uint16_t              _screenHeight = 1080;       // Default screen height
-    bool                  _digitizerConfigured = false;
-    void                  _detectModeFromAppearance();
-    bool                  _shouldUseAbsoluteMode();
   #endif
   
   #if GEMINIPR_ENABLE
-    GeminiPRReport        _geminiReport;
-    // SPP (Serial Port Profile) members
-    BLEService*         serialService;
-    BLECharacteristic*  serialInput;
-    BLECharacteristic*  serialOutput;
-    BLE2904*            serialOutputDescriptor;
-    bool                serialConnected;
+    BLESTENO steno;
     // SPP UUIDs
     static const char* SERIAL_SERVICE_UUID;
     static const char* SERIAL_CHARACTERISTIC_UUID_TX;
@@ -137,9 +129,8 @@ private:
   #endif
   
   #if GAMEPAD_ENABLE
+    BLEGAMEPAD            gamepad;
     BLECharacteristic*    inputGamepad;
-    BLECharacteristic*    outputGamepad;
-    GamepadReport         _gamepadReport;
   #endif
   
 public:
@@ -190,24 +181,27 @@ public:
   #endif
   
   #if MEDIA_ENABLE
-    size_t press(uint16_t mediaKey);   // I picked uint16_t for media keys
+    size_t press(uint16_t mediaKey);
     size_t release(uint16_t mediaKey);
     size_t write(uint16_t mediaKey);
     void setMediaKeyBitmask(uint32_t bitmask);
     uint32_t getMediaKeyBitmask();
+    uint32_t mediaKeyToBitmask(uint16_t usageCode);
     void addMediaKey(uint16_t mediaKey);
     void removeMediaKey(uint16_t mediaKey);
     void sendMediaReport();
   #endif
   
-  #if POINTER_ENABLE
-    size_t press(char b = MOUSE_LEFT); // Finally, char is for mouse clicks . . .
+  #if MOUSE_ENABLE
+    size_t press(char b = MOUSE_LEFT);
     size_t release(char b = MOUSE_LEFT);
-    void mouseReleaseAll();
     void click(char b = MOUSE_LEFT);
-    void click(uint16_t x, uint16_t y, char b = MOUSE_LEFT);
     void move(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
     bool mouseIsPressed(char b = MOUSE_LEFT);
+  #endif
+  
+  #if DIGITIZER_ENABLE
+    void click(uint16_t x, uint16_t y, char b = MOUSE_LEFT);
     void moveTo(uint16_t x, uint16_t y, uint8_t pressure = 0, uint8_t buttons = 0);
     void beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 127);
     void updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
@@ -232,7 +226,7 @@ public:
   #endif
   
   #if GAMEPAD_ENABLE
-    size_t press(int8_t button);       // Next, int8_t is for the gamepad buttons
+    size_t press(int8_t button);
     size_t release(int8_t button);
     bool gamepadIsPressed(int8_t button);
     void gamepadSetLeftStick(int16_t x, int16_t y);
