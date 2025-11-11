@@ -1,6 +1,12 @@
 //  ----------------------------------------
 // | GeminiPR Stenotype Feature - Constants |
 //  ----------------------------------------
+#ifndef GEMINIPR_H
+#define GEMINIPR_H
+
+#include "NimBLECharacteristic.h"
+#include "NimBLEServer.h"
+#include <stdint.h>
 
 typedef struct {
   uint8_t byte0;  // Fn  to #6
@@ -102,3 +108,38 @@ const StenoKey ST_10    = GEMINI_NUM10;
 const StenoKey ST_11    = GEMINI_NUM11;
 const StenoKey ST_12    = GEMINI_NUM12;
 const StenoKey ST_Z     = GEMINI_Z;
+
+class BLESTENO {
+private:
+    GeminiPRReport _geminiReport;
+    uint32_t _delay_ms = 7;
+    
+    // SPP members
+    NimBLEService* serialService = nullptr;
+    NimBLECharacteristic* serialInput = nullptr;
+    NimBLECharacteristic* serialOutput = nullptr;
+    NimBLE2904* serialOutputDescriptor = nullptr;
+    bool serialConnected = false;
+    
+public:
+    BLESTENO();
+    ~BLESTENO();
+    
+    void begin(NimBLEService* service, NimBLECharacteristic* input, NimBLECharacteristic* output, uint32_t delay_ms = 7);
+    bool isConnected();
+    void releaseAll();
+    
+    // Steno methods
+    size_t press(int32_t stenoKey);
+    size_t release(int32_t stenoKey);
+    void geminiStroke(const int32_t* keys, size_t count);
+    uint8_t stenoCharToKey(char c);
+    void sendGeminiPRReport();
+    
+    // SPP Methods
+    void sendSerialData(const uint8_t* data, size_t length);
+    bool isSerialConnected();
+    void setSerialConnected(bool connected);
+};
+
+#endif
