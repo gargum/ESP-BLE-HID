@@ -1,8 +1,12 @@
 //  -----------------------------
 // | Gamepad Feature - Constants |
 //  -----------------------------
+#ifndef GAMEPAD_H
+#define GAMEPAD_H
 
 #include "HIDTypes.h"
+#include "NimBLECharacteristic.h"
+#include <stdint.h>
 
 #define GAMEPAD_BUTTON_COUNT 64
 #define GAMEPAD_AXIS_COUNT 6
@@ -255,3 +259,32 @@ const int8_t hatRelease[4][9] = {
   { HAT_UP, HAT_UP, HAT_CE, HAT_DO, HAT_DO, HAT_DL, HAT_LE, HAT_UL, HAT_CE}, // RIGHT   |     ^
   { HAT_UP, HAT_UR, HAT_RI, HAT_RI, HAT_CE, HAT_LE, HAT_LE, HAT_UL, HAT_CE}, // DOWN    |     This means, "If you're pressing UP and you release UP, the result is 0x08 (CENTER)
   { HAT_UP, HAT_UR, HAT_RI, HAT_DR, HAT_DO, HAT_DO, HAT_CE, HAT_UP, HAT_CE}};// LEFT    |     First value, so "If pressing UP", first row of hatRelease so "and UP is released", code is the result.
+
+class BLEGAMEPAD {
+private:
+    NimBLECharacteristic* inputGamepad;
+    GamepadReport _gamepadReport;
+    uint32_t _delay_ms;
+
+public:
+    BLEGAMEPAD();
+    
+    void begin(NimBLECharacteristic* gamepadChar, uint32_t delay_ms = 7);
+    bool isConnected();
+    
+    // Gamepad methods
+    size_t  press(int8_t button);
+    size_t  release(int8_t button);
+    void    releaseAll();
+    bool    gamepadIsPressed(int8_t button);
+    void    gamepadSetLeftStick(int16_t x, int16_t y);
+    void    gamepadSetRightStick(int16_t x, int16_t y);
+    void    gamepadSetTriggers(int16_t left, int16_t right);
+    void    gamepadGetLeftStick(int16_t &x, int16_t &y);
+    void    gamepadGetRightStick(int16_t &x, int16_t &y);
+    void    gamepadSetAxis(int8_t axis, int16_t value);
+    int16_t gamepadGetAxis(int8_t axis);
+    void    gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
+    void    sendGamepadReport();
+};
+#endif
