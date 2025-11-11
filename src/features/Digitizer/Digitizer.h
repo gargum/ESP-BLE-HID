@@ -1,8 +1,12 @@
 //  -------------------------------
 // | Digitizer Feature - Constants |
 //  -------------------------------
+#ifndef DIGITIZER_H
+#define DIGITIZER_H
 
 #include "HIDTypes.h"
+#include "NimBLECharacteristic.h"
+#include <stdint.h>
 
 #define DIGITIZER_ID  0x05
 
@@ -60,3 +64,38 @@ const uint8_t DIGITIZER_FLAG_IN_RANGE     = 0x01;  // Bit 0
 const uint8_t DIGITIZER_FLAG_TIP_SWITCH   = 0x02;  // Bit 1
 const uint8_t DIGITIZER_FLAG_INVERT       = 0x04;  // Bit 2 (eraser)
 const uint8_t DIGITIZER_FLAG_BARREL_SW    = 0x08;  // Bit 3
+
+class BLEDIGI {
+private:
+    NimBLECharacteristic* inputDigitizer;
+    DigitizerReport _digitizerReport;
+    uint32_t _delay_ms;
+    bool _useAbsolute;
+    bool _autoMode;
+    bool _digitizerConfigured;
+    uint16_t _screenWidth;
+    uint16_t _screenHeight;
+    
+    void _detectModeFromAppearance(uint16_t appearance);
+    
+public:
+    BLEDIGI();
+    
+    void begin(NimBLECharacteristic* digitizerChar, uint32_t delay_ms = 7);
+    bool isConnected();
+    
+    // Digitizer methods
+    void click(uint16_t x, uint16_t y, char b = 1);  // 1 = MOUSE_LEFT equivalent
+    void moveTo(uint16_t x, uint16_t y, uint8_t pressure = 0, uint8_t buttons = 0);
+    void beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 127);
+    void updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
+    void endStroke(uint16_t x, uint16_t y);
+    void useAbsoluteMode(bool state = true);
+    bool isAbsoluteMode();
+    void useAutoMode(bool state = true);
+    void setDigitizerRange(uint16_t maxX, uint16_t maxY);
+    bool isAutoModeEnabled();
+    void sendDigitizerReport();
+    void setAppearance(uint16_t appearance);
+};
+#endif
