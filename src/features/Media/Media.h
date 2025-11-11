@@ -1,8 +1,12 @@
 //  -------------------------------
 // | Media Key Feature - Constants |
 //  -------------------------------
+#ifndef MEDIA_H
+#define MEDIA_H
 
 #include "HIDTypes.h"
+#include "NimBLECharacteristic.h"
+#include <stdint.h>
 
 #define MEDIA_KEYS_ID 0x03
 
@@ -88,3 +92,30 @@ const uint16_t KC_BRIU = 0x006F;
 const uint16_t KC_BRID = 0x0070;
 const uint16_t KC_CPNL = 0x0186;
 const uint16_t KC_LPAD = 0x0187;
+
+class BLEMEDIA {
+private:
+    NimBLECharacteristic* inputMediaKeys;
+    uint32_t _mediaKeyBitmask;
+    uint32_t _delay_ms;
+    
+    uint32_t mediaKeyToBitmask(uint16_t usageCode);
+public:
+    BLEMEDIA();
+    
+    void begin(NimBLECharacteristic* mediaChar, uint32_t delay_ms = 7);
+    bool isConnected();
+    
+    // Media key methods
+    size_t press(uint16_t mediaKey);
+    size_t release(uint16_t mediaKey);
+    size_t write(uint16_t mediaKey);
+    void setMediaKeyBitmask(uint32_t bitmask);
+    uint32_t getMediaKeyBitmask();
+    void addMediaKey(uint16_t mediaKey);
+    void removeMediaKey(uint16_t mediaKey);
+    void sendMediaReport();
+    void releaseAll();
+};
+
+#endif
