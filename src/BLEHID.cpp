@@ -616,14 +616,6 @@ size_t BLEHID::release(uint16_t mediaKey) { return media.release(mediaKey); }
 
 size_t BLEHID::write(uint16_t mediaKey) { return media.write(mediaKey); }
 
-void BLEHID::setMediaKeyBitmask(uint32_t bitmask) { media.setMediaKeyBitmask(bitmask); }
-
-uint32_t BLEHID::getMediaKeyBitmask() { return media.getMediaKeyBitmask(); }
-
-void BLEHID::addMediaKey(uint16_t mediaKey) { media.addMediaKey(mediaKey); }
-
-void BLEHID::removeMediaKey(uint16_t mediaKey) { media.removeMediaKey(mediaKey); }
-
 void BLEHID::sendMediaReport() { media.sendMediaReport(); }
 #endif
 
