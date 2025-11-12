@@ -1,6 +1,8 @@
-//  -------------------------------
-// | Media Key Feature - Constants |
-//  -------------------------------
+/**
+ * @file Media.h
+ * @brief Media key support
+ */
+ 
 #ifndef MEDIA_H
 #define MEDIA_H
 
