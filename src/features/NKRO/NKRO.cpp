@@ -1,3 +1,8 @@
+/**
+ * @file NKRO.cpp
+ * @brief Implementation of the NKRO keyboard
+ */
+
 #include "NKRO.h"
 #include "NimBLEDevice.h"
 #include "../Log/Log.h"
