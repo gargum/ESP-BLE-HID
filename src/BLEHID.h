@@ -182,11 +182,6 @@ public:
     size_t press(uint16_t mediaKey);
     size_t release(uint16_t mediaKey);
     size_t write(uint16_t mediaKey);
-    void setMediaKeyBitmask(uint32_t bitmask);
-    uint32_t getMediaKeyBitmask();
-    uint32_t mediaKeyToBitmask(uint16_t usageCode);
-    void addMediaKey(uint16_t mediaKey);
-    void removeMediaKey(uint16_t mediaKey);
     void sendMediaReport();
   #endif
   
