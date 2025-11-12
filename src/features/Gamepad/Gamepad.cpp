@@ -1,3 +1,8 @@
+/**
+ * @file Gamepad.cpp
+ * @brief Implementation of the gamepad
+ */
+
 #include "Gamepad.h"
 #include "NimBLEDevice.h"
 #include "../Log/Log.h"
