@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LOG_H
+#define LOG_H
 
 #include <Arduino.h>
 #include <queue>
@@ -40,159 +41,37 @@ struct LogEntry {
 };
 
 // Async Logger class - ALWAYS uses queue across all platforms
-class AsyncLogger {
+class BLELOGS {
 private:
     std::queue<LogEntry> logQueue;
     bool initialized = false;
     uint32_t maxQueueSize = 100; // Prevent memory exhaustion
     std::function<void(const LogEntry&)> outputHandler;
-    
-    // Singleton pattern
-    AsyncLogger() = default;
-    
 public:
-    static AsyncLogger& getInstance() {
-        static AsyncLogger instance;
+    static BLELOGS& getInstance() {
+        static BLELOGS instance;
         return instance;
     }
     
-    void initialize(std::function<void(const LogEntry&)> handler = nullptr) {
-        if (initialized) return;
-        
-        if (handler) {
-            outputHandler = handler;
-        } else {
-            // Platform-specific default handlers
-            #if defined(BLEHID_PLATFORM_ESP32)
-                outputHandler = [](const LogEntry& entry) {
-                    const char* levelStr = "";
-                    esp_log_level_t espLevel = ESP_LOG_INFO;
-                    
-                    switch (entry.level) {
-                        case LogLevel::DEBUG:
-                            levelStr = "DEBUG";
-                            espLevel = ESP_LOG_DEBUG;
-                            break;
-                        case LogLevel::INFO:
-                            levelStr = "INFO";
-                            espLevel = ESP_LOG_INFO;
-                            break;
-                        case LogLevel::WARNING:
-                            levelStr = "WARN";
-                            espLevel = ESP_LOG_WARN;
-                            break;
-                        case LogLevel::ERROR:
-                            levelStr = "ERROR";
-                            espLevel = ESP_LOG_ERROR;
-                            break;
-                        case LogLevel::CRITICAL:
-                            levelStr = "CRITICAL";
-                            espLevel = ESP_LOG_ERROR;
-                            break;
-                    }
-                    
-                    // Use ESP32 logging system but through our async queue
-                    esp_log_write(espLevel, entry.tag.c_str(), "[%08lu] %s: %s", 
-                                 entry.timestamp, levelStr, entry.message.c_str());
-                };
-                
-            #elif defined(BLEHID_PLATFORM_NRF52)
-                outputHandler = [](const LogEntry& entry) {
-                    const char* levelStr = "";
-                    
-                    switch (entry.level) {
-                        case LogLevel::DEBUG:    levelStr = "D"; break;
-                        case LogLevel::INFO:     levelStr = "I"; break;
-                        case LogLevel::WARNING:  levelStr = "W"; break;
-                        case LogLevel::ERROR:    levelStr = "E"; break;
-                        case LogLevel::CRITICAL: levelStr = "C"; break;
-                    }
-                    
-                    // Use nRF52 logging system but through our async queue
-                    NRF_LOG_INFO("[%08lu] [%s] %s: %s", 
-                                entry.timestamp, levelStr, entry.tag.c_str(), entry.message.c_str());
-                    NRF_LOG_FLUSH();
-                };
-            #endif
-        }
-        
-        // Platform-specific initialization
-        #if defined(BLEHID_PLATFORM_NRF52)
-            ret_code_t err_code = NRF_LOG_INIT(NULL);
-            NRF_LOG_DEFAULT_BACKENDS_INIT();
-        #endif
-        
-        initialized = true;
-    }
+    BLELOGS() = default;
     
-    void log(LogLevel level, const std::string& tag, const std::string& message) {
-        // ALWAYS use queue for consistency across all platforms
-        if (!initialized || logQueue.size() >= maxQueueSize) return;
-        
-        uint32_t timestamp = millis();
-        logQueue.emplace(timestamp, level, tag, message);
-    }
-    
-    void processQueue() {
-        if (!initialized) return;
-        
-        // Process all queued messages
-        while (!logQueue.empty()) {
-            const LogEntry& entry = logQueue.front();
-            if (outputHandler) {
-                outputHandler(entry);
-            }
-            logQueue.pop();
-        }
-        
-        // Platform-specific flush if needed
-        #if defined(BLEHID_PLATFORM_NRF52)
-            NRF_LOG_FLUSH();
-        #endif
-    }
-    
-    void setMaxQueueSize(uint32_t size) {
-        maxQueueSize = size;
-    }
-    
-    size_t getQueueSize() const {
-        return logQueue.size();
-    }
-    
-    bool isInitialized() const {
-        return initialized;
-    }
-    
-    // Force process queue and wait for completion (useful for critical sections)
-    void flush() {
-        processQueue();
-        
-        // Small delay to ensure platform-specific logging completes
-        #if defined(BLEHID_PLATFORM_NRF52)
-            delay(1); // nRF52 may need a moment for log flushing
-        #elif defined(BLEHID_PLATFORM_ESP32)
-            delay(1); // ESP32 logging is generally fast but safe to wait
-        #endif
-    }
-    
-    // Check if queue is empty (useful for testing/debugging)
-    bool isQueueEmpty() const {
-        return logQueue.empty();
-    }
+    void initialize(std::function<void(const LogEntry&)> handler = nullptr);
+    void log(LogLevel level, const std::string& tag, const std::string& message);
+    void processQueue();
+    void flush();
+    void setMaxQueueSize(uint32_t size) { maxQueueSize = size; }
+    size_t getQueueSize() const { return logQueue.size(); }
+    bool isInitialized() const { return initialized; }
+    bool isQueueEmpty() const { return logQueue.empty(); }
     
     // Platform-specific control methods
     #if defined(BLEHID_PLATFORM_ESP32)
-    void setESP32LogLevel(esp_log_level_t level) {
-        esp_log_level_set("*", level);
-    }
+    void setESP32LogLevel(esp_log_level_t level);
     #elif defined(BLEHID_PLATFORM_NRF52)
-    void setNRF52LogLevel(nrf_log_severity_t severity) {
-        NRF_LOG_DEFAULT_LEVEL = severity;
-    }
+    void setNRF52LogLevel(nrf_log_severity_t severity);
     #endif
 };
 
-// Helper function implementation
 inline void _bleLogHelper(LogLevel level, const std::string& tag, const char* format, ...) {
     char buffer[256];
     va_list args;
@@ -200,7 +79,7 @@ inline void _bleLogHelper(LogLevel level, const std::string& tag, const char* fo
     vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
     
-    AsyncLogger::getInstance().log(level, tag, buffer);
+    BLELOGS::getInstance().log(level, tag, buffer);
 }
 
 // Convenience macros for logging
@@ -220,17 +99,19 @@ inline void _bleLogHelper(LogLevel level, const std::string& tag, const char* fo
     _bleLogHelper(LogLevel::CRITICAL, tag, format, ##__VA_ARGS__)
 
 // Process queue macro (ALWAYS needed now)
-#define BLE_LOG_PROCESS() AsyncLogger::getInstance().processQueue()
+#define BLE_LOG_PROCESS() BLELOGS::getInstance().processQueue()
 
 // Force flush all logs (blocks until complete)
-#define BLE_LOG_FLUSH() AsyncLogger::getInstance().flush()
+#define BLE_LOG_FLUSH() BLELOGS::getInstance().flush()
 
 // Check if log queue is empty
-#define BLE_LOG_QUEUE_EMPTY() AsyncLogger::getInstance().isQueueEmpty()
+#define BLE_LOG_QUEUE_EMPTY() BLELOGS::getInstance().isQueueEmpty()
 
 // Platform-specific utility macros
 #if defined(BLEHID_PLATFORM_ESP32)
-  #define BLE_LOG_SET_LEVEL(level) AsyncLogger::getInstance().setESP32LogLevel(level)
+  #define BLE_LOG_SET_LEVEL(level) BLELOGS::getInstance().setESP32LogLevel(level)
 #elif defined(BLEHID_PLATFORM_NRF52)
-  #define BLE_LOG_SET_LEVEL(level) AsyncLogger::getInstance().setNRF52LogLevel(level)
+  #define BLE_LOG_SET_LEVEL(level) BLELOGS::getInstance().setNRF52LogLevel(level)
+#endif
+
 #endif
