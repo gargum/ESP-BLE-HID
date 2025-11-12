@@ -1,3 +1,8 @@
+/**
+ * @file BLEHID.h
+ * @brief Main header file
+ */
+
 #if defined(CONFIG_BT_ENABLED)
 #elif defined(ARDUINO_ARCH_ESP32)
   #define CONFIG_BT_ENABLED 
