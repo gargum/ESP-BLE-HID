@@ -1,5 +1,6 @@
 #include "NKRO.h"
 #include "NimBLEDevice.h"
+#include "../Log/Log.h"
 
 static const char* NKRO_TAG = "BLENKRO";
 
@@ -12,11 +13,13 @@ void BLENKRO::begin(NimBLECharacteristic* nkroChar, uint32_t delay_ms) {
     inputNKRO = nkroChar;
     _delay_ms = delay_ms;
     memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
+    BLE_LOG_DEBUG(NKRO_TAG, "NKRO subsystem initialized with delay: %lu ms", delay_ms);
 }
 
 bool BLENKRO::isConnected() {
-    if (!inputNKRO) return false;
-    return NimBLEDevice::getServer() && NimBLEDevice::getServer()->getConnectedCount() > 0;
+    bool connected = (inputNKRO && NimBLEDevice::getServer() && NimBLEDevice::getServer()->getConnectedCount() > 0);
+    BLE_LOG_DEBUG(NKRO_TAG, "Connection check: %s", connected ? "connected" : "disconnected");
+    return connected;
 }
 
 size_t BLENKRO::press(uint8_t k) {
@@ -25,12 +28,13 @@ size_t BLENKRO::press(uint8_t k) {
     if (k != 0) {
         // Check if we're already at 6 non-modifier keys
         if (!_useNKRO && countPressedKeys() >= 6) {
-            // setWriteError();  // REMOVE THIS LINE - not available in BLENKRO
+            BLE_LOG_WARN(NKRO_TAG, "6KRO limit reached, ignoring key press: 0x%02X", k);
             return 0;
         }
         
         // Update the bitmask - ONLY for regular keys
         updateNKROBitmask(k, true);
+        BLE_LOG_DEBUG(NKRO_TAG, "Key pressed: 0x%02X", k);
     }
     
     sendNKROReport();
@@ -42,10 +46,12 @@ size_t BLENKRO::press(int16_t modifier) {
   if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
     hidModifier = modifier >> 8;
   } else {
+    BLE_LOG_WARN(NKRO_TAG, "Invalid modifier pressed: 0x%04X", modifier);
     return 0; // Invalid modifier
   }
   
   _keyReportNKRO.modifiers |= hidModifier;
+  BLE_LOG_DEBUG(NKRO_TAG, "Modifier pressed: 0x%02X", hidModifier);
   sendNKROReport();
   return 1;
 }
@@ -57,6 +63,7 @@ size_t BLENKRO::release(uint8_t k) {
   
   if (k != 0) {
     updateNKROBitmask(k, false);
+    BLE_LOG_DEBUG(NKRO_TAG, "Key released: 0x%02X", k);
   }
   
   sendNKROReport();
@@ -68,24 +75,32 @@ size_t BLENKRO::release(int16_t modifier) {
   if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
     hidModifier = modifier >> 8;
   } else {
+    BLE_LOG_WARN(NKRO_TAG, "Invalid modifier released: 0x%04X", modifier);
     return 0; // Invalid modifier
   }
   
   _keyReportNKRO.modifiers &= ~hidModifier;
+  BLE_LOG_DEBUG(NKRO_TAG, "Modifier released: 0x%02X", hidModifier);
   sendNKROReport();
   return 1;
 }
 
 void BLENKRO::releaseAll() {
     memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
+    BLE_LOG_DEBUG(NKRO_TAG, "All keys released");
     sendNKROReport();
 }
 
 size_t BLENKRO::write(uint8_t c) {
     bool shift;
     uint8_t key = BLENKRO::charToKeyCode((char)c, &shift);
-    if (key == 0) return 0;                     // character not supported
+    if (key == 0) {
+        BLE_LOG_DEBUG(NKRO_TAG, "Character not supported: 0x%02X ('%c')", c, isprint(c) ? c : '.');
+        return 0; // character not supported
+    }
 
+    BLE_LOG_DEBUG(NKRO_TAG, "Writing character: 0x%02X ('%c') with%s shift", key, c, shift ? "" : "out");
+    
     if (shift) press(KEY_LEFT_SHIFT);           // hold shift
     press(key);                                 // key-down
     release(key);                               // key-up
@@ -94,6 +109,7 @@ size_t BLENKRO::write(uint8_t c) {
 }
 
 size_t BLENKRO::write(int16_t modifier) {
+  BLE_LOG_DEBUG(NKRO_TAG, "Writing modifier: 0x%04X", modifier);
   uint16_t p = press(modifier);  // Modifier down
   release(modifier);             // Modifier up
   return p;
@@ -101,16 +117,18 @@ size_t BLENKRO::write(int16_t modifier) {
 
 void BLENKRO::useNKRO(bool state) {
   _useNKRO = state; // state = enabled, therefore _useNKRO = true/enabled
-  Serial.printf("[%s] Switched to %s mode\n", NKRO_TAG, _useNKRO ? "NKRO" : "6KRO");
+  BLE_LOG_INFO(NKRO_TAG, "Switched to %s mode", _useNKRO ? "NKRO" : "6KRO");
 }
 
 void BLENKRO::use6KRO(bool state) {
   _useNKRO = !state; // state = enabled, therefore _useNKRO = not true/enabled = false
-  Serial.printf("[%s] Switched to %s mode\n", NKRO_TAG, _useNKRO ? "NKRO" : "6KRO");
+  BLE_LOG_INFO(NKRO_TAG, "Switched to %s mode", _useNKRO ? "NKRO" : "6KRO");
 }
 
 bool BLENKRO::isNKROEnabled() {
-  return _useNKRO;
+  bool enabled = _useNKRO;
+  BLE_LOG_DEBUG(NKRO_TAG, "NKRO enabled check: %s", enabled ? "true" : "false");
+  return enabled;
 }
 
 uint8_t BLENKRO::countPressedKeys() {
@@ -121,6 +139,7 @@ uint8_t BLENKRO::countPressedKeys() {
     uint8_t byte = _keyReportNKRO.keys_bitmask[i];
     count += __builtin_popcount(byte);
   }
+  BLE_LOG_DEBUG(NKRO_TAG, "Pressed keys count: %u", count);
   return count;
 }
 
@@ -134,16 +153,24 @@ void BLENKRO::updateNKROBitmask(uint8_t k, bool pressed) {
     } else {
       _keyReportNKRO.keys_bitmask[bitmaskIndex] &= ~(1 << bitOffset);
     }
+    
+    BLE_LOG_DEBUG(NKRO_TAG, "Bitmask updated - Key: 0x%02X, Index: %u, Bit: %u, Action: %s", 
+                  k, bitmaskIndex, bitOffset, pressed ? "set" : "cleared");
+  } else {
+    BLE_LOG_WARN(NKRO_TAG, "Key out of range for bitmask update: 0x%02X", k);
   }
 }
 
 void BLENKRO::setModifiers(uint8_t modifiers) {
     _keyReportNKRO.modifiers = modifiers;
+    BLE_LOG_DEBUG(NKRO_TAG, "Modifiers set to: 0x%02X", modifiers);
     sendNKROReport();
 }
 
 uint8_t BLENKRO::getModifiers() {
-    return _keyReportNKRO.modifiers;
+    uint8_t modifiers = _keyReportNKRO.modifiers;
+    BLE_LOG_DEBUG(NKRO_TAG, "Modifiers retrieved: 0x%02X", modifiers);
+    return modifiers;
 }
 
 uint8_t BLENKRO::charToKeyCode(char c, bool *needShift) {
@@ -211,6 +238,8 @@ void BLENKRO::sendNKROReport() {
         // If in NKRO mode, send the extended report (ID 2)
         if (_useNKRO) {
             inputNKRO->setValue((uint8_t*)&_keyReportNKRO, sizeof(KeyReportNKRO));
+            BLE_LOG_DEBUG(NKRO_TAG, "NKRO report sent - Modifiers: 0x%02X, Keys pressed: %u", 
+                         _keyReportNKRO.modifiers, countPressedKeys());
         } else {
             // 6KRO mode - extract first 6 pressed keys and send boot report
             uint8_t bootReport[8];
@@ -231,8 +260,19 @@ void BLENKRO::sendNKROReport() {
             }
             
             inputNKRO->setValue(bootReport, 8);
+            BLE_LOG_DEBUG(NKRO_TAG, "6KRO report sent - Modifiers: 0x%02X, Keys: [%u, %u, %u, %u, %u, %u]", 
+                         bootReport[0], bootReport[2], bootReport[3], bootReport[4], 
+                         bootReport[5], bootReport[6], bootReport[7]);
         }
-        inputNKRO->notify();
+        
+        if (inputNKRO->notify()) {
+            BLE_LOG_DEBUG(NKRO_TAG, "Report notification sent successfully");
+        } else {
+            BLE_LOG_WARN(NKRO_TAG, "Failed to send report notification");
+        }
+        
         delay(_delay_ms);
+    } else {
+        BLE_LOG_DEBUG(NKRO_TAG, "Cannot send report - not connected or no input characteristic");
     }
 }
