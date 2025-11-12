@@ -99,19 +99,21 @@ private:
   NimBLECharacteristic*    outputKeyboard;
   uint32_t              _delay_ms = 7; 
   
+  BLELOGS                     logger;
+  
   #if KEYBOARD_ENABLE
-    BLENKRO nkro;
-    NimBLECharacteristic*    inputNKRO;
+    BLENKRO                   nkro;
+    NimBLECharacteristic*     inputNKRO;
   #endif
   
   #if MEDIA_ENABLE
-    BLEMEDIA media;
-    NimBLECharacteristic*    inputMediaKeys;
+    BLEMEDIA                  media;
+    NimBLECharacteristic*     inputMediaKeys;
   #endif
   
   #if MOUSE_ENABLE
-    BLEMOUSE              mouse;
-    BLECharacteristic*    inputMouse;
+    BLEMOUSE                  mouse;
+    BLECharacteristic*        inputMouse;
   #endif
   
   #if DIGITIZER_ENABLE
@@ -232,6 +234,22 @@ public:
     void gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
     void sendGamepadReport();
   #endif
+  
+    void initialize(std::function<void(const LogEntry&)> handler = nullptr);
+    void log(LogLevel level, const std::string& tag, const std::string& message);
+    void processQueue();
+    void flush();
+    void setMaxQueueSize(uint32_t size);
+    size_t getQueueSize() const;
+    bool isInitialized() const;
+    bool isQueueEmpty() const;
+    
+    // Platform-specific control methods
+    #if defined(BLEHID_PLATFORM_ESP32)
+    void setESP32LogLevel(esp_log_level_t level);
+    #elif defined(BLEHID_PLATFORM_NRF52)
+    void setNRF52LogLevel(nrf_log_severity_t severity);
+    #endif
   
 protected:
   virtual void onStarted(BLEServer *pServer) { };
