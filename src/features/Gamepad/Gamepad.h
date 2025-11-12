@@ -1,6 +1,8 @@
-//  -----------------------------
-// | Gamepad Feature - Constants |
-//  -----------------------------
+/**
+ * @file Gamepad.h
+ * @brief Gamepad with 64 buttons, POV hat, 2 sticks, 2 triggers
+ */
+ 
 #ifndef GAMEPAD_H
 #define GAMEPAD_H
 
