@@ -1,3 +1,8 @@
+/**
+ * @file Mouse.cpp
+ * @brief Implementation of the relative mouse pointer
+ */
+
 #include "Mouse.h"
 #include "NimBLEDevice.h"
 #include "../Log/Log.h"
