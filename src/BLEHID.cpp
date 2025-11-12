@@ -725,25 +725,29 @@ void BLEHID::sendGamepadReport() { gamepad.sendGamepadReport(); }
 // ----------------------------------------- Logger Block
 //
 
-void BLEHID::initialize(std::function<void(const LogEntry&)> handler) { logger.initialize(handler); }
+void BLEHID::setLogLevel(LogLevel level) { BLELOGS::getInstance().setLogLevel(level); }
 
-void BLEHID::log(LogLevel level, const std::string& tag, const std::string& message) { logger.log(level, tag, message); }
+LogLevel BLEHID::getLogLevel() const { return BLELOGS::getInstance().getLogLevel(); }
 
-void BLEHID::processQueue() { logger.processQueue(); }
+void BLEHID::initialize(std::function<void(const LogEntry&)> handler) { BLELOGS::getInstance().initialize(handler); }
 
-void BLEHID::flush() { logger.flush(); }
+void BLEHID::log(LogLevel level, const std::string& tag, const std::string& message) { BLELOGS::getInstance().log(level, tag, message); }
 
-void BLEHID::setMaxQueueSize(uint32_t size) { logger.setMaxQueueSize(size); }
+void BLEHID::processQueue() { BLELOGS::getInstance().processQueue(); }
 
-size_t BLEHID::getQueueSize() const { return logger.getQueueSize(); }
+void BLEHID::flush() { BLELOGS::getInstance().flush(); }
 
-bool BLEHID::isInitialized() const { return logger.isInitialized(); }
+void BLEHID::setMaxQueueSize(uint32_t size) { BLELOGS::getInstance().setMaxQueueSize(size); }
 
-bool BLEHID::isQueueEmpty() const { return logger.isQueueEmpty(); }
+size_t BLEHID::getQueueSize() const { return BLELOGS::getInstance().getQueueSize(); }
+
+bool BLEHID::isInitialized() const { return BLELOGS::getInstance().isInitialized(); }
+
+bool BLEHID::isQueueEmpty() const { return BLELOGS::getInstance().isQueueEmpty(); }
 
 // Platform-specific control methods
 #if defined(BLEHID_PLATFORM_ESP32)
-void BLEHID::setESP32LogLevel(esp_log_level_t level) { logger.setESP32LogLevel(level); }
+void BLEHID::setESP32LogLevel(esp_log_level_t level) { BLELOGS::getInstance().setESP32LogLevel(level); }
 #elif defined(BLEHID_PLATFORM_NRF52)
-void BLEHID::setNRF52LogLevel(nrf_log_severity_t severity) { logger.setNRF52LogLevel(severity); }
+void BLEHID::setNRF52LogLevel(nrf_log_severity_t severity) { BLELOGS::getInstance().setNRF52LogLevel(severity); }
 #endif
