@@ -108,8 +108,10 @@ BLEHID::BLEHID(std::string deviceName, std::string deviceManufacturer, uint8_t b
     , deviceManufacturer(std::string(deviceManufacturer).substr(0,15))
     , batteryLevel(batteryLevel) 
     , lastPollTime(0) 
-{ 
+{
+  AsyncLogger::getInstance().initialize(); 
   _activeBLEHIDInstance = this;
+  BLE_LOG_INFO(LOG_TAG, "BLEHID instance created");
 }
 // This is a "destructor". It takes objects the contructor made, and destroys them whenever you tell it to. 
 BLEHID::~BLEHID() { 
@@ -122,13 +124,13 @@ BLEHID::~BLEHID() {
 void BLEHID::begin(void) {
     // Initialise BLE stack only once
     if (getInitialized) {
-        Serial.printf("[%s] BLE already initialized, cleaning up first...\n", LOG_TAG);
+        BLE_LOG_WARN(LOG_TAG, "BLE already initialized, cleaning up first...");
         end();
         delay(100);
     } else { NimBLEDevice::init(deviceName.c_str()); }
     
     NimBLEDevice::setSecurityAuth(false, true, true); // Bonding, MITM, Secure Connections disabled
-    Serial.printf("[%s] Just Works simple pairing enabled\n", LOG_TAG);
+    BLE_LOG_INFO(LOG_TAG, "Just Works simple pairing enabled");
     
     // Create server & install callbacks
     NimBLEServer *pServer = NimBLEDevice::createServer();
@@ -300,19 +302,25 @@ void BLEHID::begin(void) {
     
     lastPollTime = millis();
 
-    Serial.printf("[%s] Advertising started!\n", LOG_TAG);
-    Serial.printf("[%s] Device name: %s\n", LOG_TAG, deviceName.c_str());
-    Serial.printf("[%s] Service UUID: %s\n", LOG_TAG, hid->getHidService()->getUUID().toString().c_str());
-    Serial.printf("[%s] Using %s mode by default\n", LOG_TAG, nkro.isNKROEnabled() ? "NKRO" : "6KRO");
+    BLE_LOG_INFO(LOG_TAG, "Advertising started!");
+    BLE_LOG_INFO(LOG_TAG, "Device name: %s", deviceName.c_str());
+    BLE_LOG_INFO(LOG_TAG, "Service UUID: %s", hid->getHidService()->getUUID().toString().c_str());
+    BLE_LOG_INFO(LOG_TAG, "Using %s mode by default", nkro.isNKROEnabled() ? "NKRO" : "6KRO");
     
     getInitialized = true;
 }
 
 // Update/polling function
 void BLEHID::update() {
-  static uint32_t lastUpdateTime = 0;
+  static uint32_t lastUpdateTime        = 0;
   static uint32_t lastBatteryUpdateTime = 0;
-  uint32_t currentTime = millis();
+  static uint32_t lastLogProcessTime    = 0;
+  uint32_t currentTime                  = millis();
+  
+  if (currentTime - lastLogProcessTime >= 10) {
+        lastLogProcessTime = currentTime;
+        BLE_LOG_PROCESS();
+  }
   
   if (currentTime - lastUpdateTime >= SCAN_INTERVAL) {
     lastUpdateTime = currentTime;
@@ -356,7 +364,7 @@ void BLEHID::end(void) {
   }
   BLEDevice::deinit(true);
   getInitialized = false;
-  Serial.printf("[%s] BLE Keyboard stopped\n", LOG_TAG);
+  BLE_LOG_INFO(LOG_TAG, "BLE Keyboard stopped");
 }
 
 //
@@ -364,7 +372,7 @@ void BLEHID::end(void) {
 //
 
 void BLEHID::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
-    Serial.printf("[%s] ESP-HID onConnect callback triggered", LOG_TAG);
+    BLE_LOG_DEBUG(LOG_TAG, "ESP-HID onConnect callback triggered");
     
     #if KEYBOARD_ENABLE
       if (inputNKRO) inputNKRO->notify();
@@ -384,14 +392,14 @@ void BLEHID::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
     
     #if GEMINIPR_ENABLE
       steno.setSerialConnected(true);
-      Serial.printf("[%s] SPP Serial connected\n", LOG_TAG);
+      BLE_LOG_INFO(LOG_TAG, "SPP Serial connected");
     #endif
     
     #if GAMEPAD_ENABLE
     if (inputGamepad) inputGamepad->notify();
     #endif
     
-    Serial.printf("[%s] Client connected - Connection count: %d, Services: HID%s\n", LOG_TAG,
+    BLE_LOG_INFO(LOG_TAG, "Client connected - Connection count: %d, Services: HID%s",
     NimBLEDevice::getServer()->getConnectedCount(),
     #if GEMINIPR_ENABLE
       "+SPP"
@@ -411,7 +419,7 @@ bool BLEHID::isConnected(void) {
         uint64_t currentTime = micros();
         
         if (currentTime - lastLogTime > 10000000) { // This is just 10 seconds in microseconds
-            Serial.printf("[%s] BLE Status - Connected clients: %d, Advertising: %s\n", LOG_TAG,
+            BLE_LOG_DEBUG(LOG_TAG, "BLE Status - Connected clients: %d, Advertising: %s",
                     connectedClients,
                     advertising ? (advertising->isAdvertising() ? "Yes" : "No") : "Null");
             lastLogTime = currentTime;
@@ -424,7 +432,7 @@ bool BLEHID::isConnected(void) {
     uint64_t currentTime = micros();
     
     if (currentTime - lastLogTime > 10000000) {
-        Serial.printf("[%s] BLE Status: No server instance available\n", LOG_TAG);
+        BLE_LOG_DEBUG(LOG_TAG, "BLE Status: No server instance available");
         lastLogTime = currentTime;
     }
     
@@ -436,7 +444,7 @@ void pollConnection(void * arg) {
     uint8_t cnt = NimBLEDevice::getServer()->getConnectedCount();
 
     if (kb->last_connected_count && !cnt) {   // Connection just dropped
-        Serial.printf("[%s] Poller: link lost - restarting advertising\n", LOG_TAG);
+        BLE_LOG_WARN(LOG_TAG, "Poller: link lost - restarting advertising");
         
         // Small delay to ensure BLE stack is ready
         delay(100);
@@ -445,7 +453,7 @@ void pollConnection(void * arg) {
             kb->advertising->stop();
             delay(50);
             if (!kb->advertising->start()) {
-                Serial.printf("[%s] Poller: Failed to restart advertising, will retry\n", LOG_TAG);
+                BLE_LOG_ERROR(LOG_TAG, "Poller: Failed to restart advertising, will retry");
             }
         }
     }
@@ -456,12 +464,12 @@ void BLEHID::onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int r
   NimBLEServerCallbacks::onDisconnect(pServer, connInfo, reason);
   #if GEMINIPR_ENABLE
     steno.setSerialConnected(false);
-    Serial.printf("[%s] SPP Serial disconnected\n", LOG_TAG);
+    BLE_LOG_INFO(LOG_TAG, "SPP Serial disconnected");
   #endif
   // Restart advertising immediately when disconnected
   if (advertising) {
     advertising->start();
-    Serial.printf("[%s] Advertising restarted after disconnect (reason: %d)\n", LOG_TAG, reason);
+    BLE_LOG_INFO(LOG_TAG, "Advertising restarted after disconnect (reason: %d)", reason);
   }
 }
 
@@ -470,20 +478,20 @@ void BLEHID::onWrite(NimBLECharacteristic* me) {
     if (me->getUUID().toString() == SERIAL_CHARACTERISTIC_UUID_RX) {
         // Handle incoming serial data if needed
         std::string value = me->getValue();
-        Serial.printf("[%s] Received serial data: %s\n", LOG_TAG, value.c_str());
+        BLE_LOG_DEBUG(LOG_TAG, "Received serial data: %s", value.c_str());
     } else {
         // Existing HID write handling
-        Serial.printf("[%s] ESP-HID onWrite callback triggered!\n", LOG_TAG);
+        BLE_LOG_DEBUG(LOG_TAG, "ESP-HID onWrite callback triggered");
         uint8_t* value = (uint8_t*)(me->getValue().c_str());
         size_t length = me->getValue().length();
-        Serial.printf("[%s] special keys: %d\n", LOG_TAG, *value);
+        BLE_LOG_DEBUG(LOG_TAG, "special keys: %d", *value);
     }
     #else
     // HID-only write handling when GeminiPR is disabled
-    Serial.printf("[%s] ESP-HID onWrite callback triggered!\n", LOG_TAG);
+    BLE_LOG_DEBUG(LOG_TAG, "ESP-HID onWrite callback triggered");
     uint8_t* value = (uint8_t*)(me->getValue().c_str());
     size_t length = me->getValue().length();
-    Serial.printf("[%s] special keys: %d\n", LOG_TAG, *value);
+    BLE_LOG_DEBUG(LOG_TAG, "special keys: %d", *value);
     #endif
 }
 
@@ -523,13 +531,13 @@ void BLEHID::setAppearance(uint16_t newAppearance) {
   #endif
   
   #if DIGITIZER_ENABLE && MOUSE_ENABLE
-  Serial.printf("[%s] Appearance set to: 0x%04X, Mode: %s\n", LOG_TAG, newAppearance, digitizer.isAbsoluteMode() ? "absolute" : "relative");
+  BLE_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X, Mode: %s", newAppearance, digitizer.isAbsoluteMode() ? "absolute" : "relative");
   #elif !DIGITIZER_ENABLE && MOUSE_ENABLE
-  Serial.printf("[%s] Appearance set to: 0x%04X (Mouse only)\n", LOG_TAG, newAppearance);
+  BLE_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X (Mouse only)", newAppearance);
   #elif DIGITIZER_ENABLE && !MOUSE_ENABLE
-  Serial.printf("[%s] Appearance set to: 0x%04X (Digitizer only)\n", LOG_TAG, newAppearance);
+  BLE_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X (Digitizer only)", newAppearance);
   #else
-  Serial.printf("[%s] Appearance set to: 0x%04X\n", LOG_TAG, newAppearance);
+  BLE_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X", newAppearance);
   #endif
 }
 
