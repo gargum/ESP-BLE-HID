@@ -109,7 +109,7 @@ BLEHID::BLEHID(std::string deviceName, std::string deviceManufacturer, uint8_t b
     , batteryLevel(batteryLevel) 
     , lastPollTime(0) 
 {
-  AsyncLogger::getInstance().initialize(); 
+  BLELOGS::getInstance().initialize(); 
   _activeBLEHIDInstance = this;
   BLE_LOG_INFO(LOG_TAG, "BLEHID instance created");
 }
@@ -714,4 +714,31 @@ int16_t BLEHID::gamepadGetAxis(int8_t axis) { return gamepad.gamepadGetAxis(axis
 void BLEHID::gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]) { gamepad.gamepadSetAllAxes(values); }
 
 void BLEHID::sendGamepadReport() { gamepad.sendGamepadReport(); }
+#endif
+
+//
+// ----------------------------------------- Logger Block
+//
+
+void BLEHID::initialize(std::function<void(const LogEntry&)> handler) { logger.initialize(handler); }
+
+void BLEHID::log(LogLevel level, const std::string& tag, const std::string& message) { logger.log(level, tag, message); }
+
+void BLEHID::processQueue() { logger.processQueue(); }
+
+void BLEHID::flush() { logger.flush(); }
+
+void BLEHID::setMaxQueueSize(uint32_t size) { logger.setMaxQueueSize(size); }
+
+size_t BLEHID::getQueueSize() const { return logger.getQueueSize(); }
+
+bool BLEHID::isInitialized() const { return logger.isInitialized(); }
+
+bool BLEHID::isQueueEmpty() const { return logger.isQueueEmpty(); }
+
+// Platform-specific control methods
+#if defined(BLEHID_PLATFORM_ESP32)
+void BLEHID::setESP32LogLevel(esp_log_level_t level) { logger.setESP32LogLevel(level); }
+#elif defined(BLEHID_PLATFORM_NRF52)
+void BLEHID::setNRF52LogLevel(nrf_log_severity_t severity) { logger.setNRF52LogLevel(severity); }
 #endif
