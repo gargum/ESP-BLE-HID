@@ -1,3 +1,8 @@
+/**
+ * @file BLEHID.cpp
+ * @brief Implementation of the full library
+ */
+
 #include "BLEHID.h"
 
 #if GEMINIPR_ENABLE
