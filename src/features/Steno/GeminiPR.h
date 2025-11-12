@@ -1,6 +1,8 @@
-//  ----------------------------------------
-// | GeminiPR Stenotype Feature - Constants |
-//  ----------------------------------------
+/**
+ * @file GeminiPR.h
+ * @brief GeminiPR stenotype emulation leveraging SPP for wireless serial connections
+ */
+ 
 #ifndef GEMINIPR_H
 #define GEMINIPR_H
 
