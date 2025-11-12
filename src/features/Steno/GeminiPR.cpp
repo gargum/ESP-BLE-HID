@@ -1,3 +1,8 @@
+/**
+ * @file GeminiPR.cpp
+ * @brief Implementation of the GeminiPR stenotype
+ */
+
 #include "GeminiPR.h"
 #include "NimBLEDevice.h"
 #include "../Log/Log.h"
