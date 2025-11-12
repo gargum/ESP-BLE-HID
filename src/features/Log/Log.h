@@ -1,3 +1,8 @@
+/**
+ * @file Log.h
+ * @brief Asynchronous logger with log queue
+ */
+
 #ifndef LOG_H
 #define LOG_H
 
