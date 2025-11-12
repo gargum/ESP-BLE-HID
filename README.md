@@ -16,7 +16,6 @@ All development/testing is performed on boards *without* USB host mode, like the
 | Digitizer emulation                 | *Pressure sensitivity + tip-switch, barrel, & eraser support*             | *Programmable brushstroke macro support with variable pressure all throughout*                                       |
 | Stenotype emulation                 | *GeminiPR keys and reports are fully supported*                           | *No settings to worry about. Mix-and-match stenotype keys with all other input methods to your heart's content!*     |
 | Set the PID, VID, and version       | *Set the name, manufacturer, and the battery level*                       | *Set what type of device the ESP32 advertises itself as. Choose anything from keyboard to keyring to insulin pump!*  |
-| 6-Digit PIN (Optional)              | *Hotswap between using a PIN to connect & Just Works no-PIN mode*         | *Change your PIN, even after you've already flashed and connected to the device!*                                    |
 | ESP32s with BLE are all supported   | *Compatible with boards that have no HID capabilities whatsoever*         | *Optimized for the ESP32s with the worst specs. If your ESP32 has BLE, it **will** work with this library!*          |
 
 ## Compatibility
