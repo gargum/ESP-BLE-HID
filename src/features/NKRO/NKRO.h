@@ -1,6 +1,8 @@
-//  -----------------------------------
-// | NKRO Keyboard Feature - Constants |
-//  -----------------------------------
+/**
+ * @file NKRO.h
+ * @brief Keyboard implementation with NKRO support
+ */
+ 
 #ifndef NKRO_H
 #define NKRO_H
 
