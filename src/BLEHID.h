@@ -104,8 +104,6 @@ private:
   NimBLECharacteristic*    outputKeyboard;
   uint32_t              _delay_ms = 7; 
   
-  BLELOGS                     logger;
-  
   #if KEYBOARD_ENABLE
     BLENKRO                   nkro;
     NimBLECharacteristic*     inputNKRO;
@@ -240,14 +238,16 @@ public:
     void sendGamepadReport();
   #endif
   
-    void initialize(std::function<void(const LogEntry&)> handler = nullptr);
-    void log(LogLevel level, const std::string& tag, const std::string& message);
-    void processQueue();
-    void flush();
-    void setMaxQueueSize(uint32_t size);
-    size_t getQueueSize() const;
-    bool isInitialized() const;
-    bool isQueueEmpty() const;
+    void     setLogLevel(LogLevel level);
+    LogLevel getLogLevel() const;
+    void     initialize(std::function<void(const LogEntry&)> handler = nullptr);
+    void     log(LogLevel level, const std::string& tag, const std::string& message);
+    void     processQueue();
+    void     flush();
+    void     setMaxQueueSize(uint32_t size);
+    size_t   getQueueSize() const;
+    bool     isInitialized() const;
+    bool     isQueueEmpty() const;
     
     // Platform-specific control methods
     #if defined(BLEHID_PLATFORM_ESP32)
