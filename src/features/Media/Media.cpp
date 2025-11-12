@@ -1,3 +1,8 @@
+/**
+ * @file Media.cpp
+ * @brief Implementation of the media keys
+ */
+
 #include "Media.h"
 #include "NimBLEDevice.h"
 #include "../Log/Log.h"
