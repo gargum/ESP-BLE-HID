@@ -79,7 +79,7 @@ class BLEHID : public Print
     , public NimBLECharacteristicCallbacks
 {
 private:
-  BLEHIDDevice*         hid;
+  NimBLEHIDDevice*         hid;
   uint16_t              appearance = HID_KEYBOARD;
   std::string           deviceName;
   std::string           deviceManufacturer;
@@ -93,21 +93,19 @@ private:
   uint8_t               last_connected_count = 0;   // previous poll result
   uint32_t              lastPollTime = 0;
   static const uint32_t POLL_INTERVAL = 1000;       // 1 second in milliseconds
-  static void           securityCallback(uint32_t passkey);
-  uint32_t              passkey = 0;           // PIN code (0 = no security)
 
-  BLEAdvertising*       advertising;  
-  BLECharacteristic*    outputKeyboard;
+  NimBLEAdvertising*       advertising;  
+  NimBLECharacteristic*    outputKeyboard;
   uint32_t              _delay_ms = 7; 
   
   #if KEYBOARD_ENABLE
     BLENKRO nkro;
-    BLECharacteristic*    inputNKRO;
+    NimBLECharacteristic*    inputNKRO;
   #endif
   
   #if MEDIA_ENABLE
     BLEMEDIA media;
-    BLECharacteristic*    inputMediaKeys;
+    NimBLECharacteristic*    inputMediaKeys;
   #endif
   
   #if MOUSE_ENABLE
@@ -117,7 +115,7 @@ private:
   
   #if DIGITIZER_ENABLE
     BLEDIGI               digitizer;
-    BLECharacteristic*    inputDigitizer;
+    NimBLECharacteristic*    inputDigitizer;
   #endif
   
   #if GEMINIPR_ENABLE
@@ -130,7 +128,7 @@ private:
   
   #if GAMEPAD_ENABLE
     BLEGAMEPAD            gamepad;
-    BLECharacteristic*    inputGamepad;
+    NimBLECharacteristic*    inputGamepad;
   #endif
   
 public:
@@ -141,13 +139,7 @@ public:
   void begin(void);
   void update(void);
   void end(void);
-  
- // Security methods
-  void setPIN(const char* pin);                 // Set 6-digit PIN like "123456"
-  void setPIN(uint32_t pin);                    // Set numeric PIN
-  void disableSecurity(bool enable = true);     // Enable/disable security
-  bool isSecurityEnabled() const;               // Check if security is enabled
-  
+
   void setAppearance(uint16_t newAppearance);
   
   size_t write(const uint8_t *buffer, size_t size);
@@ -242,9 +234,6 @@ public:
   
 protected:
   virtual void onStarted(BLEServer *pServer) { };
-  virtual uint32_t onPassKeyRequest();
-  virtual void onAuthenticationComplete(ble_gap_conn_desc* desc);
-  virtual bool onSecurityRequest();
   virtual void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc);
   virtual void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason);
   virtual void onWrite(NimBLECharacteristic* me);
