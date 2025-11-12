@@ -1,3 +1,8 @@
+/**
+ * @file Digitizer.cpp
+ * @brief Implementation of the touch digitizer
+ */
+
 #include "Digitizer.h"
 #include "NimBLEDevice.h"
 #include "../Log/Log.h"
