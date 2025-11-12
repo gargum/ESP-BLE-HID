@@ -25,13 +25,7 @@ static const uint8_t _basicReportDescriptor[] = {
   REPORT_COUNT(1),    0x08,                      HIDINPUT(1),        0x02,                   
   // Reserved byte
   REPORT_COUNT(1),    0x01,                      REPORT_SIZE(1),     0x08,
-  HIDINPUT(1),        0x01,                   
-  // LED output report
-  REPORT_COUNT(1),    0x05,                      REPORT_SIZE(1),     0x01,
-  USAGE_PAGE(1),      0x08,                      USAGE_MINIMUM(1),   0x01,                   
-  USAGE_MAXIMUM(1),   0x05,                      HIDOUTPUT(1),       0x02,                   
-  REPORT_COUNT(1),    0x01,                      REPORT_SIZE(1),     0x03,
-  HIDOUTPUT(1),       0x01,                   
+  HIDINPUT(1),        0x01,                                 
   // Key array (6 bytes for boot compatibility)
   REPORT_COUNT(1),    0x06,                      REPORT_SIZE(1),     0x08,
   LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x65,                   
