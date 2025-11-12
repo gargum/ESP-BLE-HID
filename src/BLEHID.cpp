@@ -2,7 +2,7 @@
 
 #if GEMINIPR_ENABLE
 // SPP UUIDs (Standard Serial Port Service)
-const char* BLEHID::SERIAL_SERVICE_UUID = "00001101-0000-1000-8000-00805f9b34fb";
+const char* BLEHID::SERIAL_SERVICE_UUID           = "00001101-0000-1000-8000-00805f9b34fb";
 const char* BLEHID::SERIAL_CHARACTERISTIC_UUID_TX = "00001102-0000-1000-8000-00805f9b34fb";
 const char* BLEHID::SERIAL_CHARACTERISTIC_UUID_RX = "00001103-0000-1000-8000-00805f9b34fb";
 #endif
@@ -127,22 +127,8 @@ void BLEHID::begin(void) {
         delay(100);
     } else { NimBLEDevice::init(deviceName.c_str()); }
     
-    // Configure security if enabled
-    if (isSecurityEnabled()) {
-        // Enhanced security configuration for bonding
-        NimBLEDevice::setSecurityAuth(true, true, true); // Bonding, MITM, Secure Connections enabled
-        NimBLEDevice::setSecurityPasskey(passkey);       // Actually set a passkey
-        NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
-        
-        // Configure bonding parameters
-        NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
-        NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
-        
-        Serial.printf("[%s] Security configured with PIN: %06lu \n", LOG_TAG, passkey);
-    } else {
-        NimBLEDevice::setSecurityAuth(false, false, false); // Bonding, MITM, Secure Connections disabled
-        Serial.printf("[%s] Just Works simple pairing enabled\n", LOG_TAG);
-    }
+    NimBLEDevice::setSecurityAuth(false, true, true); // Bonding, MITM, Secure Connections disabled
+    Serial.printf("[%s] Just Works simple pairing enabled\n", LOG_TAG);
     
     // Create server & install callbacks
     NimBLEServer *pServer = NimBLEDevice::createServer();
@@ -373,226 +359,12 @@ void BLEHID::end(void) {
   Serial.printf("[%s] BLE Keyboard stopped\n", LOG_TAG);
 }
 
-void BLEHID::setAppearance(uint16_t newAppearance) {
-  this->appearance = newAppearance;
-  
-  #if DIGITIZER_ENABLE
-  digitizer.setAppearance(newAppearance);
-  #endif
-  
-  #if DIGITIZER_ENABLE && MOUSE_ENABLE
-  Serial.printf("[%s] Appearance set to: 0x%04X, Mode: %s\n", LOG_TAG, newAppearance, digitizer.isAbsoluteMode() ? "absolute" : "relative");
-  #elif !DIGITIZER_ENABLE && MOUSE_ENABLE
-  Serial.printf("[%s] Appearance set to: 0x%04X (Mouse only)\n", LOG_TAG, newAppearance);
-  #elif DIGITIZER_ENABLE && !MOUSE_ENABLE
-  Serial.printf("[%s] Appearance set to: 0x%04X (Digitizer only)\n", LOG_TAG, newAppearance);
-  #else
-  Serial.printf("[%s] Appearance set to: 0x%04X\n", LOG_TAG, newAppearance);
-  #endif
-}
-
-void BLEHID::setBatteryLevel(uint8_t level) {
-  this->batteryLevel = level;
-  if (hid != 0) {
-    this->hid->setBatteryLevel(this->batteryLevel);
-    
-    // Force an update to the BLE characteristic
-    if (isConnected()) {
-      // This ensures the host device receives the updated battery level
-      hid->getBatteryService()->getCharacteristic((uint16_t)0x2A19)->setValue(&batteryLevel, 1);
-      hid->getBatteryService()->getCharacteristic((uint16_t)0x2A19)->notify();
-    }
-  }
-}
-
-//must be called before begin in order to set the name
-void BLEHID::setName(std::string deviceName) {
-  this->deviceName = deviceName;
-}
-
-//must be called before begin in order to set the manufacturer
-void BLEHID::setManufacturer(std::string deviceManufacturer) {
-  this->deviceManufacturer = deviceManufacturer;
-}
-
-// Sets the waiting time (in milliseconds) between multiple keystrokes
-void BLEHID::setDelay(uint32_t ms) {
-  _delay_ms = ms;
-}
-
-void BLEHID::setVendorId(uint16_t vid) { 
-	this->vid = vid; 
-}
-
-void BLEHID::setProductId(uint16_t pid) { 
-	this->pid = pid; 
-}
-
-void BLEHID::setVersion(uint16_t version) { 
-	this->version = version; 
-}
-
-//
-// ----------------------------------------- NKRO Keyboard Block
-//
-
-#if KEYBOARD_ENABLE
-size_t BLEHID::press(uint8_t k) { return nkro.press(k); }
-
-size_t BLEHID::press(int16_t modifier) { return nkro.press(modifier); }
-
-size_t BLEHID::release(uint8_t k) { return nkro.release(k); }
-
-size_t BLEHID::release(int16_t modifier) { return nkro.release(modifier); }
-
-size_t BLEHID::write(uint8_t c) { return nkro.write(c); }
-
-size_t BLEHID::write(int16_t modifier) { return nkro.write(modifier); }
-
-void BLEHID::useNKRO(bool state) { nkro.useNKRO(state); }
-
-void BLEHID::use6KRO(bool state) { nkro.use6KRO(state); }
-
-bool BLEHID::isNKROEnabled() { return nkro.isNKROEnabled(); }
-
-void BLEHID::setModifiers(uint8_t modifiers) { nkro.setModifiers(modifiers); }
-
-uint8_t BLEHID::getModifiers() { return nkro.getModifiers(); }
-
-void BLEHID::sendNKROReport() { nkro.sendNKROReport(); }
-#endif
-
-//
-// ----------------------------------------- Media key Block
-//
-
-#if MEDIA_ENABLE
-size_t BLEHID::press(uint16_t mediaKey) { return media.press(mediaKey); }
-
-size_t BLEHID::release(uint16_t mediaKey) { return media.release(mediaKey); }
-
-size_t BLEHID::write(uint16_t mediaKey) { return media.write(mediaKey); }
-
-void BLEHID::setMediaKeyBitmask(uint32_t bitmask) { media.setMediaKeyBitmask(bitmask); }
-
-uint32_t BLEHID::getMediaKeyBitmask() { return media.getMediaKeyBitmask(); }
-
-void BLEHID::addMediaKey(uint16_t mediaKey) { media.addMediaKey(mediaKey); }
-
-void BLEHID::removeMediaKey(uint16_t mediaKey) { media.removeMediaKey(mediaKey); }
-
-void BLEHID::sendMediaReport() { media.sendMediaReport(); }
-#endif
-
-//
-// ----------------------------------------- Mouse Block
-//
-
-#if MOUSE_ENABLE
-size_t BLEHID::press(char b) { return mouse.press(b); }
-
-size_t BLEHID::release(char b) { return mouse.release(b); }
-
-void BLEHID::click(char b) { mouse.click(b); }
-
-void BLEHID::move(signed char x, signed char y, signed char wheel, signed char hWheel) { mouse.move(x, y, wheel, hWheel); }
-
-bool BLEHID::mouseIsPressed(char b) { return mouse.mouseIsPressed(b); }
-#endif
-
-//
-// ----------------------------------------- Digitizer Block
-//
-
-#if DIGITIZER_ENABLE
-void BLEHID::click(uint16_t x, uint16_t y, char b) { digitizer.click(x, y, b); }
-
-void BLEHID::moveTo(uint16_t x, uint16_t y, uint8_t pressure, uint8_t buttons) { digitizer.moveTo(x, y, pressure, buttons); }
-
-void BLEHID::beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure) { digitizer.beginStroke(x, y, initialPressure); }
-
-void BLEHID::updateStroke(uint16_t x, uint16_t y, uint16_t pressure) { digitizer.updateStroke(x, y, pressure); }
-
-void BLEHID::endStroke(uint16_t x, uint16_t y) { digitizer.endStroke(x, y); }
-
-void BLEHID::useAbsoluteMode(bool state) { digitizer.useAbsoluteMode(state); }
-
-bool BLEHID::isAbsoluteMode() { return digitizer.isAbsoluteMode(); }
-
-void BLEHID::useAutoMode(bool state) { digitizer.useAutoMode(state); }
-
-void BLEHID::setDigitizerRange(uint16_t maxX, uint16_t maxY) { digitizer.setDigitizerRange(maxX, maxY); }
-
-bool BLEHID::isAutoModeEnabled() { return digitizer.isAutoModeEnabled(); }
-
-void BLEHID::sendDigitizerReport() { digitizer.sendDigitizerReport(); }
-#endif
-
-//
-// ----------------------------------------- GeminiPR Stenotype Block
-//
-
-#if GEMINIPR_ENABLE
-size_t BLEHID::press(int32_t stenoKey) { return steno.press(stenoKey); }
-
-size_t BLEHID::release(int32_t stenoKey) { return steno.release(stenoKey); }
-
-void BLEHID::geminiStroke(const int32_t* keys, size_t count) { steno.geminiStroke(keys, count); }
-
-uint8_t BLEHID::stenoCharToKey(char c) { return steno.stenoCharToKey(c); }
-
-void BLEHID::sendGeminiPRReport() { steno.sendGeminiPRReport(); }
-
-void BLEHID::sendSerialData(const uint8_t* data, size_t length) { steno.sendSerialData(data, length); }
-
-bool BLEHID::isSerialConnected() { return steno.isSerialConnected(); }
-#endif
-
-//
-// ----------------------------------------- Gamepad Block
-//
-
-#if GAMEPAD_ENABLE
-size_t BLEHID::press(int8_t button) { return gamepad.press(button); }
-
-size_t BLEHID::release(int8_t button) { return gamepad.release(button); }
-
-bool BLEHID::gamepadIsPressed(int8_t button) { return gamepad.gamepadIsPressed(button); }
-
-void BLEHID::gamepadSetLeftStick(int16_t x, int16_t y) { gamepad.gamepadSetLeftStick(x, y); }
-
-void BLEHID::gamepadSetRightStick(int16_t x, int16_t y) { gamepad.gamepadSetRightStick(x, y); }
-
-void BLEHID::gamepadSetTriggers(int16_t left, int16_t right) { gamepad.gamepadSetTriggers(left, right); }
-
-void BLEHID::gamepadGetLeftStick(int16_t &x, int16_t &y) { gamepad.gamepadGetLeftStick(x, y); }
-
-void BLEHID::gamepadGetRightStick(int16_t &x, int16_t &y) { gamepad.gamepadGetRightStick(x, y); }
-
-void BLEHID::gamepadSetAxis(int8_t axis, int16_t value) { gamepad.gamepadSetAxis(axis, value); }
-
-int16_t BLEHID::gamepadGetAxis(int8_t axis) { return gamepad.gamepadGetAxis(axis); }
-
-void BLEHID::gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]) { gamepad.gamepadSetAllAxes(values); }
-
-void BLEHID::sendGamepadReport() { gamepad.sendGamepadReport(); }
-#endif
-
 //
 // ----------------------------------------- Global Function Block
 //
 
 void BLEHID::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
-    Serial.printf("[%s] ESP-HID onConnect callback triggered - Security: %s, Encrypted: %s\n", LOG_TAG,
-             isSecurityEnabled() ? "Enabled" : "Disabled", 
-             desc->sec_state.encrypted ? "Yes" : "No");
-    
-    if (isSecurityEnabled()) {
-        if (!desc->sec_state.encrypted) {
-            Serial.printf("[%s] Initiating pairing for secure connection\n", LOG_TAG);
-            NimBLEDevice::startSecurity(desc->conn_handle);
-        }
-    }
+    Serial.printf("[%s] ESP-HID onConnect callback triggered", LOG_TAG);
     
     #if KEYBOARD_ENABLE
       if (inputNKRO) inputNKRO->notify();
@@ -743,65 +515,195 @@ void BLEHID::releaseAll() {
   #endif
 }
 
-void BLEHID::securityCallback(uint32_t passkey) {
-  Serial.printf("[%s] Pairing PIN: %06lu\n", LOG_TAG, passkey);
-  // You could add display output here if you have an LCD/OLED
-}
-
-void BLEHID::onAuthenticationComplete(ble_gap_conn_desc* desc) {
-    Serial.printf("[%s] Authentication complete - encrypted: %s, authenticated: %s\n", LOG_TAG,
-             desc->sec_state.encrypted ? "yes" : "no",
-             desc->sec_state.authenticated ? "yes" : "no");
-}
-
-void BLEHID::setPIN(const char* pin) {
-  if (pin == nullptr) {
-    disableSecurity();
-    return;
-  }
+void BLEHID::setAppearance(uint16_t newAppearance) {
+  this->appearance = newAppearance;
   
-  if (strlen(pin) == 6) {
-    this->passkey = atoi(pin);
-    Serial.printf("[%s] Security enabled with PIN: %s\n", LOG_TAG, pin);
-  } else {
-    Serial.printf("[%s] PIN must be 6 digits, security disabled\n", LOG_TAG);
-    this->passkey = 0;
+  #if DIGITIZER_ENABLE
+  digitizer.setAppearance(newAppearance);
+  #endif
+  
+  #if DIGITIZER_ENABLE && MOUSE_ENABLE
+  Serial.printf("[%s] Appearance set to: 0x%04X, Mode: %s\n", LOG_TAG, newAppearance, digitizer.isAbsoluteMode() ? "absolute" : "relative");
+  #elif !DIGITIZER_ENABLE && MOUSE_ENABLE
+  Serial.printf("[%s] Appearance set to: 0x%04X (Mouse only)\n", LOG_TAG, newAppearance);
+  #elif DIGITIZER_ENABLE && !MOUSE_ENABLE
+  Serial.printf("[%s] Appearance set to: 0x%04X (Digitizer only)\n", LOG_TAG, newAppearance);
+  #else
+  Serial.printf("[%s] Appearance set to: 0x%04X\n", LOG_TAG, newAppearance);
+  #endif
+}
+
+void BLEHID::setBatteryLevel(uint8_t level) {
+  this->batteryLevel = level;
+  if (hid != 0) {
+    this->hid->setBatteryLevel(this->batteryLevel);
+    
+    // Force an update to the BLE characteristic
+    if (isConnected()) {
+      // This ensures the host device receives the updated battery level
+      hid->getBatteryService()->getCharacteristic((uint16_t)0x2A19)->setValue(&batteryLevel, 1);
+      hid->getBatteryService()->getCharacteristic((uint16_t)0x2A19)->notify();
+    }
   }
 }
 
-void BLEHID::setPIN(uint32_t pin) {
-  if (pin >= 1 && pin <= 999999) {  // 0 means no security
-    this->passkey = pin;
-    Serial.printf("[%s] Security enabled with PIN: %06lu\n", LOG_TAG, pin);
-  } else {
-    Serial.printf("[%s] PIN must be between 000001 and 999999, security disabled\n", LOG_TAG);
-    this->passkey = 0;
-  }
-}
+//must be called before begin in order to set the name
+void BLEHID::setName(std::string deviceName) { this->deviceName = deviceName; }
 
-void BLEHID::disableSecurity(bool enable) {
-  if (!enable) {
-    this->passkey = 0;
-    Serial.printf("[%s] Security disabled\n", LOG_TAG);
-  } else {
-    Serial.printf("[%s] Security remains enabled (call setPIN to enable)\n", LOG_TAG);
-  }
-}
+//must be called before begin in order to set the manufacturer
+void BLEHID::setManufacturer(std::string deviceManufacturer) { this->deviceManufacturer = deviceManufacturer; }
 
-bool BLEHID::isSecurityEnabled() const {
-  return passkey != 0;
-}
+// Sets the waiting time (in milliseconds) between multiple keystrokes
+void BLEHID::setDelay(uint32_t ms) { _delay_ms = ms; }
 
-uint32_t BLEHID::onPassKeyRequest() {
-  Serial.printf("[%s] PassKeyRequest received\n", LOG_TAG);
-  if (isSecurityEnabled()) {
-    securityCallback(passkey);
-    return passkey;
-  }
-  return 0; // No PIN = Just Works
-}
+void BLEHID::setVendorId(uint16_t vid) { this->vid = vid; }
 
-bool BLEHID::onSecurityRequest() {
-  Serial.printf("[%s] Security request received\n", LOG_TAG);
-  return isSecurityEnabled(); // Only require auth if we have a PIN
-}
+void BLEHID::setProductId(uint16_t pid) { this->pid = pid; }
+
+void BLEHID::setVersion(uint16_t version) { this->version = version; }
+
+//
+// ----------------------------------------- NKRO Keyboard Block
+//
+
+#if KEYBOARD_ENABLE
+size_t BLEHID::press(uint8_t k) { return nkro.press(k); }
+
+size_t BLEHID::press(int16_t modifier) { return nkro.press(modifier); }
+
+size_t BLEHID::release(uint8_t k) { return nkro.release(k); }
+
+size_t BLEHID::release(int16_t modifier) { return nkro.release(modifier); }
+
+size_t BLEHID::write(uint8_t c) { return nkro.write(c); }
+
+size_t BLEHID::write(int16_t modifier) { return nkro.write(modifier); }
+
+void BLEHID::useNKRO(bool state) { nkro.useNKRO(state); }
+
+void BLEHID::use6KRO(bool state) { nkro.use6KRO(state); }
+
+bool BLEHID::isNKROEnabled() { return nkro.isNKROEnabled(); }
+
+void BLEHID::setModifiers(uint8_t modifiers) { nkro.setModifiers(modifiers); }
+
+uint8_t BLEHID::getModifiers() { return nkro.getModifiers(); }
+
+void BLEHID::sendNKROReport() { nkro.sendNKROReport(); }
+#endif
+
+//
+// ----------------------------------------- Media key Block
+//
+
+#if MEDIA_ENABLE
+size_t BLEHID::press(uint16_t mediaKey) { return media.press(mediaKey); }
+
+size_t BLEHID::release(uint16_t mediaKey) { return media.release(mediaKey); }
+
+size_t BLEHID::write(uint16_t mediaKey) { return media.write(mediaKey); }
+
+void BLEHID::setMediaKeyBitmask(uint32_t bitmask) { media.setMediaKeyBitmask(bitmask); }
+
+uint32_t BLEHID::getMediaKeyBitmask() { return media.getMediaKeyBitmask(); }
+
+void BLEHID::addMediaKey(uint16_t mediaKey) { media.addMediaKey(mediaKey); }
+
+void BLEHID::removeMediaKey(uint16_t mediaKey) { media.removeMediaKey(mediaKey); }
+
+void BLEHID::sendMediaReport() { media.sendMediaReport(); }
+#endif
+
+//
+// ----------------------------------------- Mouse Block
+//
+
+#if MOUSE_ENABLE
+size_t BLEHID::press(char b) { return mouse.press(b); }
+
+size_t BLEHID::release(char b) { return mouse.release(b); }
+
+void BLEHID::click(char b) { mouse.click(b); }
+
+void BLEHID::move(signed char x, signed char y, signed char wheel, signed char hWheel) { mouse.move(x, y, wheel, hWheel); }
+
+bool BLEHID::mouseIsPressed(char b) { return mouse.mouseIsPressed(b); }
+#endif
+
+//
+// ----------------------------------------- Digitizer Block
+//
+
+#if DIGITIZER_ENABLE
+void BLEHID::click(uint16_t x, uint16_t y, char b) { digitizer.click(x, y, b); }
+
+void BLEHID::moveTo(uint16_t x, uint16_t y, uint8_t pressure, uint8_t buttons) { digitizer.moveTo(x, y, pressure, buttons); }
+
+void BLEHID::beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure) { digitizer.beginStroke(x, y, initialPressure); }
+
+void BLEHID::updateStroke(uint16_t x, uint16_t y, uint16_t pressure) { digitizer.updateStroke(x, y, pressure); }
+
+void BLEHID::endStroke(uint16_t x, uint16_t y) { digitizer.endStroke(x, y); }
+
+void BLEHID::useAbsoluteMode(bool state) { digitizer.useAbsoluteMode(state); }
+
+bool BLEHID::isAbsoluteMode() { return digitizer.isAbsoluteMode(); }
+
+void BLEHID::useAutoMode(bool state) { digitizer.useAutoMode(state); }
+
+void BLEHID::setDigitizerRange(uint16_t maxX, uint16_t maxY) { digitizer.setDigitizerRange(maxX, maxY); }
+
+bool BLEHID::isAutoModeEnabled() { return digitizer.isAutoModeEnabled(); }
+
+void BLEHID::sendDigitizerReport() { digitizer.sendDigitizerReport(); }
+#endif
+
+//
+// ----------------------------------------- GeminiPR Stenotype Block
+//
+
+#if GEMINIPR_ENABLE
+size_t BLEHID::press(int32_t stenoKey) { return steno.press(stenoKey); }
+
+size_t BLEHID::release(int32_t stenoKey) { return steno.release(stenoKey); }
+
+void BLEHID::geminiStroke(const int32_t* keys, size_t count) { steno.geminiStroke(keys, count); }
+
+uint8_t BLEHID::stenoCharToKey(char c) { return steno.stenoCharToKey(c); }
+
+void BLEHID::sendGeminiPRReport() { steno.sendGeminiPRReport(); }
+
+void BLEHID::sendSerialData(const uint8_t* data, size_t length) { steno.sendSerialData(data, length); }
+
+bool BLEHID::isSerialConnected() { return steno.isSerialConnected(); }
+#endif
+
+//
+// ----------------------------------------- Gamepad Block
+//
+
+#if GAMEPAD_ENABLE
+size_t BLEHID::press(int8_t button) { return gamepad.press(button); }
+
+size_t BLEHID::release(int8_t button) { return gamepad.release(button); }
+
+bool BLEHID::gamepadIsPressed(int8_t button) { return gamepad.gamepadIsPressed(button); }
+
+void BLEHID::gamepadSetLeftStick(int16_t x, int16_t y) { gamepad.gamepadSetLeftStick(x, y); }
+
+void BLEHID::gamepadSetRightStick(int16_t x, int16_t y) { gamepad.gamepadSetRightStick(x, y); }
+
+void BLEHID::gamepadSetTriggers(int16_t left, int16_t right) { gamepad.gamepadSetTriggers(left, right); }
+
+void BLEHID::gamepadGetLeftStick(int16_t &x, int16_t &y) { gamepad.gamepadGetLeftStick(x, y); }
+
+void BLEHID::gamepadGetRightStick(int16_t &x, int16_t &y) { gamepad.gamepadGetRightStick(x, y); }
+
+void BLEHID::gamepadSetAxis(int8_t axis, int16_t value) { gamepad.gamepadSetAxis(axis, value); }
+
+int16_t BLEHID::gamepadGetAxis(int8_t axis) { return gamepad.gamepadGetAxis(axis); }
+
+void BLEHID::gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]) { gamepad.gamepadSetAllAxes(values); }
+
+void BLEHID::sendGamepadReport() { gamepad.sendGamepadReport(); }
+#endif
