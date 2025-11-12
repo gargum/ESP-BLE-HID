@@ -1,5 +1,6 @@
 #include "Mouse.h"
 #include "NimBLEDevice.h"
+#include "../Log/Log.h"
 
 static const char* MOUSE_TAG = "BLEMOUSE";
 
@@ -13,16 +14,22 @@ void BLEMOUSE::begin(NimBLECharacteristic* mouseChar, uint32_t delay_ms) {
     _delay_ms = delay_ms;
     _mouseButtons = 0;
     memset(&_mouseReport, 0, sizeof(_mouseReport));
+    
+    BLE_LOG_DEBUG(MOUSE_TAG, "Mouse subsystem initialized with delay: %lu ms", delay_ms);
+    BLE_LOG_INFO(MOUSE_TAG, "Mouse service ready");
 }
 
 bool BLEMOUSE::isConnected() {
-    if (!inputMouse) return false;
-    return NimBLEDevice::getServer() && NimBLEDevice::getServer()->getConnectedCount() > 0;
+    bool connected = (inputMouse && NimBLEDevice::getServer() && NimBLEDevice::getServer()->getConnectedCount() > 0);
+    BLE_LOG_DEBUG(MOUSE_TAG, "Connection check: %s", connected ? "connected" : "disconnected");
+    return connected;
 }
 
 size_t BLEMOUSE::press(char b) {
     _mouseButtons |= b;
     _mouseReport.buttons = _mouseButtons;
+    
+    BLE_LOG_DEBUG(MOUSE_TAG, "Mouse button pressed: 0x%02X, button state: 0x%02X", b, _mouseButtons);
     sendMouseReport();
     return 1;
 }
@@ -30,20 +37,26 @@ size_t BLEMOUSE::press(char b) {
 size_t BLEMOUSE::release(char b) {
     _mouseButtons &= ~b;
     _mouseReport.buttons = _mouseButtons;
+    
+    BLE_LOG_DEBUG(MOUSE_TAG, "Mouse button released: 0x%02X, button state: 0x%02X", b, _mouseButtons);
     sendMouseReport();
     return 1;
 }
 
 void BLEMOUSE::releaseAll() {
+    BLE_LOG_DEBUG(MOUSE_TAG, "Releasing all mouse buttons - previous state: 0x%02X", _mouseButtons);
     _mouseButtons = 0;
     _mouseReport.buttons = 0;
     sendMouseReport();
+    BLE_LOG_DEBUG(MOUSE_TAG, "All mouse buttons released");
 }
 
 void BLEMOUSE::click(char b) {
+    BLE_LOG_DEBUG(MOUSE_TAG, "Mouse click: 0x%02X", b);
     press(b);
     delay(_delay_ms);
     release(b);
+    BLE_LOG_DEBUG(MOUSE_TAG, "Mouse click completed: 0x%02X", b);
 }
 
 void BLEMOUSE::move(signed char x, signed char y, signed char wheel, signed char hWheel) {
@@ -56,18 +69,38 @@ void BLEMOUSE::move(signed char x, signed char y, signed char wheel, signed char
         _mouseReport.wheel = wheel;
         _mouseReport.hWheel = hWheel;
         
+        BLE_LOG_DEBUG(MOUSE_TAG, "Mouse movement - X: %d, Y: %d, Wheel: %d, HWheel: %d, Buttons: 0x%02X", 
+                     x, y, wheel, hWheel, _mouseButtons);
         sendMouseReport();
+    } else {
+        BLE_LOG_DEBUG(MOUSE_TAG, "Mouse movement ignored - %s", 
+                     !isConnected() ? "not connected" : "no input characteristic");
     }
 }
 
 bool BLEMOUSE::mouseIsPressed(char b) {
-    return (_mouseReport.buttons & b) != 0;
+    bool pressed = (_mouseReport.buttons & b) != 0;
+    BLE_LOG_DEBUG(MOUSE_TAG, "Mouse button check - Button: 0x%02X, Pressed: %s", 
+                 b, pressed ? "true" : "false");
+    return pressed;
 }
 
 void BLEMOUSE::sendMouseReport() {
     if (isConnected() && inputMouse) {
         inputMouse->setValue((uint8_t*)&_mouseReport, sizeof(_mouseReport));
-        inputMouse->notify();
+        
+        if (inputMouse->notify()) {
+            BLE_LOG_DEBUG(MOUSE_TAG, "Mouse report sent successfully - "
+                         "Buttons: 0x%02X, X: %d, Y: %d, Wheel: %d, HWheel: %d",
+                         _mouseReport.buttons, _mouseReport.relX, _mouseReport.relY, 
+                         _mouseReport.wheel, _mouseReport.hWheel);
+        } else {
+            BLE_LOG_WARN(MOUSE_TAG, "Failed to send mouse report notification");
+        }
+        
         delay(_delay_ms);
+    } else {
+        BLE_LOG_DEBUG(MOUSE_TAG, "Cannot send mouse report - %s", 
+                     !isConnected() ? "not connected" : "no input characteristic");
     }
 }
