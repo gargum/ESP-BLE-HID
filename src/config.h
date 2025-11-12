@@ -1,3 +1,8 @@
+/**
+ * @file config.h
+ * @brief User function toggles for conditional compilation and feature-setting
+ */
+
 #define KEYBOARD_ENABLE  true
 #define MEDIA_ENABLE     true
 #define GEMINIPR_ENABLE  true
