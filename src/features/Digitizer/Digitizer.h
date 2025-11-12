@@ -1,6 +1,8 @@
-//  -------------------------------
-// | Digitizer Feature - Constants |
-//  -------------------------------
+/**
+ * @file Digitizer.h
+ * @brief Touch digitizer with pressure sensitivity, tip switch, and barrel
+ */
+ 
 #ifndef DIGITIZER_H
 #define DIGITIZER_H
 
