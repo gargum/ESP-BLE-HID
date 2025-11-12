@@ -18,30 +18,34 @@ void BLELOGS::initialize(std::function<void(const LogEntry&)> handler) {
                 esp_log_level_t espLevel = ESP_LOG_INFO;
                 
                 switch (entry.level) {
+                    case LogLevel::VERBOSE:
+                        levelStr = "V";
+                        espLevel = ESP_LOG_VERBOSE;
+                        break;
                     case LogLevel::DEBUG:
-                        levelStr = "DEBUG";
+                        levelStr = "D";
                         espLevel = ESP_LOG_DEBUG;
                         break;
                     case LogLevel::INFO:
-                        levelStr = "INFO";
+                        levelStr = "I";
                         espLevel = ESP_LOG_INFO;
                         break;
                     case LogLevel::WARNING:
-                        levelStr = "WARN";
+                        levelStr = "W";
                         espLevel = ESP_LOG_WARN;
                         break;
                     case LogLevel::ERROR:
-                        levelStr = "ERROR";
+                        levelStr = "E";
                         espLevel = ESP_LOG_ERROR;
                         break;
-                    case LogLevel::CRITICAL:
-                        levelStr = "CRITICAL";
-                        espLevel = ESP_LOG_ERROR;
+                    default:
+                        levelStr = "U";
+                        espLevel = ESP_LOG_INFO;
                         break;
                 }
                 
                 // Use ESP32 logging system but through our async queue
-                esp_log_write(espLevel, entry.tag.c_str(), "[%08lu] %s: %s\n", entry.timestamp, levelStr, entry.message.c_str());
+                esp_log_write(espLevel, entry.tag.c_str(), "[%08lu] [%s] [%s] %s\n", entry.timestamp, levelStr, entry.tag.c_str(), entry.message.c_str());
             };
             
         #elif defined(BLEHID_PLATFORM_NRF52)
@@ -49,15 +53,16 @@ void BLELOGS::initialize(std::function<void(const LogEntry&)> handler) {
                 const char* levelStr = "";
                 
                 switch (entry.level) {
+                    case LogLevel::VERBOSE:  levelStr = "V"; break;
                     case LogLevel::DEBUG:    levelStr = "D"; break;
                     case LogLevel::INFO:     levelStr = "I"; break;
                     case LogLevel::WARNING:  levelStr = "W"; break;
                     case LogLevel::ERROR:    levelStr = "E"; break;
-                    case LogLevel::CRITICAL: levelStr = "C"; break;
+                    default:                 levelStr = "U"; break;
                 }
                 
                 // Use nRF52 logging system but through our async queue
-                NRF_LOG_INFO("[%08lu] [%s] %s: %s\n", entry.timestamp, levelStr, entry.tag.c_str(), entry.message.c_str());
+                NRF_LOG_INFO("[%08lu] [%s] %s: %s", entry.timestamp, levelStr, entry.tag.c_str(), entry.message.c_str());
                 NRF_LOG_FLUSH();
             };
         #endif
@@ -73,11 +78,64 @@ void BLELOGS::initialize(std::function<void(const LogEntry&)> handler) {
 }
 
 void BLELOGS::log(LogLevel level, const std::string& tag, const std::string& message) {
-    // ALWAYS use queue for consistency across all platforms
-    if (!initialized || logQueue.size() >= maxQueueSize) return;
+    // Early return if logging is disabled for this level
+    if (!initialized || static_cast<int>(level) > static_cast<int>(currentLogLevel)) {
+        return;
+    }
+    
+    // Check queue size
+    if (logQueue.size() >= maxQueueSize) {
+        // Optionally log a warning about queue overflow
+        return;
+    }
     
     uint32_t timestamp = millis();
     logQueue.emplace(timestamp, level, tag, message);
+}
+
+void BLELOGS::setLogLevel(LogLevel level) {
+    currentLogLevel = level;
+    
+    // Also set platform-specific log levels for underlying systems
+    #if defined(BLEHID_PLATFORM_ESP32)
+        esp_log_level_t espLevel;
+        switch (level) {
+            case LogLevel::NONE:     espLevel = ESP_LOG_NONE; break;
+            case LogLevel::ERROR:    espLevel = ESP_LOG_ERROR; break;
+            case LogLevel::WARNING:  espLevel = ESP_LOG_WARN; break;
+            case LogLevel::INFO:     espLevel = ESP_LOG_INFO; break;
+            case LogLevel::DEBUG:    espLevel = ESP_LOG_DEBUG; break;
+            case LogLevel::VERBOSE:  espLevel = ESP_LOG_VERBOSE; break;
+            default:                 espLevel = ESP_LOG_INFO; break;
+        }
+        esp_log_level_set("*", espLevel);
+        
+    #elif defined(BLEHID_PLATFORM_NRF52)
+        nrf_log_severity_t nrfLevel;
+        switch (level) {
+            case LogLevel::NONE:     nrfLevel = NRF_LOG_SEVERITY_NONE; break;
+            case LogLevel::ERROR:    nrfLevel = NRF_LOG_SEVERITY_ERROR; break;
+            case LogLevel::WARNING:  nrfLevel = NRF_LOG_SEVERITY_WARNING; break;
+            case LogLevel::INFO:     nrfLevel = NRF_LOG_SEVERITY_INFO; break;
+            case LogLevel::DEBUG:    nrfLevel = NRF_LOG_SEVERITY_DEBUG; break;
+            case LogLevel::VERBOSE:  nrfLevel = NRF_LOG_SEVERITY_INFO; break; // nRF doesn't have VERBOSE
+            default:                 nrfLevel = NRF_LOG_SEVERITY_INFO; break;
+        }
+        NRF_LOG_DEFAULT_LEVEL = nrfLevel;
+    #endif
+    
+    // Log the level change
+    const char* levelStr = "";
+    switch (level) {
+        case LogLevel::NONE:     levelStr = "NONE"; break;
+        case LogLevel::ERROR:    levelStr = "ERROR"; break;
+        case LogLevel::WARNING:  levelStr = "WARNING"; break;
+        case LogLevel::INFO:     levelStr = "INFO"; break;
+        case LogLevel::DEBUG:    levelStr = "DEBUG"; break;
+        case LogLevel::VERBOSE:  levelStr = "VERBOSE"; break;
+    }
+    
+    log(LogLevel::INFO, "LOG", std::string("Log level set to: ") + levelStr);
 }
 
 void BLELOGS::processQueue() {
@@ -109,13 +167,34 @@ void BLELOGS::flush() {
     #endif
 }
 
-// Platform-specific implementations
+// Platform-specific implementations (backward compatibility)
 #if defined(BLEHID_PLATFORM_ESP32)
 void BLELOGS::setESP32LogLevel(esp_log_level_t level) {
-    esp_log_level_set("*", level);
+    // Map ESP32 level to our unified level
+    LogLevel unifiedLevel;
+    switch (level) {
+        case ESP_LOG_NONE:    unifiedLevel = LogLevel::NONE; break;
+        case ESP_LOG_ERROR:   unifiedLevel = LogLevel::ERROR; break;
+        case ESP_LOG_WARN:    unifiedLevel = LogLevel::WARNING; break;
+        case ESP_LOG_INFO:    unifiedLevel = LogLevel::INFO; break;
+        case ESP_LOG_DEBUG:   unifiedLevel = LogLevel::DEBUG; break;
+        case ESP_LOG_VERBOSE: unifiedLevel = LogLevel::VERBOSE; break;
+        default:              unifiedLevel = LogLevel::INFO; break;
+    }
+    setLogLevel(unifiedLevel);
 }
 #elif defined(BLEHID_PLATFORM_NRF52)
 void BLELOGS::setNRF52LogLevel(nrf_log_severity_t severity) {
-    NRF_LOG_DEFAULT_LEVEL = severity;
+    // Map nRF52 level to our unified level
+    LogLevel unifiedLevel;
+    switch (severity) {
+        case NRF_LOG_SEVERITY_NONE:      unifiedLevel = LogLevel::NONE; break;
+        case NRF_LOG_SEVERITY_ERROR:     unifiedLevel = LogLevel::ERROR; break;
+        case NRF_LOG_SEVERITY_WARNING:   unifiedLevel = LogLevel::WARNING; break;
+        case NRF_LOG_SEVERITY_INFO:      unifiedLevel = LogLevel::INFO; break;
+        case NRF_LOG_SEVERITY_DEBUG:     unifiedLevel = LogLevel::DEBUG; break;
+        default:                         unifiedLevel = LogLevel::INFO; break;
+    }
+    setLogLevel(unifiedLevel);
 }
 #endif
