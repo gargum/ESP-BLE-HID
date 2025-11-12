@@ -1,6 +1,8 @@
-//  ----------------------------------------------
-// | Relative Pointer / Mouse Feature - Constants |
-//  ----------------------------------------------
+/**
+ * @file Mouse.h
+ * @brief Relative mouse pointer
+ */
+ 
 #ifndef MOUSE_H
 #define MOUSE_H
 
