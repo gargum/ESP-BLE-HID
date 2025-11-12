@@ -16,23 +16,10 @@ static const uint8_t _mediakeyReportDescriptor[] = {
   // ------------------------------------------------- Media Keys
   USAGE_PAGE(1),      0x0C,                      USAGE(1),           0x01,             
   COLLECTION(1),      0x01,                      REPORT_ID(1),       MEDIA_KEYS_ID,    
-  USAGE(2),           0x30, 0x01,                USAGE(2),           0x34, 0x01,       
-  USAGE(2),           0x35, 0x01,                USAGE(1),           0xB5,             
-  USAGE(1),           0xB6,                      USAGE(1),           0xB7,             
-  USAGE(1),           0xCD,                      USAGE(1),           0xB3,             
-  USAGE(1),           0xB4,                      USAGE(1),           0xB8,             
-  USAGE(1),           0xE2,                      USAGE(1),           0xE9,             
-  USAGE(1),           0xEA,                      USAGE(1),           0x6F,             
-  USAGE(1),           0x70,                      USAGE(2),           0x94, 0x01,       
-  USAGE(2),           0x92, 0x01,                USAGE(2),           0x8A, 0x01,       
-  USAGE(2),           0x83, 0x01,                USAGE(2),           0x86, 0x01,       
-  USAGE(2),           0x87, 0x01,                USAGE(2),           0x23, 0x02,       
-  USAGE(2),           0x2A, 0x02,                USAGE(2),           0x21, 0x02,       
-  USAGE(2),           0x26, 0x02,                USAGE(2),           0x24, 0x02,       
-  USAGE(2),           0x25, 0x02,                USAGE(2),           0x27, 0x02,       
-  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(2), 0xFF, 0x03,       
-  REPORT_SIZE(1),     0x01,                      REPORT_COUNT(1),    0x1C,             
-  HIDINPUT(1),        0x02,                      END_COLLECTION(0),   
+  USAGE_MINIMUM(1),   0x00,                      USAGE_MAXIMUM(2),   0x3C, 0x02,       
+  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(2), 0x3C, 0x02,       
+  REPORT_SIZE(1),     0x10,                      REPORT_COUNT(1),    0x01,             
+  HIDINPUT(1),        0x00,                      END_COLLECTION(0),   
 };
 
 // Media key codes
@@ -98,24 +85,21 @@ const uint16_t KC_LPAD = 0x0187;
 class BLEMEDIA {
 private:
     NimBLECharacteristic* inputMediaKeys;
-    uint32_t _mediaKeyBitmask;
+    uint16_t _currentMediaKey;  // Changed from uint32_t bitmask to uint16_t single key
     uint32_t _delay_ms;
     
-    uint32_t mediaKeyToBitmask(uint16_t usageCode);
 public:
     BLEMEDIA();
     
     void begin(NimBLECharacteristic* mediaChar, uint32_t delay_ms = 7);
     bool isConnected();
     
-    // Media key methods
+    // Media key methods - simplified interface
     size_t press(uint16_t mediaKey);
     size_t release(uint16_t mediaKey);
     size_t write(uint16_t mediaKey);
-    void setMediaKeyBitmask(uint32_t bitmask);
-    uint32_t getMediaKeyBitmask();
-    void addMediaKey(uint16_t mediaKey);
-    void removeMediaKey(uint16_t mediaKey);
+    uint16_t getCurrentMediaKey();
+    
     void sendMediaReport();
     void releaseAll();
 };
