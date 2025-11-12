@@ -25,13 +25,14 @@
   #error "This library only supports ESP32 and nRF52 platforms with NimBLE support currently, I'm sorry."
 #endif
 
-// Log levels
+// Unified log levels - matches both ESP32 and nRF52 semantics
 enum class LogLevel {
-    DEBUG,
-    INFO,
-    WARNING,
+    NONE = 0,
     ERROR,
-    CRITICAL
+    WARNING,
+    INFO,
+    DEBUG,
+    VERBOSE
 };
 
 // Log entry structure
@@ -51,7 +52,9 @@ private:
     std::queue<LogEntry> logQueue;
     bool initialized = false;
     uint32_t maxQueueSize = 100; // Prevent memory exhaustion
+    LogLevel currentLogLevel = LogLevel::INFO; // Default level
     std::function<void(const LogEntry&)> outputHandler;
+    
 public:
     static BLELOGS& getInstance() {
         static BLELOGS instance;
@@ -64,12 +67,17 @@ public:
     void log(LogLevel level, const std::string& tag, const std::string& message);
     void processQueue();
     void flush();
+    
+    // Unified log level control
+    void setLogLevel(LogLevel level);
+    LogLevel getLogLevel() const { return currentLogLevel; }
+    
     void setMaxQueueSize(uint32_t size) { maxQueueSize = size; }
     size_t getQueueSize() const { return logQueue.size(); }
     bool isInitialized() const { return initialized; }
     bool isQueueEmpty() const { return logQueue.empty(); }
     
-    // Platform-specific control methods
+    // Platform-specific control methods (kept for backward compatibility)
     #if defined(BLEHID_PLATFORM_ESP32)
     void setESP32LogLevel(esp_log_level_t level);
     #elif defined(BLEHID_PLATFORM_NRF52)
@@ -78,6 +86,11 @@ public:
 };
 
 inline void _bleLogHelper(LogLevel level, const std::string& tag, const char* format, ...) {
+    // Check if this log level should be processed
+    if (static_cast<int>(level) > static_cast<int>(BLELOGS::getInstance().getLogLevel())) {
+        return;
+    }
+    
     char buffer[256];
     va_list args;
     va_start(args, format);
@@ -88,6 +101,9 @@ inline void _bleLogHelper(LogLevel level, const std::string& tag, const char* fo
 }
 
 // Convenience macros for logging
+#define BLE_LOG_VERBOSE(tag, format, ...) \
+    _bleLogHelper(LogLevel::VERBOSE, tag, format, ##__VA_ARGS__)
+
 #define BLE_LOG_DEBUG(tag, format, ...) \
     _bleLogHelper(LogLevel::DEBUG, tag, format, ##__VA_ARGS__)
 
@@ -100,9 +116,6 @@ inline void _bleLogHelper(LogLevel level, const std::string& tag, const char* fo
 #define BLE_LOG_ERROR(tag, format, ...) \
     _bleLogHelper(LogLevel::ERROR, tag, format, ##__VA_ARGS__)
 
-#define BLE_LOG_CRITICAL(tag, format, ...) \
-    _bleLogHelper(LogLevel::CRITICAL, tag, format, ##__VA_ARGS__)
-
 // Process queue macro (ALWAYS needed now)
 #define BLE_LOG_PROCESS() BLELOGS::getInstance().processQueue()
 
@@ -112,11 +125,21 @@ inline void _bleLogHelper(LogLevel level, const std::string& tag, const char* fo
 // Check if log queue is empty
 #define BLE_LOG_QUEUE_EMPTY() BLELOGS::getInstance().isQueueEmpty()
 
-// Platform-specific utility macros
+// Unified log level control - NEW SIMPLE INTERFACE
+#define BLE_LOG_SET_LEVEL(level) BLELOGS::getInstance().setLogLevel(level)
+
+#define LOGGER_NONE    LogLevel::NONE
+#define LOGGER_INFO    LogLevel::INFO
+#define LOGGER_WARN    LogLevel::WARN
+#define LOGGER_ERROR   LogLevel::ERROR
+#define LOGGER_DEBUG   LogLevel::DEBUG
+#define LOGGER_VERBOSE LogLevel::VERBOSE
+
+// Backward compatibility macros
 #if defined(BLEHID_PLATFORM_ESP32)
-  #define BLE_LOG_SET_LEVEL(level) BLELOGS::getInstance().setESP32LogLevel(level)
+  #define BLE_LOG_SET_PLATFORM_LEVEL(level) BLELOGS::getInstance().setESP32LogLevel(level)
 #elif defined(BLEHID_PLATFORM_NRF52)
-  #define BLE_LOG_SET_LEVEL(level) BLELOGS::getInstance().setNRF52LogLevel(level)
+  #define BLE_LOG_SET_PLATFORM_LEVEL(level) BLELOGS::getInstance().setNRF52LogLevel(level)
 #endif
 
 #endif
