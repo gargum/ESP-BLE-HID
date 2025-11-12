@@ -31,6 +31,7 @@
 
 #include "config.h"
 #include "features/Appearance.h"
+#include "features/Log/Log.h" 
 
 #if KEYBOARD_ENABLE
   #include "features/NKRO/NKRO.h"
