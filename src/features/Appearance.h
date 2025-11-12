@@ -1,7 +1,8 @@
-//  ------------------------------------------
-// | Appearance Selection Feature - Constants |
-//  ------------------------------------------
-
+/**
+ * @file Appearance.h
+ * @brief BLE Appearance Codes
+ */
+ 
 // Appearance codes - Broadly Supported
 
 #define GENERIC_HID           0x03C0
