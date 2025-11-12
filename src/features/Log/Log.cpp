@@ -1,3 +1,8 @@
+/**
+ * @file Log.cpp
+ * @brief Implementation of the asynchronous logger
+ */
+
 #include "Log.h"
 
 void BLELOGS::initialize(std::function<void(const LogEntry&)> handler) {
