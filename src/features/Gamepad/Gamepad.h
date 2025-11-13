@@ -9,6 +9,7 @@
 #include "HIDTypes.h"
 #include "NimBLECharacteristic.h"
 #include <stdint.h>
+#include "../Event/Types.h"
 
 #define GAMEPAD_BUTTON_COUNT 64
 #define GAMEPAD_AXIS_COUNT 6
@@ -59,204 +60,220 @@ static const uint8_t _gamepadReportDescriptor[] = {
   END_COLLECTION(0),                     
 };
 
-// Gamepad codes
+enum class GamepadButtons : uint8_t {
 
-const int8_t GAMEPAD_0 = 1;
-const int8_t GAMEPAD_SO = 1;
-const int8_t GAMEPAD_1 = 2;
-const int8_t GAMEPAD_EA = 2;
-const int8_t GAMEPAD_2 = 3;
-const int8_t GAMEPAD_3 = 4;
-const int8_t GAMEPAD_WE = 4;
-const int8_t GAMEPAD_4 = 5;
-const int8_t GAMEPAD_NO = 5;
-const int8_t GAMEPAD_5 = 6;
-const int8_t GAMEPAD_6 = 7;
-const int8_t GAMEPAD_L1 = 7;
-const int8_t GAMEPAD_7 = 8;
-const int8_t GAMEPAD_R1 = 8;
-const int8_t GAMEPAD_8 = 9;
-const int8_t GAMEPAD_9 = 10;
-const int8_t GAMEPAD_10 = 11;
-const int8_t GAMEPAD_BA = 11;
-const int8_t GAMEPAD_11 = 12;
-const int8_t GAMEPAD_ST = 12;
-const int8_t GAMEPAD_12 = 13;
-const int8_t GAMEPAD_GU = 13;
-const int8_t GAMEPAD_13 = 14;
-const int8_t GAMEPAD_L3 = 14;
-const int8_t GAMEPAD_14 = 15;
-const int8_t GAMEPAD_R3 = 15;
-const int8_t GAMEPAD_15 = 16;
-const int8_t GAMEPAD_16 = 17;
-const int8_t GAMEPAD_17 = 18;
-const int8_t GAMEPAD_18 = 19;
-const int8_t GAMEPAD_19 = 20;
-const int8_t GAMEPAD_20 = 21;
-const int8_t GAMEPAD_21 = 22;
-const int8_t GAMEPAD_22 = 23;
-const int8_t GAMEPAD_23 = 24;
-const int8_t GAMEPAD_24 = 25;
-const int8_t GAMEPAD_25 = 26;
-const int8_t GAMEPAD_26 = 27;
-const int8_t GAMEPAD_27 = 28;
-const int8_t GAMEPAD_28 = 29;
-const int8_t GAMEPAD_29 = 30;
-const int8_t GAMEPAD_30 = 31;
-const int8_t GAMEPAD_31 = 32;
-const int8_t GAMEPAD_32 = 33;
-const int8_t GAMEPAD_33 = 34;
-const int8_t GAMEPAD_34 = 35;
-const int8_t GAMEPAD_35 = 36;
-const int8_t GAMEPAD_36 = 37;
-const int8_t GAMEPAD_37 = 38;
-const int8_t GAMEPAD_38 = 39;
-const int8_t GAMEPAD_39 = 40;
-const int8_t GAMEPAD_40 = 41;
-const int8_t GAMEPAD_41 = 42;
-const int8_t GAMEPAD_42 = 43;
-const int8_t GAMEPAD_43 = 44;
-const int8_t GAMEPAD_44 = 45;
-const int8_t GAMEPAD_45 = 46;
-const int8_t GAMEPAD_46 = 47;
-const int8_t GAMEPAD_47 = 48;
-const int8_t GAMEPAD_48 = 49;
-const int8_t GAMEPAD_49 = 50;
-const int8_t GAMEPAD_50 = 51;
-const int8_t GAMEPAD_51 = 52;
-const int8_t GAMEPAD_52 = 53;
-const int8_t GAMEPAD_53 = 54;
-const int8_t GAMEPAD_54 = 55;
-const int8_t GAMEPAD_55 = 56;
-const int8_t GAMEPAD_56 = 57;
-const int8_t GAMEPAD_57 = 58;
-const int8_t GAMEPAD_58 = 59;
-const int8_t GAMEPAD_59 = 60;
-const int8_t GAMEPAD_60 = 61;
-const int8_t GAMEPAD_61 = 62;
-const int8_t GAMEPAD_62 = 63;
-const int8_t GAMEPAD_63 = 64;
-const int8_t GAMEPAD_64 = 65;
-const int8_t GAMEPAD_UP = 65;
-const int8_t GAMEPAD_65 = 66;
-const int8_t GAMEPAD_RI = 66;
-const int8_t GAMEPAD_66 = 67;
-const int8_t GAMEPAD_DO = 67;
-const int8_t GAMEPAD_67 = 68;
-const int8_t GAMEPAD_LE = 68;
+  GAMEPAD_0 = 1,
+  GAMEPAD_SOUTH = 1,
+  GAMEPAD_1 = 2,
+  GAMEPAD_EAST = 2,
+  GAMEPAD_2 = 3,
+  GAMEPAD_3 = 4,
+  GAMEPAD_WEST = 4,
+  GAMEPAD_4 = 5,
+  GAMEPAD_NORTH = 5,
+  GAMEPAD_5 = 6,
+  GAMEPAD_6 = 7,
+  GAMEPAD_L1 = 7,
+  GAMEPAD_7 = 8,
+  GAMEPAD_R1 = 8,
+  GAMEPAD_8 = 9,
+  GAMEPAD_9 = 10,
+  GAMEPAD_10 = 11,
+  GAMEPAD_BACK = 11,
+  GAMEPAD_11 = 12,
+  GAMEPAD_START = 12,
+  GAMEPAD_12 = 13,
+  GAMEPAD_GUIDE = 13,
+  GAMEPAD_13 = 14,
+  GAMEPAD_L3 = 14,
+  GAMEPAD_14 = 15,
+  GAMEPAD_R3 = 15,
+  GAMEPAD_15 = 16,
+  GAMEPAD_16 = 17,
+  GAMEPAD_17 = 18,
+  GAMEPAD_18 = 19,
+  GAMEPAD_19 = 20,
+  GAMEPAD_20 = 21,
+  GAMEPAD_21 = 22,
+  GAMEPAD_22 = 23,
+  GAMEPAD_23 = 24,
+  GAMEPAD_24 = 25,
+  GAMEPAD_25 = 26,
+  GAMEPAD_26 = 27,
+  GAMEPAD_27 = 28,
+  GAMEPAD_28 = 29,
+  GAMEPAD_29 = 30,
+  GAMEPAD_30 = 31,
+  GAMEPAD_31 = 32,
+  GAMEPAD_32 = 33,
+  GAMEPAD_33 = 34,
+  GAMEPAD_34 = 35,
+  GAMEPAD_35 = 36,
+  GAMEPAD_36 = 37,
+  GAMEPAD_37 = 38,
+  GAMEPAD_38 = 39,
+  GAMEPAD_39 = 40,
+  GAMEPAD_40 = 41,
+  GAMEPAD_41 = 42,
+  GAMEPAD_42 = 43,
+  GAMEPAD_43 = 44,
+  GAMEPAD_44 = 45,
+  GAMEPAD_45 = 46,
+  GAMEPAD_46 = 47,
+  GAMEPAD_47 = 48,
+  GAMEPAD_48 = 49,
+  GAMEPAD_49 = 50,
+  GAMEPAD_50 = 51,
+  GAMEPAD_51 = 52,
+  GAMEPAD_52 = 53,
+  GAMEPAD_53 = 54,
+  GAMEPAD_54 = 55,
+  GAMEPAD_55 = 56,
+  GAMEPAD_56 = 57,
+  GAMEPAD_57 = 58,
+  GAMEPAD_58 = 59,
+  GAMEPAD_59 = 60,
+  GAMEPAD_60 = 61,
+  GAMEPAD_61 = 62,
+  GAMEPAD_62 = 63,
+  GAMEPAD_63 = 64,
+  GAMEPAD_64 = 65,
+  GAMEPAD_UP = 65,
+  GAMEPAD_RIGHT = 66,
+  GAMEPAD_DOWN = 67,
+  GAMEPAD_LEFT = 68
 
-const int8_t GB_00 = 1;
-const int8_t GB_SO = 1;
-const int8_t GB_01 = 2;
-const int8_t GB_EA = 2;
-const int8_t GB_02 = 3;
-const int8_t GB_03 = 4;
-const int8_t GB_WE = 4;
-const int8_t GB_04 = 5;
-const int8_t GB_NO = 5;
-const int8_t GB_05 = 6;
-const int8_t GB_06 = 7;
-const int8_t GB_L1 = 7;
-const int8_t GB_07 = 8;
-const int8_t GB_R1 = 8;
-const int8_t GB_08 = 9;
-const int8_t GB_09 = 10;
-const int8_t GB_10 = 11;
-const int8_t GB_BA = 11;
-const int8_t GB_11 = 12;
-const int8_t GB_ST = 12;
-const int8_t GB_12 = 13;
-const int8_t GB_GU = 13;
-const int8_t GB_13 = 14;
-const int8_t GB_L3 = 14;
-const int8_t GB_14 = 15;
-const int8_t GB_R3 = 15;
-const int8_t GB_15 = 16;
-const int8_t GB_16 = 17;
-const int8_t GB_17 = 18;
-const int8_t GB_18 = 19;
-const int8_t GB_19 = 20;
-const int8_t GB_20 = 21;
-const int8_t GB_21 = 22;
-const int8_t GB_22 = 23;
-const int8_t GB_23 = 24;
-const int8_t GB_24 = 25;
-const int8_t GB_25 = 26;
-const int8_t GB_26 = 27;
-const int8_t GB_27 = 28;
-const int8_t GB_28 = 29;
-const int8_t GB_29 = 30;
-const int8_t GB_30 = 31;
-const int8_t GB_31 = 32;
-const int8_t GB_32 = 33;
-const int8_t GB_33 = 34;
-const int8_t GB_34 = 35;
-const int8_t GB_35 = 36;
-const int8_t GB_36 = 37;
-const int8_t GB_37 = 38;
-const int8_t GB_38 = 39;
-const int8_t GB_39 = 40;
-const int8_t GB_40 = 41;
-const int8_t GB_41 = 42;
-const int8_t GB_42 = 43;
-const int8_t GB_43 = 44;
-const int8_t GB_44 = 45;
-const int8_t GB_45 = 46;
-const int8_t GB_46 = 47;
-const int8_t GB_47 = 48;
-const int8_t GB_48 = 49;
-const int8_t GB_49 = 50;
-const int8_t GB_50 = 51;
-const int8_t GB_51 = 52;
-const int8_t GB_52 = 53;
-const int8_t GB_53 = 54;
-const int8_t GB_54 = 55;
-const int8_t GB_55 = 56;
-const int8_t GB_56 = 57;
-const int8_t GB_57 = 58;
-const int8_t GB_58 = 59;
-const int8_t GB_59 = 60;
-const int8_t GB_60 = 61;
-const int8_t GB_61 = 62;
-const int8_t GB_62 = 63;
-const int8_t GB_63 = 64;
+};
 
-const int8_t AXIS_LX = 0;  // Left stick X
-const int8_t AXIS_LY = 1;  // Left stick Y
-const int8_t AXIS_RX = 2;  // Right stick X
-const int8_t AXIS_RY = 3;  // Right stick Y
-const int8_t AXIS_LT = 4;  // Left trigger
-const int8_t AXIS_RT = 5;  // Right trigger
+MK(GamepadButton, GB_00, GAMEPAD_0);
+MK(GamepadButton, GB_SO, GAMEPAD_SOUTH); // "South" like the bottom face button. So 'Cross' on a Playstation controller or 'A' on an Xbox controller.
+MK(GamepadButton, GB_01, GAMEPAD_1);
+MK(GamepadButton, GB_EA, GAMEPAD_EAST);  // "East" like the right face button. So 'Circle' on a Playstation controller or 'B' on an Xbox controller.
+MK(GamepadButton, GB_02, GAMEPAD_2);
+MK(GamepadButton, GB_03, GAMEPAD_3);
+MK(GamepadButton, GB_WE, GAMEPAD_WEST);  // "West" like the left face button. So 'Square' on a Playstation controller or 'X' on an Xbox controller.
+MK(GamepadButton, GB_04, GAMEPAD_4);
+MK(GamepadButton, GB_NO, GAMEPAD_NORTH); // "North" like the top face button. So 'Triangle' on a Playstation controller or 'Y' on an Xbox controller.
+MK(GamepadButton, GB_05, GAMEPAD_5);
+MK(GamepadButton, GB_06, GAMEPAD_6);
+MK(GamepadButton, GB_L1, GAMEPAD_L1);
+MK(GamepadButton, GB_07, GAMEPAD_7);
+MK(GamepadButton, GB_R1, GAMEPAD_R1);
+MK(GamepadButton, GB_08, GAMEPAD_8);
+MK(GamepadButton, GB_09, GAMEPAD_9);
+MK(GamepadButton, GB_10, GAMEPAD_10);
+MK(GamepadButton, GB_BA, GAMEPAD_BACK);
+MK(GamepadButton, GB_11, GAMEPAD_11);
+MK(GamepadButton, GB_ST, GAMEPAD_START);
+MK(GamepadButton, GB_12, GAMEPAD_12);
+MK(GamepadButton, GB_GU, GAMEPAD_GUIDE);
+MK(GamepadButton, GB_13, GAMEPAD_13);
+MK(GamepadButton, GB_L3, GAMEPAD_L3);
+MK(GamepadButton, GB_14, GAMEPAD_14);
+MK(GamepadButton, GB_R3, GAMEPAD_R3);
+MK(GamepadButton, GB_15, GAMEPAD_15);
+MK(GamepadButton, GB_16, GAMEPAD_16);
+MK(GamepadButton, GB_17, GAMEPAD_17);
+MK(GamepadButton, GB_18, GAMEPAD_18);
+MK(GamepadButton, GB_19, GAMEPAD_19);
+MK(GamepadButton, GB_20, GAMEPAD_20);
+MK(GamepadButton, GB_21, GAMEPAD_21);
+MK(GamepadButton, GB_22, GAMEPAD_22);
+MK(GamepadButton, GB_23, GAMEPAD_23);
+MK(GamepadButton, GB_24, GAMEPAD_24);
+MK(GamepadButton, GB_25, GAMEPAD_25);
+MK(GamepadButton, GB_26, GAMEPAD_26);
+MK(GamepadButton, GB_27, GAMEPAD_27);
+MK(GamepadButton, GB_28, GAMEPAD_28);
+MK(GamepadButton, GB_29, GAMEPAD_29);
+MK(GamepadButton, GB_30, GAMEPAD_30);
+MK(GamepadButton, GB_31, GAMEPAD_31);
+MK(GamepadButton, GB_32, GAMEPAD_32);
+MK(GamepadButton, GB_33, GAMEPAD_33);
+MK(GamepadButton, GB_34, GAMEPAD_34);
+MK(GamepadButton, GB_35, GAMEPAD_35);
+MK(GamepadButton, GB_36, GAMEPAD_36);
+MK(GamepadButton, GB_37, GAMEPAD_37);
+MK(GamepadButton, GB_38, GAMEPAD_38);
+MK(GamepadButton, GB_39, GAMEPAD_39);
+MK(GamepadButton, GB_40, GAMEPAD_40);
+MK(GamepadButton, GB_41, GAMEPAD_41);
+MK(GamepadButton, GB_42, GAMEPAD_42);
+MK(GamepadButton, GB_43, GAMEPAD_43);
+MK(GamepadButton, GB_44, GAMEPAD_44);
+MK(GamepadButton, GB_45, GAMEPAD_45);
+MK(GamepadButton, GB_46, GAMEPAD_46);
+MK(GamepadButton, GB_47, GAMEPAD_47);
+MK(GamepadButton, GB_48, GAMEPAD_48);
+MK(GamepadButton, GB_49, GAMEPAD_49);
+MK(GamepadButton, GB_50, GAMEPAD_50);
+MK(GamepadButton, GB_51, GAMEPAD_51);
+MK(GamepadButton, GB_52, GAMEPAD_52);
+MK(GamepadButton, GB_53, GAMEPAD_53);
+MK(GamepadButton, GB_54, GAMEPAD_54);
+MK(GamepadButton, GB_55, GAMEPAD_55);
+MK(GamepadButton, GB_56, GAMEPAD_56);
+MK(GamepadButton, GB_57, GAMEPAD_57);
+MK(GamepadButton, GB_58, GAMEPAD_58);
+MK(GamepadButton, GB_59, GAMEPAD_59);
+MK(GamepadButton, GB_60, GAMEPAD_60);
+MK(GamepadButton, GB_61, GAMEPAD_61);
+MK(GamepadButton, GB_62, GAMEPAD_62);
+MK(GamepadButton, GB_63, GAMEPAD_63);
+MK(GamepadButton, GB_UP, GAMEPAD_UP);
+MK(GamepadButton, GB_RI, GAMEPAD_RIGHT);
+MK(GamepadButton, GB_DO, GAMEPAD_DOWN);
+MK(GamepadButton, GB_LE, GAMEPAD_LEFT);
 
-const int8_t GA_LX = 0;
-const int8_t GA_LY = 1;
-const int8_t GA_RX = 2;
-const int8_t GA_RY = 3;
-const int8_t GA_LT = 4;
-const int8_t GA_RT = 5;
+enum class GamepadAxes : uint8_t {
 
-const int8_t HAT_UP = 0;
-const int8_t HAT_UR = 1;
-const int8_t HAT_RI = 2;
-const int8_t HAT_DR = 3;
-const int8_t HAT_DO = 4;
-const int8_t HAT_DL = 5;
-const int8_t HAT_LE = 6;
-const int8_t HAT_UL = 7;
-const int8_t HAT_CE = 8;
+  AXIS_LX = 0,  // Left stick X
+  AXIS_LY = 1,  // Left stick Y
+  AXIS_RX = 2,  // Right stick X
+  AXIS_RY = 3,  // Right stick Y
+  AXIS_LT = 4,  // Left trigger
+  AXIS_RT = 5   // Right trigger
 
-const int8_t GB_UP = 65;
-const int8_t GB_RI = 66;
-const int8_t GB_DO = 67;
-const int8_t GB_LE = 68;
+};
 
-const int8_t hatPress[4][9] = {
+constexpr GamepadAxes GA_LX = GamepadAxes::AXIS_LX;
+constexpr GamepadAxes GA_LY = GamepadAxes::AXIS_LY;
+constexpr GamepadAxes GA_RX = GamepadAxes::AXIS_RX;
+constexpr GamepadAxes GA_RY = GamepadAxes::AXIS_RY;
+constexpr GamepadAxes GA_LT = GamepadAxes::AXIS_LT;
+constexpr GamepadAxes GA_RT = GamepadAxes::AXIS_RT;
+
+enum class GamepadHat : uint8_t {
+
+  DPAD_UP         = 0,
+  DPAD_UP_RIGHT   = 1,
+  DPAD_RIGHT      = 2,
+  DPAD_DOWN_RIGHT = 3,
+  DPAD_DOWN       = 4,
+  DPAD_DOWN_LEFT  = 5,
+  DPAD_LEFT       = 6,
+  DPAD_UP_LEFT    = 7,
+  DPAD_CENTRE     = 8
+
+};
+
+constexpr GamepadHat HAT_UP = GamepadHat::DPAD_UP;
+constexpr GamepadHat HAT_UR = GamepadHat::DPAD_UP_RIGHT;
+constexpr GamepadHat HAT_RI = GamepadHat::DPAD_RIGHT;
+constexpr GamepadHat HAT_DR = GamepadHat::DPAD_DOWN_RIGHT;
+constexpr GamepadHat HAT_DO = GamepadHat::DPAD_DOWN;
+constexpr GamepadHat HAT_DL = GamepadHat::DPAD_DOWN_LEFT;
+constexpr GamepadHat HAT_LE = GamepadHat::DPAD_LEFT;
+constexpr GamepadHat HAT_UL = GamepadHat::DPAD_UP_LEFT;
+constexpr GamepadHat HAT_CE = GamepadHat::DPAD_CENTRE;
+
+constexpr GamepadHat hatPress[4][9] = {
   { HAT_UP, HAT_UR, HAT_UR, HAT_UR, HAT_UP, HAT_UL, HAT_UL, HAT_UL, HAT_UP }, // UP     |  UP     UP-RIGHT  RIGHT  DOWN-RIGHT  DOWN  DOWN-LEFT   LEFT   UP-LEFT   CENTER
   { HAT_UR, HAT_UR, HAT_RI, HAT_DR, HAT_DR, HAT_DR, HAT_RI, HAT_UR, HAT_RI }, // RIGHT  |  0x00     0x01     0x02     0x03     0x04     0x05     0x06     0x07     0x08
   { HAT_DO, HAT_DR, HAT_DR, HAT_DR, HAT_DO, HAT_DL, HAT_DL, HAT_DL, HAT_DO }, // DOWN   |  The numbers in both these arrays are in this order. This means, for the hatPress array,
   { HAT_UL, HAT_UL, HAT_LE, HAT_DL, HAT_DL, HAT_DL, HAT_LE, HAT_UL, HAT_LE }};// LEFT   |  the very last number says "When holding CENTER, pressing LEFT results in direction 0x06 (LEFT)						
   
-const int8_t hatRelease[4][9] = {
+constexpr GamepadHat hatRelease[4][9] = {
   { HAT_CE, HAT_RI, HAT_RI, HAT_DR, HAT_DO, HAT_DL, HAT_LE, HAT_LE, HAT_CE}, // UP      |  { 0x08, 0x02, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06, 0x08 } // UP
   { HAT_UP, HAT_UP, HAT_CE, HAT_DO, HAT_DO, HAT_DL, HAT_LE, HAT_UL, HAT_CE}, // RIGHT   |     ^
   { HAT_UP, HAT_UR, HAT_RI, HAT_RI, HAT_CE, HAT_LE, HAT_LE, HAT_UL, HAT_CE}, // DOWN    |     This means, "If you're pressing UP and you release UP, the result is 0x08 (CENTER)
@@ -275,17 +292,17 @@ public:
     bool isConnected();
     
     // Gamepad methods
-    size_t  press(int8_t button);
-    size_t  release(int8_t button);
+    size_t  press(GamepadButton button);
+    size_t  release(GamepadButton button);
     void    releaseAll();
-    bool    gamepadIsPressed(int8_t button);
+    bool    gamepadIsPressed(GamepadButton button);
     void    gamepadSetLeftStick(int16_t x, int16_t y);
     void    gamepadSetRightStick(int16_t x, int16_t y);
     void    gamepadSetTriggers(int16_t left, int16_t right);
     void    gamepadGetLeftStick(int16_t &x, int16_t &y);
     void    gamepadGetRightStick(int16_t &x, int16_t &y);
-    void    gamepadSetAxis(int8_t axis, int16_t value);
-    int16_t gamepadGetAxis(int8_t axis);
+    void    gamepadSetAxis(GamepadAxes axis, int16_t value);
+    int16_t gamepadGetAxis(GamepadAxes axis);
     void    gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
     void    sendGamepadReport();
 };
