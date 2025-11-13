@@ -72,12 +72,12 @@
 
 // Define the mouse buttons if we need them but don't have the file where they normally live
 #if DIGITIZER_ENABLE && !MOUSE_ENABLE
-  const uint8_t MOUSE_LEFT    = 1;
-  const uint8_t MOUSE_RIGHT   = 2;
-  const uint8_t MOUSE_MIDDLE  = 4;
-  const uint8_t MOUSE_BACK    = 8;
-  const uint8_t MOUSE_FORWARD = 16;
-  const uint8_t MOUSE_ALL     = (MOUSE_LEFT | MOUSE_RIGHT | MOUSE_MIDDLE);
+  const uint8_t MO_BTN1 = 1;
+  const uint8_t MO_BTN2 = 2;
+  const uint8_t MO_BTN3 = 4;
+  const uint8_t MO_BTN4 = 8;
+  const uint8_t MO_BTN5 = 16;
+  const uint8_t MO_ALL  = (MO_BTN1 | MO_BTN2 | MO_BTN3);
 #endif
 
 class BLEHID : public Print
@@ -149,7 +149,7 @@ public:
   void setAppearance(uint16_t newAppearance);
   
   size_t write(const uint8_t *buffer, size_t size);
-  void releaseAll();
+  void   releaseAll();
   
   // BLE helper functions
   bool isConnected(void);
@@ -164,37 +164,37 @@ public:
   void setVersion(uint16_t version);
   
   #if KEYBOARD_ENABLE
-    size_t press(uint8_t k);           // I went with uint8_t for normal keycodes
-    size_t press(int16_t modifier);    // I chose int16_t for modifiers
-    size_t release(uint8_t k);
-    size_t release(int16_t modifier);
-    size_t write(uint8_t c);
-    size_t write(int16_t modifier);
-    void useNKRO(bool state = enabled);
-    void use6KRO(bool state = enabled);
-    bool isNKROEnabled();
-    void setModifiers(uint8_t modifiers);
+    size_t  press(NKROKey k);           // I went with uint8_t for normal keycodes
+    size_t  press(ModKey modifier);    // I chose int16_t for modifiers
+    size_t  release(NKROKey k);
+    size_t  release(ModKey modifier);
+    size_t  write(uint8_t c);
+    size_t  write(ModKey modifier);
+    void    useNKRO(bool state = enabled);
+    void    use6KRO(bool state = enabled);
+    bool    isNKROEnabled();
+    void    setModifiers(ModKey modifiers);
     uint8_t getModifiers();
-    void sendNKROReport();
+    void    sendNKROReport();
   #endif
   
   #if MEDIA_ENABLE
-    size_t press(uint16_t mediaKey);
-    size_t release(uint16_t mediaKey);
-    size_t write(uint16_t mediaKey);
-    void sendMediaReport();
+    size_t press(MediaKey mediaKey);
+    size_t release(MediaKey mediaKey);
+    size_t write(MediaKey mediaKey);
+    void   sendMediaReport();
   #endif
   
   #if MOUSE_ENABLE
-    size_t press(char b = MOUSE_LEFT);
-    size_t release(char b = MOUSE_LEFT);
-    void click(char b = MOUSE_LEFT);
-    void move(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
-    bool mouseIsPressed(char b = MOUSE_LEFT);
+    size_t press(char b = MO_BTN1);
+    size_t release(char b = MO_BTN1);
+    void   click(char b = MO_BTN1);
+    void   move(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
+    bool   mouseIsPressed(char b = MO_BTN1);
   #endif
   
   #if DIGITIZER_ENABLE
-    void click(uint16_t x, uint16_t y, char b = MOUSE_LEFT);
+    void click(uint16_t x, uint16_t y, char b = MO_BTN1);
     void moveTo(uint16_t x, uint16_t y, uint8_t pressure = 0, uint8_t buttons = 0);
     void beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 127);
     void updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
@@ -208,29 +208,29 @@ public:
   #endif
   
   #if GEMINIPR_ENABLE
-    size_t press(int32_t stenoKey);    // . . . And int32_t is for the steno keys
-    size_t release(int32_t stenoKey);
-    void geminiStroke(const int32_t* keys, size_t count);
+    size_t  press(StenoKey stenoKey);    // . . . And int32_t is for the steno keys
+    size_t  release(StenoKey stenoKey);
+    void    geminiStroke(const StenoKey* keys, size_t count);
     uint8_t stenoCharToKey(char c);
-    void sendGeminiPRReport();
+    void    sendGeminiPRReport();
     // SPP Methods
-    void sendSerialData(const uint8_t* data, size_t length);
-    bool isSerialConnected();
+    void    sendSerialData(const uint8_t* data, size_t length);
+    bool    isSerialConnected();
   #endif
   
   #if GAMEPAD_ENABLE
-    size_t press(int8_t button);
-    size_t release(int8_t button);
-    bool gamepadIsPressed(int8_t button);
-    void gamepadSetLeftStick(int16_t x, int16_t y);
-    void gamepadSetRightStick(int16_t x, int16_t y);
-    void gamepadSetTriggers(int16_t left, int16_t right);
-    void gamepadGetLeftStick(int16_t &x, int16_t &y);
-    void gamepadGetRightStick(int16_t &x, int16_t &y);
-    void gamepadSetAxis(int8_t axis, int16_t value);
-    int16_t gamepadGetAxis(int8_t axis);
-    void gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
-    void sendGamepadReport();
+    size_t   press(GamepadButton button);
+    size_t   release(GamepadButton button);
+    bool     gamepadIsPressed(GamepadButton button);
+    void     gamepadSetLeftStick(int16_t x, int16_t y);
+    void     gamepadSetRightStick(int16_t x, int16_t y);
+    void     gamepadSetTriggers(int16_t left, int16_t right);
+    void     gamepadGetLeftStick(int16_t &x, int16_t &y);
+    void     gamepadGetRightStick(int16_t &x, int16_t &y);
+    void     gamepadSetAxis(GamepadAxes axis, int16_t value);
+    int16_t  gamepadGetAxis(GamepadAxes axis);
+    void     gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
+    void     sendGamepadReport();
   #endif
   
     void     setLogLevel(LogLevel level);
