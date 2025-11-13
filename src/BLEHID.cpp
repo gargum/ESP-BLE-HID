@@ -574,17 +574,17 @@ void BLEHID::setVersion(uint16_t version) { this->version = version; }
 //
 
 #if KEYBOARD_ENABLE
-size_t BLEHID::press(uint8_t k) { return nkro.press(k); }
+size_t BLEHID::press(NKROKey k) { return nkro.press(k); }
 
-size_t BLEHID::press(int16_t modifier) { return nkro.press(modifier); }
+size_t BLEHID::press(ModKey modifier) { return nkro.press(modifier); }
 
-size_t BLEHID::release(uint8_t k) { return nkro.release(k); }
+size_t BLEHID::release(NKROKey k) { return nkro.release(k); }
 
-size_t BLEHID::release(int16_t modifier) { return nkro.release(modifier); }
+size_t BLEHID::release(ModKey modifier) { return nkro.release(modifier); }
 
 size_t BLEHID::write(uint8_t c) { return nkro.write(c); }
 
-size_t BLEHID::write(int16_t modifier) { return nkro.write(modifier); }
+size_t BLEHID::write(ModKey modifier) { return nkro.write(modifier); }
 
 void BLEHID::useNKRO(bool state) { nkro.useNKRO(state); }
 
@@ -592,7 +592,7 @@ void BLEHID::use6KRO(bool state) { nkro.use6KRO(state); }
 
 bool BLEHID::isNKROEnabled() { return nkro.isNKROEnabled(); }
 
-void BLEHID::setModifiers(uint8_t modifiers) { nkro.setModifiers(modifiers); }
+void BLEHID::setModifiers(ModKey modifiers) { nkro.setModifiers(modifiers); }
 
 uint8_t BLEHID::getModifiers() { return nkro.getModifiers(); }
 
@@ -604,11 +604,11 @@ void BLEHID::sendNKROReport() { nkro.sendNKROReport(); }
 //
 
 #if MEDIA_ENABLE
-size_t BLEHID::press(uint16_t mediaKey) { return media.press(mediaKey); }
+size_t BLEHID::press(MediaKey mediaKey) { return media.press(mediaKey); }
 
-size_t BLEHID::release(uint16_t mediaKey) { return media.release(mediaKey); }
+size_t BLEHID::release(MediaKey mediaKey) { return media.release(mediaKey); }
 
-size_t BLEHID::write(uint16_t mediaKey) { return media.write(mediaKey); }
+size_t BLEHID::write(MediaKey mediaKey) { return media.write(mediaKey); }
 
 void BLEHID::sendMediaReport() { media.sendMediaReport(); }
 #endif
@@ -662,11 +662,11 @@ void BLEHID::sendDigitizerReport() { digitizer.sendDigitizerReport(); }
 //
 
 #if GEMINIPR_ENABLE
-size_t BLEHID::press(int32_t stenoKey) { return steno.press(stenoKey); }
+size_t BLEHID::press(StenoKey stenoKey) { return steno.press(stenoKey); }
 
-size_t BLEHID::release(int32_t stenoKey) { return steno.release(stenoKey); }
+size_t BLEHID::release(StenoKey stenoKey) { return steno.release(stenoKey); }
 
-void BLEHID::geminiStroke(const int32_t* keys, size_t count) { steno.geminiStroke(keys, count); }
+void BLEHID::geminiStroke(const StenoKey* keys, size_t count) { steno.geminiStroke(keys, count); }
 
 uint8_t BLEHID::stenoCharToKey(char c) { return steno.stenoCharToKey(c); }
 
@@ -682,11 +682,11 @@ bool BLEHID::isSerialConnected() { return steno.isSerialConnected(); }
 //
 
 #if GAMEPAD_ENABLE
-size_t BLEHID::press(int8_t button) { return gamepad.press(button); }
+size_t BLEHID::press(GamepadButton button) { return gamepad.press(button); }
 
-size_t BLEHID::release(int8_t button) { return gamepad.release(button); }
+size_t BLEHID::release(GamepadButton button) { return gamepad.release(button); }
 
-bool BLEHID::gamepadIsPressed(int8_t button) { return gamepad.gamepadIsPressed(button); }
+bool BLEHID::gamepadIsPressed(GamepadButton button) { return gamepad.gamepadIsPressed(button); }
 
 void BLEHID::gamepadSetLeftStick(int16_t x, int16_t y) { gamepad.gamepadSetLeftStick(x, y); }
 
@@ -698,9 +698,9 @@ void BLEHID::gamepadGetLeftStick(int16_t &x, int16_t &y) { gamepad.gamepadGetLef
 
 void BLEHID::gamepadGetRightStick(int16_t &x, int16_t &y) { gamepad.gamepadGetRightStick(x, y); }
 
-void BLEHID::gamepadSetAxis(int8_t axis, int16_t value) { gamepad.gamepadSetAxis(axis, value); }
+void BLEHID::gamepadSetAxis(GamepadAxes axis, int16_t value) { gamepad.gamepadSetAxis(axis, value); }
 
-int16_t BLEHID::gamepadGetAxis(int8_t axis) { return gamepad.gamepadGetAxis(axis); }
+int16_t BLEHID::gamepadGetAxis(GamepadAxes axis) { return gamepad.gamepadGetAxis(axis); }
 
 void BLEHID::gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]) { gamepad.gamepadSetAllAxes(values); }
 
