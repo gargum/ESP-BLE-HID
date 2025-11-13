@@ -9,6 +9,7 @@
 #include "NimBLECharacteristic.h"
 #include "NimBLEServer.h"
 #include <stdint.h>
+#include "../Event/Types.h"
 
 typedef struct {
   uint8_t byte0;  // Fn  to #6
@@ -20,7 +21,7 @@ typedef struct {
 } GeminiPRReport;
 
 // GeminiPR steno codes - UNIQUE VALUES FOR EACH KEY
-enum GeminiPRKeys {
+enum class  StenoKeys : uint16_t {
   // Byte 0
   GEMINI_FN    = 0x0100,
   GEMINI_NUM1  = 0x0101,
@@ -71,45 +72,43 @@ enum GeminiPRKeys {
   GEMINI_Z     = 0x0606
 };
 
-using StenoKey = int32_t;
-
-const StenoKey ST_FN    = GEMINI_FN;
-const StenoKey ST_1     = GEMINI_NUM1;
-const StenoKey ST_S1    = GEMINI_S1;
-const StenoKey ST_S2    = GEMINI_S2;
-const StenoKey ST_T     = GEMINI_T;
-const StenoKey ST_K     = GEMINI_K;
-const StenoKey ST_P     = GEMINI_P;
-const StenoKey ST_W     = GEMINI_W;
-const StenoKey ST_H     = GEMINI_H;
-const StenoKey ST_R     = GEMINI_R;
-const StenoKey ST_A     = GEMINI_A;
-const StenoKey ST_O     = GEMINI_O;
-const StenoKey ST_ST1   = GEMINI_STAR1;
-const StenoKey ST_ST2   = GEMINI_STAR2;
-const StenoKey ST_RS1   = GEMINI_RES1;
-const StenoKey ST_RS2   = GEMINI_RES2;
-const StenoKey ST_PWR   = GEMINI_PWR;
-const StenoKey ST_ST3   = GEMINI_STAR3;
-const StenoKey ST_ST4   = GEMINI_STAR4;
-const StenoKey ST_E     = GEMINI_E;
-const StenoKey ST_U     = GEMINI_U;
-const StenoKey ST_F     = GEMINI_F;
-const StenoKey ST_R2    = GEMINI_R2;
-const StenoKey ST_P2    = GEMINI_P2;
-const StenoKey ST_B     = GEMINI_B;
-const StenoKey ST_L     = GEMINI_L;
-const StenoKey ST_G     = GEMINI_G;
-const StenoKey ST_T2    = GEMINI_T2;
-const StenoKey ST_S     = GEMINI_S;
-const StenoKey ST_D     = GEMINI_D;
-const StenoKey ST_7     = GEMINI_NUM7;
-const StenoKey ST_8     = GEMINI_NUM8;
-const StenoKey ST_9     = GEMINI_NUM9;
-const StenoKey ST_10    = GEMINI_NUM10;
-const StenoKey ST_11    = GEMINI_NUM11;
-const StenoKey ST_12    = GEMINI_NUM12;
-const StenoKey ST_Z     = GEMINI_Z;
+ MK(StenoKey, ST_FN,    GEMINI_FN);
+ MK(StenoKey, ST_1,     GEMINI_NUM1);
+ MK(StenoKey, ST_S1,    GEMINI_S1);
+ MK(StenoKey, ST_S2,    GEMINI_S2);
+ MK(StenoKey, ST_T,     GEMINI_T);
+ MK(StenoKey, ST_K,     GEMINI_K);
+ MK(StenoKey, ST_P,     GEMINI_P);
+ MK(StenoKey, ST_W,     GEMINI_W);
+ MK(StenoKey, ST_H,     GEMINI_H);
+ MK(StenoKey, ST_R,     GEMINI_R);
+ MK(StenoKey, ST_A,     GEMINI_A);
+ MK(StenoKey, ST_O,     GEMINI_O);
+ MK(StenoKey, ST_ST1,   GEMINI_STAR1);
+ MK(StenoKey, ST_ST2,   GEMINI_STAR2);
+ MK(StenoKey, ST_RS1,   GEMINI_RES1);
+ MK(StenoKey, ST_RS2,   GEMINI_RES2);
+ MK(StenoKey, ST_PWR,   GEMINI_PWR);
+ MK(StenoKey, ST_ST3,   GEMINI_STAR3);
+ MK(StenoKey, ST_ST4,   GEMINI_STAR4);
+ MK(StenoKey, ST_E,     GEMINI_E);
+ MK(StenoKey, ST_U,     GEMINI_U);
+ MK(StenoKey, ST_F,     GEMINI_F);
+ MK(StenoKey, ST_R2,    GEMINI_R2);
+ MK(StenoKey, ST_P2,    GEMINI_P2);
+ MK(StenoKey, ST_B,     GEMINI_B);
+ MK(StenoKey, ST_L,     GEMINI_L);
+ MK(StenoKey, ST_G,     GEMINI_G);
+ MK(StenoKey, ST_T2,    GEMINI_T2);
+ MK(StenoKey, ST_S,     GEMINI_S);
+ MK(StenoKey, ST_D,     GEMINI_D);
+ MK(StenoKey, ST_7,     GEMINI_NUM7);
+ MK(StenoKey, ST_8,     GEMINI_NUM8);
+ MK(StenoKey, ST_9,     GEMINI_NUM9);
+ MK(StenoKey, ST_10,    GEMINI_NUM10);
+ MK(StenoKey, ST_11,    GEMINI_NUM11);
+ MK(StenoKey, ST_12,    GEMINI_NUM12);
+ MK(StenoKey, ST_Z,     GEMINI_Z);
 
 class BLESTENO {
 private:
@@ -132,9 +131,9 @@ public:
     void releaseAll();
     
     // Steno methods
-    size_t press(int32_t stenoKey);
-    size_t release(int32_t stenoKey);
-    void geminiStroke(const int32_t* keys, size_t count);
+    size_t press(StenoKey stenoKey);
+    size_t release(StenoKey stenoKey);
+    void geminiStroke(const StenoKey* keys, size_t count);
     uint8_t stenoCharToKey(char c);
     void sendGeminiPRReport();
     
