@@ -48,7 +48,7 @@ void BLESTENO::begin(NimBLEService* service, NimBLECharacteristic* input, NimBLE
     BLE_LOG_INFO(STENO_TAG, "SPP service started");
 }
 
-size_t BLESTENO::press(int32_t stenoKey) {
+size_t BLESTENO::press(StenoKey stenoKey) {
     BLE_LOG_DEBUG(STENO_TAG, "Stenotype key press: %ld", stenoKey);
     
     uint8_t previousByte = 0;
@@ -57,53 +57,53 @@ size_t BLESTENO::press(int32_t stenoKey) {
     // Set the appropriate bit in the correct byte position
     switch (stenoKey) {
         // Byte 0
-        case GEMINI_FN:   previousByte = _geminiReport.byte0; _geminiReport.byte0 |= 0x01; newByte = _geminiReport.byte0; break;
-        case GEMINI_NUM1: previousByte = _geminiReport.byte0; _geminiReport.byte0 |= 0x02; newByte = _geminiReport.byte0; break;
+        case ST_FN:    previousByte = _geminiReport.byte0; _geminiReport.byte0 |= 0x01; newByte = _geminiReport.byte0; break;
+        case ST_1:     previousByte = _geminiReport.byte0; _geminiReport.byte0 |= 0x02; newByte = _geminiReport.byte0; break;
         
         // Byte 1  
-        case GEMINI_S1:   previousByte = _geminiReport.byte1; _geminiReport.byte1 |= 0x01; newByte = _geminiReport.byte1; break;
-        case GEMINI_S2:   previousByte = _geminiReport.byte1; _geminiReport.byte1 |= 0x02; newByte = _geminiReport.byte1; break;
-        case GEMINI_T:    previousByte = _geminiReport.byte1; _geminiReport.byte1 |= 0x04; newByte = _geminiReport.byte1; break;
-        case GEMINI_K:    previousByte = _geminiReport.byte1; _geminiReport.byte1 |= 0x08; newByte = _geminiReport.byte1; break;
-        case GEMINI_P:    previousByte = _geminiReport.byte1; _geminiReport.byte1 |= 0x10; newByte = _geminiReport.byte1; break;
-        case GEMINI_W:    previousByte = _geminiReport.byte1; _geminiReport.byte1 |= 0x20; newByte = _geminiReport.byte1; break;
-        case GEMINI_H:    previousByte = _geminiReport.byte1; _geminiReport.byte1 |= 0x40; newByte = _geminiReport.byte1; break;
+        case ST_S1:    previousByte = _geminiReport.byte1; _geminiReport.byte1 |= 0x01; newByte = _geminiReport.byte1; break;
+        case ST_S2:    previousByte = _geminiReport.byte1; _geminiReport.byte1 |= 0x02; newByte = _geminiReport.byte1; break;
+        case ST_T:     previousByte = _geminiReport.byte1; _geminiReport.byte1 |= 0x04; newByte = _geminiReport.byte1; break;
+        case ST_K:     previousByte = _geminiReport.byte1; _geminiReport.byte1 |= 0x08; newByte = _geminiReport.byte1; break;
+        case ST_P:     previousByte = _geminiReport.byte1; _geminiReport.byte1 |= 0x10; newByte = _geminiReport.byte1; break;
+        case ST_W:     previousByte = _geminiReport.byte1; _geminiReport.byte1 |= 0x20; newByte = _geminiReport.byte1; break;
+        case ST_H:     previousByte = _geminiReport.byte1; _geminiReport.byte1 |= 0x40; newByte = _geminiReport.byte1; break;
         
         // Byte 2
-        case GEMINI_R:    previousByte = _geminiReport.byte2; _geminiReport.byte2 |= 0x01; newByte = _geminiReport.byte2; break;
-        case GEMINI_A:    previousByte = _geminiReport.byte2; _geminiReport.byte2 |= 0x02; newByte = _geminiReport.byte2; break;
-        case GEMINI_O:    previousByte = _geminiReport.byte2; _geminiReport.byte2 |= 0x04; newByte = _geminiReport.byte2; break;
-        case GEMINI_STAR1:previousByte = _geminiReport.byte2; _geminiReport.byte2 |= 0x08; newByte = _geminiReport.byte2; break;
-        case GEMINI_STAR2:previousByte = _geminiReport.byte2; _geminiReport.byte2 |= 0x10; newByte = _geminiReport.byte2; break;
-        case GEMINI_RES1: previousByte = _geminiReport.byte2; _geminiReport.byte2 |= 0x20; newByte = _geminiReport.byte2; break;
-        case GEMINI_RES2: previousByte = _geminiReport.byte2; _geminiReport.byte2 |= 0x40; newByte = _geminiReport.byte2; break;
+        case ST_R:     previousByte = _geminiReport.byte2; _geminiReport.byte2 |= 0x01; newByte = _geminiReport.byte2; break;
+        case ST_A:     previousByte = _geminiReport.byte2; _geminiReport.byte2 |= 0x02; newByte = _geminiReport.byte2; break;
+        case ST_O:     previousByte = _geminiReport.byte2; _geminiReport.byte2 |= 0x04; newByte = _geminiReport.byte2; break;
+        case ST_ST1:   previousByte = _geminiReport.byte2; _geminiReport.byte2 |= 0x08; newByte = _geminiReport.byte2; break;
+        case ST_ST2:   previousByte = _geminiReport.byte2; _geminiReport.byte2 |= 0x10; newByte = _geminiReport.byte2; break;
+        case ST_RS1:   previousByte = _geminiReport.byte2; _geminiReport.byte2 |= 0x20; newByte = _geminiReport.byte2; break;
+        case ST_RS2:   previousByte = _geminiReport.byte2; _geminiReport.byte2 |= 0x40; newByte = _geminiReport.byte2; break;
         
         // Byte 3
-        case GEMINI_PWR:  previousByte = _geminiReport.byte3; _geminiReport.byte3 |= 0x01; newByte = _geminiReport.byte3; break;
-        case GEMINI_STAR3:previousByte = _geminiReport.byte3; _geminiReport.byte3 |= 0x02; newByte = _geminiReport.byte3; break;
-        case GEMINI_STAR4:previousByte = _geminiReport.byte3; _geminiReport.byte3 |= 0x04; newByte = _geminiReport.byte3; break;
-        case GEMINI_E:    previousByte = _geminiReport.byte3; _geminiReport.byte3 |= 0x08; newByte = _geminiReport.byte3; break;
-        case GEMINI_U:    previousByte = _geminiReport.byte3; _geminiReport.byte3 |= 0x10; newByte = _geminiReport.byte3; break;
-        case GEMINI_F:    previousByte = _geminiReport.byte3; _geminiReport.byte3 |= 0x20; newByte = _geminiReport.byte3; break;
-        case GEMINI_R2:   previousByte = _geminiReport.byte3; _geminiReport.byte3 |= 0x40; newByte = _geminiReport.byte3; break;
+        case ST_PWR:   previousByte = _geminiReport.byte3; _geminiReport.byte3 |= 0x01; newByte = _geminiReport.byte3; break;
+        case ST_ST3:   previousByte = _geminiReport.byte3; _geminiReport.byte3 |= 0x02; newByte = _geminiReport.byte3; break;
+        case ST_ST4:   previousByte = _geminiReport.byte3; _geminiReport.byte3 |= 0x04; newByte = _geminiReport.byte3; break;
+        case ST_E:     previousByte = _geminiReport.byte3; _geminiReport.byte3 |= 0x08; newByte = _geminiReport.byte3; break;
+        case ST_U:     previousByte = _geminiReport.byte3; _geminiReport.byte3 |= 0x10; newByte = _geminiReport.byte3; break;
+        case ST_F:     previousByte = _geminiReport.byte3; _geminiReport.byte3 |= 0x20; newByte = _geminiReport.byte3; break;
+        case ST_R2:    previousByte = _geminiReport.byte3; _geminiReport.byte3 |= 0x40; newByte = _geminiReport.byte3; break;
         
         // Byte 4
-        case GEMINI_P2:   previousByte = _geminiReport.byte4; _geminiReport.byte4 |= 0x01; newByte = _geminiReport.byte4; break;
-        case GEMINI_B:    previousByte = _geminiReport.byte4; _geminiReport.byte4 |= 0x02; newByte = _geminiReport.byte4; break;
-        case GEMINI_L:    previousByte = _geminiReport.byte4; _geminiReport.byte4 |= 0x04; newByte = _geminiReport.byte4; break;
-        case GEMINI_G:    previousByte = _geminiReport.byte4; _geminiReport.byte4 |= 0x08; newByte = _geminiReport.byte4; break;
-        case GEMINI_T2:   previousByte = _geminiReport.byte4; _geminiReport.byte4 |= 0x10; newByte = _geminiReport.byte4; break;
-        case GEMINI_S:    previousByte = _geminiReport.byte4; _geminiReport.byte4 |= 0x20; newByte = _geminiReport.byte4; break;
-        case GEMINI_D:    previousByte = _geminiReport.byte4; _geminiReport.byte4 |= 0x40; newByte = _geminiReport.byte4; break;
+        case ST_P2:    previousByte = _geminiReport.byte4; _geminiReport.byte4 |= 0x01; newByte = _geminiReport.byte4; break;
+        case ST_B:     previousByte = _geminiReport.byte4; _geminiReport.byte4 |= 0x02; newByte = _geminiReport.byte4; break;
+        case ST_L:     previousByte = _geminiReport.byte4; _geminiReport.byte4 |= 0x04; newByte = _geminiReport.byte4; break;
+        case ST_G:     previousByte = _geminiReport.byte4; _geminiReport.byte4 |= 0x08; newByte = _geminiReport.byte4; break;
+        case ST_T2:    previousByte = _geminiReport.byte4; _geminiReport.byte4 |= 0x10; newByte = _geminiReport.byte4; break;
+        case ST_S:     previousByte = _geminiReport.byte4; _geminiReport.byte4 |= 0x20; newByte = _geminiReport.byte4; break;
+        case ST_D:     previousByte = _geminiReport.byte4; _geminiReport.byte4 |= 0x40; newByte = _geminiReport.byte4; break;
         
         // Byte 5
-        case GEMINI_NUM7: previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x01; newByte = _geminiReport.byte5; break;
-        case GEMINI_NUM8: previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x02; newByte = _geminiReport.byte5; break;
-        case GEMINI_NUM9: previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x04; newByte = _geminiReport.byte5; break;
-        case GEMINI_NUM10:previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x08; newByte = _geminiReport.byte5; break;
-        case GEMINI_NUM11:previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x10; newByte = _geminiReport.byte5; break;
-        case GEMINI_NUM12:previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x20; newByte = _geminiReport.byte5; break;
-        case GEMINI_Z:    previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x40; newByte = _geminiReport.byte5; break;
+        case ST_7:     previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x01; newByte = _geminiReport.byte5; break;
+        case ST_8:     previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x02; newByte = _geminiReport.byte5; break;
+        case ST_9:     previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x04; newByte = _geminiReport.byte5; break;
+        case ST_10:    previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x08; newByte = _geminiReport.byte5; break;
+        case ST_11:    previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x10; newByte = _geminiReport.byte5; break;
+        case ST_12:    previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x20; newByte = _geminiReport.byte5; break;
+        case ST_Z:     previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x40; newByte = _geminiReport.byte5; break;
         
         default:
             BLE_LOG_WARN(STENO_TAG, "Invalid stenotype key press attempt: %ld", stenoKey);
@@ -116,7 +116,7 @@ size_t BLESTENO::press(int32_t stenoKey) {
     return 1;
 }
 
-size_t BLESTENO::release(int32_t stenoKey) {
+size_t BLESTENO::release(StenoKey stenoKey) {
     BLE_LOG_DEBUG(STENO_TAG, "Stenotype key release: %ld", stenoKey);
     
     uint8_t previousByte = 0;
@@ -125,53 +125,53 @@ size_t BLESTENO::release(int32_t stenoKey) {
     // Clear the appropriate bit
     switch (stenoKey) {
         // Byte 0
-        case GEMINI_FN:   previousByte = _geminiReport.byte0; _geminiReport.byte0 &= ~0x01; newByte = _geminiReport.byte0; break;
-        case GEMINI_NUM1: previousByte = _geminiReport.byte0; _geminiReport.byte0 &= ~0x02; newByte = _geminiReport.byte0; break;
+        case ST_FN:    previousByte = _geminiReport.byte0; _geminiReport.byte0 &= ~0x01; newByte = _geminiReport.byte0; break;
+        case ST_1:     previousByte = _geminiReport.byte0; _geminiReport.byte0 &= ~0x02; newByte = _geminiReport.byte0; break;
         
         // Byte 1  
-        case GEMINI_S1:   previousByte = _geminiReport.byte1; _geminiReport.byte1 &= ~0x01; newByte = _geminiReport.byte1; break;
-        case GEMINI_S2:   previousByte = _geminiReport.byte1; _geminiReport.byte1 &= ~0x02; newByte = _geminiReport.byte1; break;
-        case GEMINI_T:    previousByte = _geminiReport.byte1; _geminiReport.byte1 &= ~0x04; newByte = _geminiReport.byte1; break;
-        case GEMINI_K:    previousByte = _geminiReport.byte1; _geminiReport.byte1 &= ~0x08; newByte = _geminiReport.byte1; break;
-        case GEMINI_P:    previousByte = _geminiReport.byte1; _geminiReport.byte1 &= ~0x10; newByte = _geminiReport.byte1; break;
-        case GEMINI_W:    previousByte = _geminiReport.byte1; _geminiReport.byte1 &= ~0x20; newByte = _geminiReport.byte1; break;
-        case GEMINI_H:    previousByte = _geminiReport.byte1; _geminiReport.byte1 &= ~0x40; newByte = _geminiReport.byte1; break;
+        case ST_S1:    previousByte = _geminiReport.byte1; _geminiReport.byte1 &= ~0x01; newByte = _geminiReport.byte1; break;
+        case ST_S2:    previousByte = _geminiReport.byte1; _geminiReport.byte1 &= ~0x02; newByte = _geminiReport.byte1; break;
+        case ST_T:     previousByte = _geminiReport.byte1; _geminiReport.byte1 &= ~0x04; newByte = _geminiReport.byte1; break;
+        case ST_K:     previousByte = _geminiReport.byte1; _geminiReport.byte1 &= ~0x08; newByte = _geminiReport.byte1; break;
+        case ST_P:     previousByte = _geminiReport.byte1; _geminiReport.byte1 &= ~0x10; newByte = _geminiReport.byte1; break;
+        case ST_W:     previousByte = _geminiReport.byte1; _geminiReport.byte1 &= ~0x20; newByte = _geminiReport.byte1; break;
+        case ST_H:     previousByte = _geminiReport.byte1; _geminiReport.byte1 &= ~0x40; newByte = _geminiReport.byte1; break;
         
         // Byte 2
-        case GEMINI_R:    previousByte = _geminiReport.byte2; _geminiReport.byte2 &= ~0x01; newByte = _geminiReport.byte2; break;
-        case GEMINI_A:    previousByte = _geminiReport.byte2; _geminiReport.byte2 &= ~0x02; newByte = _geminiReport.byte2; break;
-        case GEMINI_O:    previousByte = _geminiReport.byte2; _geminiReport.byte2 &= ~0x04; newByte = _geminiReport.byte2; break;
-        case GEMINI_STAR1:previousByte = _geminiReport.byte2; _geminiReport.byte2 &= ~0x08; newByte = _geminiReport.byte2; break;
-        case GEMINI_STAR2:previousByte = _geminiReport.byte2; _geminiReport.byte2 &= ~0x10; newByte = _geminiReport.byte2; break;
-        case GEMINI_RES1: previousByte = _geminiReport.byte2; _geminiReport.byte2 &= ~0x20; newByte = _geminiReport.byte2; break;
-        case GEMINI_RES2: previousByte = _geminiReport.byte2; _geminiReport.byte2 &= ~0x40; newByte = _geminiReport.byte2; break;
+        case ST_R:     previousByte = _geminiReport.byte2; _geminiReport.byte2 &= ~0x01; newByte = _geminiReport.byte2; break;
+        case ST_A:     previousByte = _geminiReport.byte2; _geminiReport.byte2 &= ~0x02; newByte = _geminiReport.byte2; break;
+        case ST_O:     previousByte = _geminiReport.byte2; _geminiReport.byte2 &= ~0x04; newByte = _geminiReport.byte2; break;
+        case ST_ST1:   previousByte = _geminiReport.byte2; _geminiReport.byte2 &= ~0x08; newByte = _geminiReport.byte2; break;
+        case ST_ST2:   previousByte = _geminiReport.byte2; _geminiReport.byte2 &= ~0x10; newByte = _geminiReport.byte2; break;
+        case ST_RS1:   previousByte = _geminiReport.byte2; _geminiReport.byte2 &= ~0x20; newByte = _geminiReport.byte2; break;
+        case ST_RS2:   previousByte = _geminiReport.byte2; _geminiReport.byte2 &= ~0x40; newByte = _geminiReport.byte2; break;
         
         // Byte 3
-        case GEMINI_PWR:  previousByte = _geminiReport.byte3; _geminiReport.byte3 &= ~0x01; newByte = _geminiReport.byte3; break;
-        case GEMINI_STAR3:previousByte = _geminiReport.byte3; _geminiReport.byte3 &= ~0x02; newByte = _geminiReport.byte3; break;
-        case GEMINI_STAR4:previousByte = _geminiReport.byte3; _geminiReport.byte3 &= ~0x04; newByte = _geminiReport.byte3; break;
-        case GEMINI_E:    previousByte = _geminiReport.byte3; _geminiReport.byte3 &= ~0x08; newByte = _geminiReport.byte3; break;
-        case GEMINI_U:    previousByte = _geminiReport.byte3; _geminiReport.byte3 &= ~0x10; newByte = _geminiReport.byte3; break;
-        case GEMINI_F:    previousByte = _geminiReport.byte3; _geminiReport.byte3 &= ~0x20; newByte = _geminiReport.byte3; break;
-        case GEMINI_R2:   previousByte = _geminiReport.byte3; _geminiReport.byte3 &= ~0x40; newByte = _geminiReport.byte3; break;
+        case ST_PWR:   previousByte = _geminiReport.byte3; _geminiReport.byte3 &= ~0x01; newByte = _geminiReport.byte3; break;
+        case ST_ST3:   previousByte = _geminiReport.byte3; _geminiReport.byte3 &= ~0x02; newByte = _geminiReport.byte3; break;
+        case ST_ST4:   previousByte = _geminiReport.byte3; _geminiReport.byte3 &= ~0x04; newByte = _geminiReport.byte3; break;
+        case ST_E:     previousByte = _geminiReport.byte3; _geminiReport.byte3 &= ~0x08; newByte = _geminiReport.byte3; break;
+        case ST_U:     previousByte = _geminiReport.byte3; _geminiReport.byte3 &= ~0x10; newByte = _geminiReport.byte3; break;
+        case ST_F:     previousByte = _geminiReport.byte3; _geminiReport.byte3 &= ~0x20; newByte = _geminiReport.byte3; break;
+        case ST_R2:    previousByte = _geminiReport.byte3; _geminiReport.byte3 &= ~0x40; newByte = _geminiReport.byte3; break;
         
         // Byte 4
-        case GEMINI_P2:   previousByte = _geminiReport.byte4; _geminiReport.byte4 &= ~0x01; newByte = _geminiReport.byte4; break;
-        case GEMINI_B:    previousByte = _geminiReport.byte4; _geminiReport.byte4 &= ~0x02; newByte = _geminiReport.byte4; break;
-        case GEMINI_L:    previousByte = _geminiReport.byte4; _geminiReport.byte4 &= ~0x04; newByte = _geminiReport.byte4; break;
-        case GEMINI_G:    previousByte = _geminiReport.byte4; _geminiReport.byte4 &= ~0x08; newByte = _geminiReport.byte4; break;
-        case GEMINI_T2:   previousByte = _geminiReport.byte4; _geminiReport.byte4 &= ~0x10; newByte = _geminiReport.byte4; break;
-        case GEMINI_S:    previousByte = _geminiReport.byte4; _geminiReport.byte4 &= ~0x20; newByte = _geminiReport.byte4; break;
-        case GEMINI_D:    previousByte = _geminiReport.byte4; _geminiReport.byte4 &= ~0x40; newByte = _geminiReport.byte4; break;
+        case ST_P2:    previousByte = _geminiReport.byte4; _geminiReport.byte4 &= ~0x01; newByte = _geminiReport.byte4; break;
+        case ST_B:     previousByte = _geminiReport.byte4; _geminiReport.byte4 &= ~0x02; newByte = _geminiReport.byte4; break;
+        case ST_L:     previousByte = _geminiReport.byte4; _geminiReport.byte4 &= ~0x04; newByte = _geminiReport.byte4; break;
+        case ST_G:     previousByte = _geminiReport.byte4; _geminiReport.byte4 &= ~0x08; newByte = _geminiReport.byte4; break;
+        case ST_T2:    previousByte = _geminiReport.byte4; _geminiReport.byte4 &= ~0x10; newByte = _geminiReport.byte4; break;
+        case ST_S:     previousByte = _geminiReport.byte4; _geminiReport.byte4 &= ~0x20; newByte = _geminiReport.byte4; break;
+        case ST_D:     previousByte = _geminiReport.byte4; _geminiReport.byte4 &= ~0x40; newByte = _geminiReport.byte4; break;
         
         // Byte 5
-        case GEMINI_NUM7: previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x01; newByte = _geminiReport.byte5; break;
-        case GEMINI_NUM8: previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x02; newByte = _geminiReport.byte5; break;
-        case GEMINI_NUM9: previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x04; newByte = _geminiReport.byte5; break;
-        case GEMINI_NUM10:previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x08; newByte = _geminiReport.byte5; break;
-        case GEMINI_NUM11:previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x10; newByte = _geminiReport.byte5; break;
-        case GEMINI_NUM12:previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x20; newByte = _geminiReport.byte5; break;
-        case GEMINI_Z:    previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x40; newByte = _geminiReport.byte5; break;
+        case ST_7:     previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x01; newByte = _geminiReport.byte5; break;
+        case ST_8:     previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x02; newByte = _geminiReport.byte5; break;
+        case ST_9:     previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x04; newByte = _geminiReport.byte5; break;
+        case ST_10:    previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x08; newByte = _geminiReport.byte5; break;
+        case ST_11:    previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x10; newByte = _geminiReport.byte5; break;
+        case ST_12:    previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x20; newByte = _geminiReport.byte5; break;
+        case ST_Z:     previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x40; newByte = _geminiReport.byte5; break;
         
         default:
             BLE_LOG_WARN(STENO_TAG, "Invalid stenotype key release attempt: %ld", stenoKey);
@@ -195,7 +195,7 @@ void BLESTENO::releaseAll() {
     BLE_LOG_DEBUG(STENO_TAG, "All stenotype keys released");
 }
 
-void BLESTENO::geminiStroke(const int32_t* keys, size_t count) {
+void BLESTENO::geminiStroke(const StenoKey* keys, size_t count) {
     BLE_LOG_DEBUG(STENO_TAG, "Executing Gemini stroke with %zu keys", count);
     
     releaseAll();
@@ -212,44 +212,44 @@ uint8_t BLESTENO::stenoCharToKey(char c) {
     uint8_t key = 0;
     
     switch (toupper(c)) {
-        case 'Q': key = GEMINI_S1; break;
-        case 'A': key = GEMINI_S2; break;
-        case 'W': key = GEMINI_T; break;
-        case 'S': key = GEMINI_K; break;
-        case 'E': key = GEMINI_P; break;
-        case 'D': key = GEMINI_W; break;
-        case 'R': key = GEMINI_H; break;
-        case 'F': key = GEMINI_R; break;
-        case 'C': key = GEMINI_A; break;
-        case 'V': key = GEMINI_O; break;
-        case 'T': key = GEMINI_STAR1; break;
-        case 'G': key = GEMINI_STAR2; break;
-        case 'Y': key = GEMINI_STAR3; break;
-        case 'H': key = GEMINI_STAR4; break;
-        case ',': key = GEMINI_E; break;
-        case 'M': key = GEMINI_U; break;
-        case 'U': key = GEMINI_F; break;
-        case 'J': key = GEMINI_R2; break;
-        case 'I': key = GEMINI_P2; break;
-        case 'K': key = GEMINI_B; break;
-        case 'O': key = GEMINI_L; break;
-        case 'L': key = GEMINI_G; break;
-        case 'P': key = GEMINI_T2; break;
-        case 'B': key = GEMINI_S; break;
-        case 'X': key = GEMINI_D; break;
-        case 'Z': key = GEMINI_Z; break;
-        case '1': key = GEMINI_NUM1; break;
-        case '2': key = GEMINI_NUM7; break;
-        case '3': key = GEMINI_NUM8; break;
-        case '4': key = GEMINI_NUM9; break;
-        case '5': key = GEMINI_NUM10; break;
-        case '6': key = GEMINI_NUM11; break;
-        case '7': key = GEMINI_NUM12; break;
-        case '8': key = GEMINI_PWR; break;
-        case '9': key = GEMINI_RES1; break;
-        case '0': key = GEMINI_RES2; break;
-        case 'N': key = GEMINI_FN; break;
-        default: key = 0; break;
+        case 'Q': key = ST_S1;  break;
+        case 'A': key = ST_S2;  break;
+        case 'W': key = ST_T;   break;
+        case 'S': key = ST_K;   break;
+        case 'E': key = ST_P;   break;
+        case 'D': key = ST_W;   break;
+        case 'R': key = ST_H;   break;
+        case 'F': key = ST_R;   break;
+        case 'C': key = ST_A;   break;
+        case 'V': key = ST_O;   break;
+        case 'T': key = ST_ST1; break;
+        case 'G': key = ST_ST2; break;
+        case 'Y': key = ST_ST3; break;
+        case 'H': key = ST_ST4; break;
+        case ',': key = ST_E;   break;
+        case 'M': key = ST_U;   break;
+        case 'U': key = ST_F;   break;
+        case 'J': key = ST_R2;  break;
+        case 'I': key = ST_P2;  break;
+        case 'K': key = ST_B;   break;
+        case 'O': key = ST_L;   break;
+        case 'L': key = ST_G;   break;
+        case 'P': key = ST_T2;  break;
+        case 'B': key = ST_S;   break;
+        case 'X': key = ST_D;   break;
+        case 'Z': key = ST_Z;   break;
+        case '1': key = ST_1;   break;
+        case '2': key = ST_7;   break;
+        case '3': key = ST_8;   break;
+        case '4': key = ST_9;   break;
+        case '5': key = ST_10;  break;
+        case '6': key = ST_11;  break;
+        case '7': key = ST_12;  break;
+        case '8': key = ST_PWR; break;
+        case '9': key = ST_RS1; break;
+        case '0': key = ST_RS2; break;
+        case 'N': key = ST_FN;  break;
+        default:  key = 0;      break;
     }
     
     BLE_LOG_DEBUG(STENO_TAG, "Character to key conversion - Char: '%c', Key: %u", c, key);
