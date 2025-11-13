@@ -58,9 +58,9 @@ void BLEDIGI::click(uint16_t x, uint16_t y, char b) {
     
     // Map mouse button constants to digitizer button constants for simplicity/convenience
     uint8_t digitizerButtons = 0;
-    if (b & 1) digitizerButtons |= DIGITIZER_BTN1;  // MOUSE_LEFT
-    if (b & 2) digitizerButtons |= DIGITIZER_BTN2;  // MOUSE_RIGHT
-    if (b & 4) digitizerButtons |= DIGITIZER_BTN3;  // MOUSE_MIDDLE
+    if (b & 1) digitizerButtons |= DI_BTN1;  // MOUSE_LEFT
+    if (b & 2) digitizerButtons |= DI_BTN2;  // MOUSE_RIGHT
+    if (b & 4) digitizerButtons |= DI_BTN3;  // MOUSE_MIDDLE
     
     BLE_LOG_DEBUG(DIGI_TAG, "Digitizer click at X:%u, Y:%u, buttons: 0x%02X", x, y, digitizerButtons);
     
