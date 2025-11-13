@@ -49,12 +49,22 @@ static const uint8_t _mouseReportDescriptor[] = {
 
 // Mouse codes
 
-const char MOUSE_LEFT    = 1;
-const char MOUSE_RIGHT   = 2;
-const char MOUSE_MIDDLE  = 4;
-const char MOUSE_BACK    = 8;
-const char MOUSE_FORWARD = 16;
-const char MOUSE_ALL     = (MOUSE_LEFT | MOUSE_RIGHT | MOUSE_MIDDLE);
+enum class MouseButtons : uint8_t {
+  MOUSE_LEFT    = 0x01,
+  MOUSE_RIGHT   = 0x02,
+  MOUSE_MIDDLE  = 0x04,
+  MOUSE_BACK    = 0x08,
+  MOUSE_FORWARD = 0x10
+};
+
+using MouseButton = char;
+
+const MouseButton MO_BTN1 = static_cast<MouseButton>(MouseButtons::MOUSE_LEFT);
+const MouseButton MO_BTN2 = static_cast<MouseButton>(MouseButtons::MOUSE_RIGHT);
+const MouseButton MO_BTN3 = static_cast<MouseButton>(MouseButtons::MOUSE_MIDDLE);
+const MouseButton MO_BTN4 = static_cast<MouseButton>(MouseButtons::MOUSE_BACK);
+const MouseButton MO_BTN5 = static_cast<MouseButton>(MouseButtons::MOUSE_FORWARD);
+const MouseButton MO_ALL  = (MO_BTN1 | MO_BTN2 | MO_BTN3);
 
 class BLEMOUSE {
 private:
@@ -70,11 +80,11 @@ public:
     bool isConnected();
     
     // Mouse methods
-    size_t press(char b = MOUSE_LEFT);
-    size_t release(char b = MOUSE_LEFT);
-    void click(char b = MOUSE_LEFT);
+    size_t press(char b = MO_BTN1);
+    size_t release(char b = MO_BTN1);
+    void click(char b = MO_BTN1);
     void move(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
-    bool mouseIsPressed(char b = MOUSE_LEFT);
+    bool mouseIsPressed(char b = MO_BTN1);
     void sendMouseReport();
     void releaseAll();
 };
