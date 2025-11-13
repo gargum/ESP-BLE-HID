@@ -9,6 +9,7 @@
 #include "HIDTypes.h"
 #include "NimBLECharacteristic.h"
 #include <stdint.h>
+#include "../Event/Types.h"
 
 #define MEDIA_KEYS_ID 0x03
 
@@ -22,70 +23,72 @@ static const uint8_t _mediakeyReportDescriptor[] = {
   HIDINPUT(1),        0x00,                      END_COLLECTION(0),   
 };
 
-// Media key codes
+enum class MediaKeys : uint16_t {
 
-const uint16_t KEY_MEDIA_POWER = 0x0130;
-const uint16_t KEY_MEDIA_SLEEP = 0x0134;
-const uint16_t KEY_MEDIA_WAKE = 0x0135;
-const uint16_t KEY_MEDIA_NEXT_TRACK = 0x00B5;
-const uint16_t KEY_MEDIA_PREVIOUS_TRACK = 0x00B6;
-const uint16_t KEY_MEDIA_STOP = 0x00B7;
-const uint16_t KEY_MEDIA_PLAY_PAUSE = 0x00CD;
-const uint16_t KEY_MEDIA_FAST_FORWARD = 0x00B3;
-const uint16_t KEY_MEDIA_REWIND = 0x00B4;
-const uint16_t KEY_MEDIA_EJECT = 0x00B8;
-const uint16_t KEY_MEDIA_MUTE = 0x00E2;
-const uint16_t KEY_MEDIA_VOLUME_UP = 0x00E9;
-const uint16_t KEY_MEDIA_VOLUME_DOWN = 0x00EA;
-const uint16_t KEY_MEDIA_BRIGHTNESS_UP = 0x006F;
-const uint16_t KEY_MEDIA_BRIGHTNESS_DOWN = 0x0070;
-const uint16_t KEY_MEDIA_MY_COMPUTER = 0x0194;
-const uint16_t KEY_MEDIA_CALCULATOR = 0x0192;
-const uint16_t KEY_MEDIA_MAIL = 0x018A;
-const uint16_t KEY_MEDIA_MEDIA_SELECTION = 0x0183;
-const uint16_t KEY_MEDIA_CONTROL_PANEL = 0x0186;
-const uint16_t KEY_MEDIA_LAUNCHPAD = 0x0187;
-const uint16_t KEY_MEDIA_WWW_HOME = 0x0223;
-const uint16_t KEY_MEDIA_WWW_FAVORITES = 0x022A;
-const uint16_t KEY_MEDIA_WWW_SEARCH = 0x0221;
-const uint16_t KEY_MEDIA_WWW_STOP = 0x0226;
-const uint16_t KEY_MEDIA_WWW_BACK = 0x0224;
-const uint16_t KEY_MEDIA_WWW_FORWARD = 0x0225;
-const uint16_t KEY_MEDIA_WWW_REFRESH = 0x0227;
+  KEY_MEDIA_POWER = 0x0130,
+  KEY_MEDIA_SLEEP = 0x0134,
+  KEY_MEDIA_WAKE = 0x0135,
+  KEY_MEDIA_NEXT_TRACK = 0x00B5,
+  KEY_MEDIA_PREVIOUS_TRACK = 0x00B6,
+  KEY_MEDIA_STOP = 0x00B7,
+  KEY_MEDIA_PLAY_PAUSE = 0x00CD,
+  KEY_MEDIA_FAST_FORWARD = 0x00B3,
+  KEY_MEDIA_REWIND = 0x00B4,
+  KEY_MEDIA_EJECT = 0x00B8,
+  KEY_MEDIA_MUTE = 0x00E2,
+  KEY_MEDIA_VOLUME_UP = 0x00E9,
+  KEY_MEDIA_VOLUME_DOWN = 0x00EA,
+  KEY_MEDIA_BRIGHTNESS_UP = 0x006F,
+  KEY_MEDIA_BRIGHTNESS_DOWN = 0x0070,
+  KEY_MEDIA_MY_COMPUTER = 0x0194,
+  KEY_MEDIA_CALCULATOR = 0x0192,
+  KEY_MEDIA_MAIL = 0x018A,
+  KEY_MEDIA_MEDIA_SELECTION = 0x0183,
+  KEY_MEDIA_CONTROL_PANEL = 0x0186,
+  KEY_MEDIA_LAUNCHPAD = 0x0187,
+  KEY_MEDIA_WWW_HOME = 0x0223,
+  KEY_MEDIA_WWW_FAVOURITES = 0x022A,
+  KEY_MEDIA_WWW_SEARCH = 0x0221,
+  KEY_MEDIA_WWW_STOP = 0x0226,
+  KEY_MEDIA_WWW_BACK = 0x0224,
+  KEY_MEDIA_WWW_FORWARD = 0x0225,
+  KEY_MEDIA_WWW_REFRESH = 0x0227
 
-const uint16_t KC_PWR  = 0x0130;
-const uint16_t KC_SLEP = 0x0134;
-const uint16_t KC_WAKE = 0x0135;
-const uint16_t KC_MNXT = 0x00B5;
-const uint16_t KC_MPRV = 0x00B6;
-const uint16_t KC_MFFD = 0x00B3;
-const uint16_t KC_MRWD = 0x00B4;
-const uint16_t KC_MSTP = 0x00B7;
-const uint16_t KC_MPLY = 0x00CD;
-const uint16_t KC_MUTE = 0x00E2;
-const uint16_t KC_VOLU = 0x00E9;
-const uint16_t KC_VOLD = 0x00EA;
-const uint16_t KC_WHOM = 0x0223;
-const uint16_t KC_MYCM = 0x0194;
-const uint16_t KC_CALC = 0x0192;
-const uint16_t KC_WFAV = 0x022A;
-const uint16_t KC_WSCH = 0x0221;
-const uint16_t KC_WSTP = 0x0226;
-const uint16_t KC_WREF = 0x0227;
-const uint16_t KC_WBAK = 0x0224;
-const uint16_t KC_WFWD = 0x0225;
-const uint16_t KC_MSEL = 0x0183;
-const uint16_t KC_MAIL = 0x018A;
-const uint16_t KC_EJCT = 0x00B8;
-const uint16_t KC_BRIU = 0x006F;
-const uint16_t KC_BRID = 0x0070;
-const uint16_t KC_CPNL = 0x0186;
-const uint16_t KC_LPAD = 0x0187;
+};
+
+MK(MediaKey, KC_PWR,  KEY_MEDIA_POWER);
+MK(MediaKey, KC_SLEP, KEY_MEDIA_SLEEP);
+MK(MediaKey, KC_WAKE, KEY_MEDIA_WAKE);
+MK(MediaKey, KC_MNXT, KEY_MEDIA_NEXT_TRACK);
+MK(MediaKey, KC_MPRV, KEY_MEDIA_PREVIOUS_TRACK);
+MK(MediaKey, KC_MSTP, KEY_MEDIA_STOP);
+MK(MediaKey, KC_MPLY, KEY_MEDIA_PLAY_PAUSE);
+MK(MediaKey, KC_MFFD, KEY_MEDIA_FAST_FORWARD);
+MK(MediaKey, KC_MRWD, KEY_MEDIA_REWIND);
+MK(MediaKey, KC_EJCT, KEY_MEDIA_EJECT);
+MK(MediaKey, KC_MUTE, KEY_MEDIA_MUTE);
+MK(MediaKey, KC_VOLU, KEY_MEDIA_VOLUME_UP);
+MK(MediaKey, KC_VOLD, KEY_MEDIA_VOLUME_DOWN);
+MK(MediaKey, KC_BRIU, KEY_MEDIA_BRIGHTNESS_UP);
+MK(MediaKey, KC_BRID, KEY_MEDIA_BRIGHTNESS_DOWN);
+MK(MediaKey, KC_MYCM, KEY_MEDIA_MY_COMPUTER);
+MK(MediaKey, KC_CALC, KEY_MEDIA_CALCULATOR);
+MK(MediaKey, KC_MAIL, KEY_MEDIA_MAIL);
+MK(MediaKey, KC_MSEL, KEY_MEDIA_MEDIA_SELECTION);
+MK(MediaKey, KC_CPNL, KEY_MEDIA_CONTROL_PANEL);
+MK(MediaKey, KC_LPAD, KEY_MEDIA_LAUNCHPAD);
+MK(MediaKey, KC_WHOM, KEY_MEDIA_WWW_HOME);
+MK(MediaKey, KC_WFAV, KEY_MEDIA_WWW_FAVOURITES);
+MK(MediaKey, KC_WSCH, KEY_MEDIA_WWW_SEARCH);
+MK(MediaKey, KC_WSTP, KEY_MEDIA_WWW_STOP);
+MK(MediaKey, KC_WBAK, KEY_MEDIA_WWW_BACK);
+MK(MediaKey, KC_WFWD, KEY_MEDIA_WWW_FORWARD);
+MK(MediaKey, KC_WREF, KEY_MEDIA_WWW_REFRESH);
 
 class BLEMEDIA {
 private:
     NimBLECharacteristic* inputMediaKeys;
-    uint16_t _currentMediaKey;  // Changed from uint32_t bitmask to uint16_t single key
+    MediaKey _currentMediaKey;  // Changed from uint32_t bitmask to uint16_t single key
     uint32_t _delay_ms;
     
 public:
@@ -95,10 +98,10 @@ public:
     bool isConnected();
     
     // Media key methods - simplified interface
-    size_t press(uint16_t mediaKey);
-    size_t release(uint16_t mediaKey);
-    size_t write(uint16_t mediaKey);
-    uint16_t getCurrentMediaKey();
+    size_t   press(MediaKey mediaKey);
+    size_t   release(MediaKey mediaKey);
+    size_t   write(MediaKey mediaKey);
+    MediaKey getCurrentMediaKey();
     
     void sendMediaReport();
     void releaseAll();
