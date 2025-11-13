@@ -27,31 +27,36 @@ bool BLENKRO::isConnected() {
     return connected;
 }
 
-size_t BLENKRO::press(uint8_t k) {
-    if (k >= 136) { k = k - 136; }
+size_t BLENKRO::press(NKROKey k) {
+    // Convert to underlying type for arithmetic operations
+    uint8_t keyValue = static_cast<uint8_t>(k);
+    if (keyValue >= 136) { keyValue = keyValue - 136; }
     
-    if (k != 0) {
+    if (keyValue != 0) {
         // Check if we're already at 6 non-modifier keys
         if (!_useNKRO && countPressedKeys() >= 6) {
-            BLE_LOG_WARN(NKRO_TAG, "6KRO limit reached, ignoring key press: 0x%02X", k);
+            BLE_LOG_WARN(NKRO_TAG, "6KRO limit reached, ignoring key press: 0x%02X", keyValue);
             return 0;
         }
         
         // Update the bitmask - ONLY for regular keys
-        updateNKROBitmask(k, true);
-        BLE_LOG_DEBUG(NKRO_TAG, "Key pressed: 0x%02X", k);
+        updateNKROBitmask(NKROKey{keyValue}, true);
+        BLE_LOG_DEBUG(NKRO_TAG, "Key pressed: 0x%02X", keyValue);
     }
     
     sendNKROReport();
     return 1;
 }
 
-size_t BLENKRO::press(int16_t modifier) {
+size_t BLENKRO::press(ModKey modifier) {
+  // Convert to underlying type for bit operations
+  uint16_t modifierValue = static_cast<uint16_t>(modifier);
   uint8_t hidModifier = 0;
-  if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
-    hidModifier = modifier >> 8;
+  
+  if (modifierValue >= 0x0100 && modifierValue <= 0x8000 && ((modifierValue & (modifierValue - 1)) == 0)) {
+    hidModifier = modifierValue >> 8;
   } else {
-    BLE_LOG_WARN(NKRO_TAG, "Invalid modifier pressed: 0x%04X", modifier);
+    BLE_LOG_WARN(NKRO_TAG, "Invalid modifier pressed: 0x%04X", modifierValue);
     return 0; // Invalid modifier
   }
   
@@ -61,26 +66,31 @@ size_t BLENKRO::press(int16_t modifier) {
   return 1;
 }
 
-size_t BLENKRO::release(uint8_t k) {
-  if (k >= 136) {
-    k = k - 136;
+size_t BLENKRO::release(NKROKey k) {
+  // Convert to underlying type for arithmetic operations
+  uint8_t keyValue = static_cast<uint8_t>(k);
+  if (keyValue >= 136) {
+    keyValue = keyValue - 136;
   }
   
-  if (k != 0) {
-    updateNKROBitmask(k, false);
-    BLE_LOG_DEBUG(NKRO_TAG, "Key released: 0x%02X", k);
+  if (keyValue != 0) {
+    updateNKROBitmask(NKROKey{keyValue}, false);
+    BLE_LOG_DEBUG(NKRO_TAG, "Key released: 0x%02X", keyValue);
   }
   
   sendNKROReport();
   return 1;
 }
 
-size_t BLENKRO::release(int16_t modifier) {
+size_t BLENKRO::release(ModKey modifier) {
+  // Convert to underlying type for bit operations
+  uint16_t modifierValue = static_cast<uint16_t>(modifier);
   uint8_t hidModifier = 0;
-  if (modifier >= 0x0100 && modifier <= 0x8000 && ((modifier & (modifier - 1)) == 0)) {
-    hidModifier = modifier >> 8;
+  
+  if (modifierValue >= 0x0100 && modifierValue <= 0x8000 && ((modifierValue & (modifierValue - 1)) == 0)) {
+    hidModifier = modifierValue >> 8;
   } else {
-    BLE_LOG_WARN(NKRO_TAG, "Invalid modifier released: 0x%04X", modifier);
+    BLE_LOG_WARN(NKRO_TAG, "Invalid modifier released: 0x%04X", modifierValue);
     return 0; // Invalid modifier
   }
   
@@ -98,25 +108,30 @@ void BLENKRO::releaseAll() {
 
 size_t BLENKRO::write(uint8_t c) {
     bool shift;
-    uint8_t key = BLENKRO::charToKeyCode((char)c, &shift);
+    // Convert to char for the character processing function
+    char charValue = static_cast<char>(c);
+    uint8_t key = BLENKRO::charToKeyCode(charValue, &shift);
+    
     if (key == 0) {
-        BLE_LOG_DEBUG(NKRO_TAG, "Character not supported: 0x%02X ('%c')", c, isprint(c) ? c : '.');
+        BLE_LOG_DEBUG(NKRO_TAG, "Character not supported: 0x%02X ('%c')", 
+                     static_cast<uint8_t>(c), isprint(charValue) ? charValue : '.');
         return 0; // character not supported
     }
 
-    BLE_LOG_DEBUG(NKRO_TAG, "Writing character: 0x%02X ('%c') with%s shift", key, c, shift ? "" : "out");
+    BLE_LOG_DEBUG(NKRO_TAG, "Writing character: 0x%02X ('%c') with%s shift", 
+                 key, charValue, shift ? "" : "out");
     
-    if (shift) press(KEY_LEFT_SHIFT);           // hold shift
-    press(key);                                 // key-down
-    release(key);                               // key-up
-    if (shift) release(KEY_LEFT_SHIFT);         // release shift
+    if (shift) press(KC_LSFT);           // hold shift
+    press(NKROKey{key});                 // key-down
+    release(NKROKey{key});               // key-up
+    if (shift) release(KC_LSFT);         // release shift
     return 1;
 }
 
-size_t BLENKRO::write(int16_t modifier) {
-  BLE_LOG_DEBUG(NKRO_TAG, "Writing modifier: 0x%04X", modifier);
-  uint16_t p = press(modifier);  // Modifier down
-  release(modifier);             // Modifier up
+size_t BLENKRO::write(ModKey modifier) {
+  BLE_LOG_DEBUG(NKRO_TAG, "Writing modifier: 0x%04X", static_cast<uint16_t>(modifier));
+  size_t p = press(modifier);  // Modifier down
+  release(modifier);           // Modifier up
   return p;
 }
 
@@ -148,10 +163,13 @@ uint8_t BLENKRO::countPressedKeys() {
   return count;
 }
 
-void BLENKRO::updateNKROBitmask(uint8_t k, bool pressed) {
-  if (k < NKRO_KEY_COUNT) {
-    uint8_t bitmaskIndex = k / 8;
-    uint8_t bitOffset = k % 8;
+void BLENKRO::updateNKROBitmask(NKROKey k, bool pressed) {
+  // Convert to underlying type for bitmask operations
+  uint8_t keyValue = static_cast<uint8_t>(k);
+  
+  if (keyValue < NKRO_KEY_COUNT) {
+    uint8_t bitmaskIndex = keyValue / 8;
+    uint8_t bitOffset = keyValue % 8;
     
     if (pressed) {
       _keyReportNKRO.keys_bitmask[bitmaskIndex] |= (1 << bitOffset);
@@ -160,15 +178,16 @@ void BLENKRO::updateNKROBitmask(uint8_t k, bool pressed) {
     }
     
     BLE_LOG_DEBUG(NKRO_TAG, "Bitmask updated - Key: 0x%02X, Index: %u, Bit: %u, Action: %s", 
-                  k, bitmaskIndex, bitOffset, pressed ? "set" : "cleared");
+                  keyValue, bitmaskIndex, bitOffset, pressed ? "set" : "cleared");
   } else {
-    BLE_LOG_WARN(NKRO_TAG, "Key out of range for bitmask update: 0x%02X", k);
+    BLE_LOG_WARN(NKRO_TAG, "Key out of range for bitmask update: 0x%02X", keyValue);
   }
 }
 
-void BLENKRO::setModifiers(uint8_t modifiers) {
-    _keyReportNKRO.modifiers = modifiers;
-    BLE_LOG_DEBUG(NKRO_TAG, "Modifiers set to: 0x%02X", modifiers);
+void BLENKRO::setModifiers(ModKey modifiers) {
+    // Convert to underlying type for the report
+    _keyReportNKRO.modifiers = static_cast<uint8_t>(modifiers >> 8);
+    BLE_LOG_DEBUG(NKRO_TAG, "Modifiers set to: 0x%02X", _keyReportNKRO.modifiers);
     sendNKROReport();
 }
 
@@ -198,43 +217,43 @@ uint8_t BLENKRO::charToKeyCode(char c, bool *needShift) {
 
     switch (c)
     {
-    case '\n': case '\r':                return KEY_ENTER;          // 0xB0
-    case '\t':                           return KEY_TAB;            // 0xB3
-    case ' ':                            return KEY_SPACE;          // 0x2C
+    case '\n': case '\r':                return static_cast<uint8_t>(KC_ENT);          // 0xB0
+    case '\t':                           return static_cast<uint8_t>(KC_TAB);           // 0xB3
+    case ' ':                            return static_cast<uint8_t>(KC_SPC);           // 0x2C
     case '-': case '_':
         if (c == '_') *needShift = true;
-        return KEY_MINUS;                                      // 0x2D
+        return static_cast<uint8_t>(KC_MINS);                                          // 0x2D
     case '=': case '+':
         if (c == '+') *needShift = true;
-        return KEY_EQUAL;                                      // 0x2E
+        return static_cast<uint8_t>(KC_EQL);                                           // 0x2E
     case '[': case '{':
         if (c == '{') *needShift = true;
-        return KEY_LEFT_BRACKET;                               // 0x2F
+        return static_cast<uint8_t>(KC_LBRC);                                          // 0x2F
     case ']': case '}':
         if (c == '}') *needShift = true;
-        return KEY_RIGHT_BRACKET;                              // 0x30
+        return static_cast<uint8_t>(KC_RBRC);                                          // 0x30
     case '\\': case '|':
         if (c == '|') *needShift = true;
-        return KEY_BACKSLASH;                                  // 0x31
+        return static_cast<uint8_t>(KC_BSLS);                                          // 0x31
     case ';': case ':':
         if (c == ':') *needShift = true;
-        return KEY_SEMICOLON;                                  // 0x33
+        return static_cast<uint8_t>(KC_SCLN);                                          // 0x33
     case '\'': case '"':
         if (c == '"') *needShift = true;
-        return KEY_APOSTROPHE;                                 // 0x34
+        return static_cast<uint8_t>(KC_QUOT);                                          // 0x34
     case '`': case '~':
         if (c == '~') *needShift = true;
-        return KEY_GRAVE;                                      // 0x35
+        return static_cast<uint8_t>(KC_GRV);                                           // 0x35
     case ',': case '<':
         if (c == '<') *needShift = true;
-        return KEY_COMMA;                                      // 0x36
+        return static_cast<uint8_t>(KC_COMM);                                          // 0x36
     case '.': case '>':
         if (c == '>') *needShift = true;
-        return KEY_PERIOD;                                     // 0x37
+        return static_cast<uint8_t>(KC_DOT);                                           // 0x37
     case '/': case '?':
         if (c == '?') *needShift = true;
-        return KEY_FORWARD_SLASH;                              // 0x38
-    default:                             return 0;                // non-printable
+        return static_cast<uint8_t>(KC_SLSH);                                          // 0x38
+    default:                             return 0;                                     // non-printable
     }
 }
 
