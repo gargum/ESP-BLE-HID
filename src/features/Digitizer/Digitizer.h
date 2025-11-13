@@ -55,12 +55,19 @@ static const uint8_t _digitizerReportDescriptor[] = {
   END_COLLECTION(0),   
 };
 
-// Digitizer codes
+// Button bitmask constants
+enum class DigitizerButtons : uint8_t {
+  DIGITIZER_BTN1 = 0x01,
+  DIGITIZER_BTN2 = 0x02,
+  DIGITIZER_BTN3 = 0x04
+};
 
-// Button bitmask constants (for the 'buttons' parameter)
-const uint8_t DIGITIZER_BTN1 = 0x01;    // Button 1 (tip button, if present)
-const uint8_t DIGITIZER_BTN2 = 0x02;    // Button 2 (barrel/side button)
-const uint8_t DIGITIZER_BTN3 = 0x04;    // Button 3 (eraser)
+using DigitizerButton = uint8_t;
+
+const DigitizerButton DI_BTN1 = static_cast<DigitizerButton>(DigitizerButtons::DIGITIZER_BTN1); // Button 1 (tip button, if present)
+const DigitizerButton DI_BTN2 = static_cast<DigitizerButton>(DigitizerButtons::DIGITIZER_BTN2); // Button 2 (barrel/side button)
+const DigitizerButton DI_BTN3 = static_cast<DigitizerButton>(DigitizerButtons::DIGITIZER_BTN3); // Button 3 (eraser)
+
 // Flag constants (internal, for 'flags' field)
 const uint8_t DIGITIZER_FLAG_IN_RANGE     = 0x01;  // Bit 0
 const uint8_t DIGITIZER_FLAG_TIP_SWITCH   = 0x02;  // Bit 1
