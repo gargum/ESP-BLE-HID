@@ -48,7 +48,7 @@ void BLEDIGI::_detectModeFromAppearance(uint16_t appearance) {
     }
 }
 
-void BLEDIGI::click(uint16_t x, uint16_t y, char b) {
+void BLEDIGI::click(uint16_t x, uint16_t y, DigitizerKey b) {
     // This is a digitizer method - always use absolute mode
     if (!_useAbsolute) {
         _useAbsolute = true;
@@ -56,17 +56,13 @@ void BLEDIGI::click(uint16_t x, uint16_t y, char b) {
         BLE_LOG_INFO(DIGI_TAG, "Auto-switched to absolute mode for coordinate click");
     }
     
-    // Map mouse button constants to digitizer button constants for simplicity/convenience
-    uint8_t digitizerButtons = 0;
-    if (b & 1) digitizerButtons |= DI_BTN1;  // MOUSE_LEFT
-    if (b & 2) digitizerButtons |= DI_BTN2;  // MOUSE_RIGHT
-    if (b & 4) digitizerButtons |= DI_BTN3;  // MOUSE_MIDDLE
+    uint8_t digitizerButtons = static_cast<uint8_t>(b);
     
     BLE_LOG_DEBUG(DIGI_TAG, "Digitizer click at X:%u, Y:%u, buttons: 0x%02X", x, y, digitizerButtons);
     
-    moveTo(x, y, 127, digitizerButtons); // Press with pressure
+    moveTo(x, y, 127, b); // Press with pressure
     delay(_delay_ms);
-    moveTo(x, y, 0, 0);   // Release
+    moveTo(x, y, 0, DigitizerKey{0});   // Release
     
     BLE_LOG_DEBUG(DIGI_TAG, "Digitizer click completed");
 }
@@ -107,7 +103,7 @@ void BLEDIGI::setDigitizerRange(uint16_t maxX, uint16_t maxY) {
     BLE_LOG_INFO(DIGI_TAG, "Digitizer range set to X:%u, Y:%u", _screenWidth, _screenHeight);
 }
 
-void BLEDIGI::moveTo(uint16_t x, uint16_t y, uint8_t pressure, uint8_t buttons) {
+void BLEDIGI::moveTo(uint16_t x, uint16_t y, uint8_t pressure, DigitizerKey buttons) {
     if (_autoMode && !_useAbsolute) {
         _useAbsolute = true;
         _digitizerConfigured = true;
@@ -119,7 +115,8 @@ void BLEDIGI::moveTo(uint16_t x, uint16_t y, uint8_t pressure, uint8_t buttons) 
         uint16_t scaledX = (x * 32767ULL) / _screenWidth;
         uint16_t scaledY = (y * 32767ULL) / _screenHeight;
         
-        _digitizerReport.buttons = buttons & 0x07;  // Mask to 3 bits
+        uint8_t buttonValue = static_cast<uint8_t>(buttons);
+        _digitizerReport.buttons = buttonValue & 0x07;  // Mask to 3 bits
         _digitizerReport.x = scaledX;
         _digitizerReport.y = scaledY;
         _digitizerReport.pressure = (pressure > 127) ? 127 : pressure;
@@ -132,7 +129,7 @@ void BLEDIGI::moveTo(uint16_t x, uint16_t y, uint8_t pressure, uint8_t buttons) 
         }
         
         BLE_LOG_DEBUG(DIGI_TAG, "Digitizer move - X:%u->%u, Y:%u->%u, Pressure:%u, Buttons:0x%02X, Flags:0x%02X",
-                     x, scaledX, y, scaledY, pressure, buttons, _digitizerReport.flags);
+                     x, scaledX, y, scaledY, pressure, buttonValue, _digitizerReport.flags);
         
         sendDigitizerReport();
     } else {
@@ -145,17 +142,17 @@ void BLEDIGI::moveTo(uint16_t x, uint16_t y, uint8_t pressure, uint8_t buttons) 
 
 void BLEDIGI::beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure) {
     BLE_LOG_DEBUG(DIGI_TAG, "Beginning stroke at X:%u, Y:%u, initial pressure:%u", x, y, initialPressure);
-    moveTo(x, y, initialPressure);
+    moveTo(x, y, initialPressure, DigitizerKey{0});
 }
 
 void BLEDIGI::updateStroke(uint16_t x, uint16_t y, uint16_t pressure) {
     BLE_LOG_DEBUG(DIGI_TAG, "Updating stroke at X:%u, Y:%u, pressure:%u", x, y, pressure);
-    moveTo(x, y, pressure);
+    moveTo(x, y, pressure, DigitizerKey{0});
 }
 
 void BLEDIGI::endStroke(uint16_t x, uint16_t y) {
     BLE_LOG_DEBUG(DIGI_TAG, "Ending stroke at X:%u, Y:%u", x, y);
-    moveTo(x, y, 0);
+    moveTo(x, y, 0, DigitizerKey{0});
 }
 
 void BLEDIGI::sendDigitizerReport() {
