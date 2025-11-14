@@ -9,6 +9,7 @@
 #include "HIDTypes.h"
 #include "NimBLECharacteristic.h"
 #include <stdint.h>
+#include "../Event/Types.h"
 
 #define MOUSE_ID      0x04
 
@@ -47,9 +48,7 @@ static const uint8_t _mouseReportDescriptor[] = {
   END_COLLECTION(0),   
 };
 
-// Mouse codes
-
-enum class MouseButtons : uint8_t {
+enum class MouseKeys : uint8_t {
   MOUSE_LEFT    = 0x01,
   MOUSE_RIGHT   = 0x02,
   MOUSE_MIDDLE  = 0x04,
@@ -57,21 +56,18 @@ enum class MouseButtons : uint8_t {
   MOUSE_FORWARD = 0x10
 };
 
-using MouseButton = char;
-
-const MouseButton MO_BTN1 = static_cast<MouseButton>(MouseButtons::MOUSE_LEFT);
-const MouseButton MO_BTN2 = static_cast<MouseButton>(MouseButtons::MOUSE_RIGHT);
-const MouseButton MO_BTN3 = static_cast<MouseButton>(MouseButtons::MOUSE_MIDDLE);
-const MouseButton MO_BTN4 = static_cast<MouseButton>(MouseButtons::MOUSE_BACK);
-const MouseButton MO_BTN5 = static_cast<MouseButton>(MouseButtons::MOUSE_FORWARD);
-const MouseButton MO_ALL  = (MO_BTN1 | MO_BTN2 | MO_BTN3);
+MK(MouseKey, MO_BTN1, MOUSE_LEFT);
+MK(MouseKey, MO_BTN2, MOUSE_RIGHT);
+MK(MouseKey, MO_BTN3, MOUSE_MIDDLE);
+MK(MouseKey, MO_BTN4, MOUSE_BACK);
+MK(MouseKey, MO_BTN5, MOUSE_FORWARD);
 
 class BLEMOUSE {
 private:
     NimBLECharacteristic* inputMouse;
     MouseReport _mouseReport;
-    uint8_t _mouseButtons;
-    uint32_t _delay_ms;
+    MouseKey    _mouseKeys;
+    uint32_t    _delay_ms;
     
 public:
     BLEMOUSE();
@@ -80,11 +76,11 @@ public:
     bool isConnected();
     
     // Mouse methods
-    size_t press(char b = MO_BTN1);
-    size_t release(char b = MO_BTN1);
-    void click(char b = MO_BTN1);
+    size_t press(MouseKey b = MO_BTN1);
+    size_t release(MouseKey b = MO_BTN1);
+    void click(MouseKey b = MO_BTN1);
     void move(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
-    bool mouseIsPressed(char b = MO_BTN1);
+    bool mouseIsPressed(MouseKey b = MO_BTN1);
     void sendMouseReport();
     void releaseAll();
 };
