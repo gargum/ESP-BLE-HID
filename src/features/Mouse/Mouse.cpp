@@ -10,14 +10,14 @@
 static const char* MOUSE_TAG = "BLEMOUSE";
 
 BLEMOUSE::BLEMOUSE() 
-    : inputMouse(nullptr), _mouseButtons(0), _delay_ms(7) {
+    : inputMouse(nullptr), _mouseKeys(MouseKey{0}), _delay_ms(7) {
     memset(&_mouseReport, 0, sizeof(_mouseReport));
 }
 
 void BLEMOUSE::begin(NimBLECharacteristic* mouseChar, uint32_t delay_ms) {
     inputMouse = mouseChar;
     _delay_ms = delay_ms;
-    _mouseButtons = 0;
+    _mouseKeys = MouseKey{0};
     memset(&_mouseReport, 0, sizeof(_mouseReport));
     
     BLE_LOG_DEBUG(MOUSE_TAG, "Mouse subsystem initialized with delay: %lu ms", delay_ms);
@@ -30,43 +30,56 @@ bool BLEMOUSE::isConnected() {
     return connected;
 }
 
-size_t BLEMOUSE::press(char b) {
-    _mouseButtons |= b;
-    _mouseReport.buttons = _mouseButtons;
+size_t BLEMOUSE::press(MouseKey b) {
+    // Convert to underlying type for bit operations
+    uint8_t buttonValue = static_cast<uint8_t>(b);
+    uint8_t currentKeys = static_cast<uint8_t>(_mouseKeys);
     
-    BLE_LOG_DEBUG(MOUSE_TAG, "Mouse button pressed: 0x%02X, button state: 0x%02X", b, _mouseButtons);
+    currentKeys |= buttonValue;
+    _mouseKeys = MouseKey{currentKeys};
+    _mouseReport.buttons = currentKeys;
+    
+    BLE_LOG_DEBUG(MOUSE_TAG, "Mouse button pressed: 0x%02X, button state: 0x%02X", 
+                 buttonValue, currentKeys);
     sendMouseReport();
     return 1;
 }
 
-size_t BLEMOUSE::release(char b) {
-    _mouseButtons &= ~b;
-    _mouseReport.buttons = _mouseButtons;
+size_t BLEMOUSE::release(MouseKey b) {
+    // Convert to underlying type for bit operations
+    uint8_t buttonValue = static_cast<uint8_t>(b);
+    uint8_t currentKeys = static_cast<uint8_t>(_mouseKeys);
     
-    BLE_LOG_DEBUG(MOUSE_TAG, "Mouse button released: 0x%02X, button state: 0x%02X", b, _mouseButtons);
+    currentKeys &= ~buttonValue;
+    _mouseKeys = MouseKey{currentKeys};
+    _mouseReport.buttons = currentKeys;
+    
+    BLE_LOG_DEBUG(MOUSE_TAG, "Mouse button released: 0x%02X, button state: 0x%02X", 
+                 buttonValue, currentKeys);
     sendMouseReport();
     return 1;
 }
 
 void BLEMOUSE::releaseAll() {
-    BLE_LOG_DEBUG(MOUSE_TAG, "Releasing all mouse buttons - previous state: 0x%02X", _mouseButtons);
-    _mouseButtons = 0;
+    BLE_LOG_DEBUG(MOUSE_TAG, "Releasing all mouse buttons - previous state: 0x%02X", 
+                 static_cast<uint8_t>(_mouseKeys));
+    _mouseKeys = MouseKey{0};
     _mouseReport.buttons = 0;
     sendMouseReport();
     BLE_LOG_DEBUG(MOUSE_TAG, "All mouse buttons released");
 }
 
-void BLEMOUSE::click(char b) {
-    BLE_LOG_DEBUG(MOUSE_TAG, "Mouse click: 0x%02X", b);
+void BLEMOUSE::click(MouseKey b) {
+    BLE_LOG_DEBUG(MOUSE_TAG, "Mouse click: 0x%02X", static_cast<uint8_t>(b));
     press(b);
     delay(_delay_ms);
     release(b);
-    BLE_LOG_DEBUG(MOUSE_TAG, "Mouse click completed: 0x%02X", b);
+    BLE_LOG_DEBUG(MOUSE_TAG, "Mouse click completed: 0x%02X", static_cast<uint8_t>(b));
 }
 
 void BLEMOUSE::move(signed char x, signed char y, signed char wheel, signed char hWheel) {
     if (isConnected() && inputMouse) {
-        _mouseReport.buttons = _mouseButtons;
+        _mouseReport.buttons = static_cast<uint8_t>(_mouseKeys);  // Convert to underlying type
         
         // Set relative fields
         _mouseReport.relX = x;
@@ -75,7 +88,7 @@ void BLEMOUSE::move(signed char x, signed char y, signed char wheel, signed char
         _mouseReport.hWheel = hWheel;
         
         BLE_LOG_DEBUG(MOUSE_TAG, "Mouse movement - X: %d, Y: %d, Wheel: %d, HWheel: %d, Buttons: 0x%02X", 
-                     x, y, wheel, hWheel, _mouseButtons);
+                     x, y, wheel, hWheel, static_cast<uint8_t>(_mouseKeys));
         sendMouseReport();
     } else {
         BLE_LOG_DEBUG(MOUSE_TAG, "Mouse movement ignored - %s", 
@@ -83,10 +96,13 @@ void BLEMOUSE::move(signed char x, signed char y, signed char wheel, signed char
     }
 }
 
-bool BLEMOUSE::mouseIsPressed(char b) {
-    bool pressed = (_mouseReport.buttons & b) != 0;
+bool BLEMOUSE::mouseIsPressed(MouseKey b) {
+    uint8_t buttonValue = static_cast<uint8_t>(b);
+    uint8_t currentKeys = static_cast<uint8_t>(_mouseKeys);
+    bool pressed = (currentKeys & buttonValue) != 0;
+    
     BLE_LOG_DEBUG(MOUSE_TAG, "Mouse button check - Button: 0x%02X, Pressed: %s", 
-                 b, pressed ? "true" : "false");
+                 buttonValue, pressed ? "true" : "false");
     return pressed;
 }
 
