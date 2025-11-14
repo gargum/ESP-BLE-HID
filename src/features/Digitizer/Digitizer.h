@@ -9,6 +9,7 @@
 #include "HIDTypes.h"
 #include "NimBLECharacteristic.h"
 #include <stdint.h>
+#include "../Event/Types.h"
 
 #define DIGITIZER_ID  0x05
 
@@ -56,17 +57,15 @@ static const uint8_t _digitizerReportDescriptor[] = {
 };
 
 // Button bitmask constants
-enum class DigitizerButtons : uint8_t {
-  DIGITIZER_BTN1 = 0x01,
-  DIGITIZER_BTN2 = 0x02,
-  DIGITIZER_BTN3 = 0x04
+enum class DigitizerKeys : uint8_t {
+  DIGITIZER_BTN1 = 0x01, // Button 1 (tip button, if present)
+  DIGITIZER_BTN2 = 0x02, // Button 2 (barrel/side button)
+  DIGITIZER_BTN3 = 0x04  // Button 3 (eraser)
 };
 
-using DigitizerButton = uint8_t;
-
-const DigitizerButton DI_BTN1 = static_cast<DigitizerButton>(DigitizerButtons::DIGITIZER_BTN1); // Button 1 (tip button, if present)
-const DigitizerButton DI_BTN2 = static_cast<DigitizerButton>(DigitizerButtons::DIGITIZER_BTN2); // Button 2 (barrel/side button)
-const DigitizerButton DI_BTN3 = static_cast<DigitizerButton>(DigitizerButtons::DIGITIZER_BTN3); // Button 3 (eraser)
+MK(DigitizerKey, DI_BTN1, DIGITIZER_BTN1);
+MK(DigitizerKey, DI_BTN2, DIGITIZER_BTN2);
+MK(DigitizerKey, DI_BTN3, DIGITIZER_BTN3);
 
 // Flag constants (internal, for 'flags' field)
 const uint8_t DIGITIZER_FLAG_IN_RANGE     = 0x01;  // Bit 0
@@ -77,13 +76,13 @@ const uint8_t DIGITIZER_FLAG_BARREL_SW    = 0x08;  // Bit 3
 class BLEDIGI {
 private:
     NimBLECharacteristic* inputDigitizer;
-    DigitizerReport _digitizerReport;
-    uint32_t _delay_ms;
-    bool _useAbsolute;
-    bool _autoMode;
-    bool _digitizerConfigured;
-    uint16_t _screenWidth;
-    uint16_t _screenHeight;
+    DigitizerReport       _digitizerReport;
+    uint32_t              _delay_ms;
+    bool                  _useAbsolute;
+    bool                  _autoMode;
+    bool                  _digitizerConfigured;
+    uint16_t              _screenWidth;
+    uint16_t              _screenHeight;
     
     void _detectModeFromAppearance(uint16_t appearance);
     
@@ -94,8 +93,8 @@ public:
     bool isConnected();
     
     // Digitizer methods
-    void click(uint16_t x, uint16_t y, char b = 1);  // 1 = MOUSE_LEFT equivalent
-    void moveTo(uint16_t x, uint16_t y, uint8_t pressure = 0, uint8_t buttons = 0);
+    void click(uint16_t x, uint16_t y, DigitizerKey b = DI_BTN1);  // 1 = MOUSE_LEFT equivalent
+    void moveTo(uint16_t x, uint16_t y, uint8_t pressure = 0, DigitizerKey buttons = DigitizerKey{0});
     void beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 127);
     void updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
     void endStroke(uint16_t x, uint16_t y);
