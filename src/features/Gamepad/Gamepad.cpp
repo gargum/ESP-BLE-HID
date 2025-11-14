@@ -148,11 +148,11 @@ bool BLEGAMEPAD::gamepadIsPressed(GamepadButton button) {
     return pressed;
 } 
 
-void BLEGAMEPAD::gamepadSetAxis(GamepadAxes axis, int16_t value) {
+void BLEGAMEPAD::gamepadSetAxis(GamepadAnalogue axis, int16_t value) {
     int8_t axisIndex = static_cast<int8_t>(axis);
-    if (axisIndex < GAMEPAD_AXIS_COUNT) {
-        int16_t previousValue = _gamepadReport.axes[axisIndex];
-        _gamepadReport.axes[axisIndex] = value;
+    if (axisIndex < GAMEPAD_ANALOGUE_COUNT) {
+        int16_t previousValue = _gamepadReport.analogues[axisIndex];
+        _gamepadReport.analogues[axisIndex] = value;
         
         BLE_LOG_DEBUG(GAMEPAD_TAG, "Axis set - Axis: %d, Value: %d -> %d", 
                      axisIndex, previousValue, value);
@@ -162,12 +162,12 @@ void BLEGAMEPAD::gamepadSetAxis(GamepadAxes axis, int16_t value) {
     }
 }
 
-int16_t BLEGAMEPAD::gamepadGetAxis(GamepadAxes axis) {
+int16_t BLEGAMEPAD::gamepadGetAxis(GamepadAnalogue axis) {
     int8_t axisIndex = static_cast<int8_t>(axis);
     int16_t value = 0;
     
-    if (axisIndex < GAMEPAD_AXIS_COUNT) {
-        value = _gamepadReport.axes[axisIndex];
+    if (axisIndex < GAMEPAD_ANALOGUE_COUNT) {
+        value = _gamepadReport.analogues[axisIndex];
         BLE_LOG_DEBUG(GAMEPAD_TAG, "Axis get - Axis: %d, Value: %d", axisIndex, value);
     } else {
         BLE_LOG_WARN(GAMEPAD_TAG, "Invalid axis get attempt: %d", axisIndex);
@@ -176,40 +176,40 @@ int16_t BLEGAMEPAD::gamepadGetAxis(GamepadAxes axis) {
     return value;
 }
 
-void BLEGAMEPAD::gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]) {
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Setting all axes");
-    memcpy(_gamepadReport.axes, values, sizeof(_gamepadReport.axes));
+void BLEGAMEPAD::gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]) {
+    BLE_LOG_DEBUG(GAMEPAD_TAG, "Setting all analogue axes");
+    memcpy(_gamepadReport.analogues, values, sizeof(_gamepadReport.analogues));
     sendGamepadReport();
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "All axes set successfully");
+    BLE_LOG_DEBUG(GAMEPAD_TAG, "All analogue axes set successfully");
 }
 
 void BLEGAMEPAD::gamepadSetLeftStick(int16_t x, int16_t y) {
     BLE_LOG_DEBUG(GAMEPAD_TAG, "Setting left stick - X: %d -> %d, Y: %d -> %d", 
-                 _gamepadReport.axes[static_cast<int8_t>(GA_LX)], x, 
-                 _gamepadReport.axes[static_cast<int8_t>(GA_LY)], y);
+                 _gamepadReport.analogues[static_cast<int8_t>(GA_LX)], x, 
+                 _gamepadReport.analogues[static_cast<int8_t>(GA_LY)], y);
     
-    _gamepadReport.axes[static_cast<int8_t>(GA_LX)] = x;
-    _gamepadReport.axes[static_cast<int8_t>(GA_LY)] = y;
+    _gamepadReport.analogues[static_cast<int8_t>(GA_LX)] = x;
+    _gamepadReport.analogues[static_cast<int8_t>(GA_LY)] = y;
     sendGamepadReport();
 }
 
 void BLEGAMEPAD::gamepadSetRightStick(int16_t x, int16_t y) {
     BLE_LOG_DEBUG(GAMEPAD_TAG, "Setting right stick - X: %d -> %d, Y: %d -> %d", 
-                 _gamepadReport.axes[static_cast<int8_t>(GA_RX)], x, 
-                 _gamepadReport.axes[static_cast<int8_t>(GA_RY)], y);
+                 _gamepadReport.analogues[static_cast<int8_t>(GA_RX)], x, 
+                 _gamepadReport.analogues[static_cast<int8_t>(GA_RY)], y);
     
-    _gamepadReport.axes[static_cast<int8_t>(GA_RX)] = x;
-    _gamepadReport.axes[static_cast<int8_t>(GA_RY)] = y;
+    _gamepadReport.analogues[static_cast<int8_t>(GA_RX)] = x;
+    _gamepadReport.analogues[static_cast<int8_t>(GA_RY)] = y;
     sendGamepadReport();
 }
 
 void BLEGAMEPAD::gamepadSetTriggers(int16_t left, int16_t right) {
     BLE_LOG_DEBUG(GAMEPAD_TAG, "Setting triggers - Left: %d -> %d, Right: %d -> %d", 
-                 _gamepadReport.axes[static_cast<int8_t>(GA_LT)], left, 
-                 _gamepadReport.axes[static_cast<int8_t>(GA_RT)], right);
+                 _gamepadReport.analogues[static_cast<int8_t>(GA_LT)], left, 
+                 _gamepadReport.analogues[static_cast<int8_t>(GA_RT)], right);
     
-    _gamepadReport.axes[static_cast<int8_t>(GA_LT)] = left;
-    _gamepadReport.axes[static_cast<int8_t>(GA_RT)] = right;
+    _gamepadReport.analogues[static_cast<int8_t>(GA_LT)] = left;
+    _gamepadReport.analogues[static_cast<int8_t>(GA_RT)] = right;
     sendGamepadReport();
 }
 
@@ -242,9 +242,9 @@ void BLEGAMEPAD::sendGamepadReport() {
                      "Buttons[0]: 0x%08lX, Buttons[1]: 0x%08lX, Hat: 0x%02X, "
                      "LX: %d, LY: %d, RX: %d, RY: %d, LT: %d, RT: %d",
                      _gamepadReport.buttons[0], _gamepadReport.buttons[1], _gamepadReport.hat,
-                     _gamepadReport.axes[static_cast<int8_t>(GA_LX)], _gamepadReport.axes[static_cast<int8_t>(GA_LY)],
-                     _gamepadReport.axes[static_cast<int8_t>(GA_RX)], _gamepadReport.axes[static_cast<int8_t>(GA_RY)],
-                     _gamepadReport.axes[static_cast<int8_t>(GA_LT)], _gamepadReport.axes[static_cast<int8_t>(GA_RT)]);
+                     _gamepadReport.analogues[static_cast<int8_t>(GA_LX)], _gamepadReport.analogues[static_cast<int8_t>(GA_LY)],
+                     _gamepadReport.analogues[static_cast<int8_t>(GA_RX)], _gamepadReport.analogues[static_cast<int8_t>(GA_RY)],
+                     _gamepadReport.analogues[static_cast<int8_t>(GA_LT)], _gamepadReport.analogues[static_cast<int8_t>(GA_RT)]);
     } else {
         BLE_LOG_WARN(GAMEPAD_TAG, "Failed to send gamepad report notification");
     }
