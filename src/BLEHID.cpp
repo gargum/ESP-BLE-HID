@@ -618,15 +618,15 @@ void BLEHID::sendMediaReport() { media.sendMediaReport(); }
 //
 
 #if MOUSE_ENABLE
-size_t BLEHID::press(char b) { return mouse.press(b); }
+size_t BLEHID::press(MouseKey b) { return mouse.press(b); }
 
-size_t BLEHID::release(char b) { return mouse.release(b); }
+size_t BLEHID::release(MouseKey b) { return mouse.release(b); }
 
-void BLEHID::click(char b) { mouse.click(b); }
+void BLEHID::click(MouseKey b) { mouse.click(b); }
 
 void BLEHID::move(signed char x, signed char y, signed char wheel, signed char hWheel) { mouse.move(x, y, wheel, hWheel); }
 
-bool BLEHID::mouseIsPressed(char b) { return mouse.mouseIsPressed(b); }
+bool BLEHID::mouseIsPressed(MouseKey b) { return mouse.mouseIsPressed(b); }
 #endif
 
 //
@@ -634,9 +634,9 @@ bool BLEHID::mouseIsPressed(char b) { return mouse.mouseIsPressed(b); }
 //
 
 #if DIGITIZER_ENABLE
-void BLEHID::click(uint16_t x, uint16_t y, char b) { digitizer.click(x, y, b); }
+void BLEHID::click(uint16_t x, uint16_t y, DigitizerKey b) { digitizer.click(x, y, b); }
 
-void BLEHID::moveTo(uint16_t x, uint16_t y, uint8_t pressure, uint8_t buttons) { digitizer.moveTo(x, y, pressure, buttons); }
+void BLEHID::moveTo(uint16_t x, uint16_t y, uint8_t pressure, DigitizerKey buttons) { digitizer.moveTo(x, y, pressure, buttons); }
 
 void BLEHID::beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure) { digitizer.beginStroke(x, y, initialPressure); }
 
@@ -698,11 +698,11 @@ void BLEHID::gamepadGetLeftStick(int16_t &x, int16_t &y) { gamepad.gamepadGetLef
 
 void BLEHID::gamepadGetRightStick(int16_t &x, int16_t &y) { gamepad.gamepadGetRightStick(x, y); }
 
-void BLEHID::gamepadSetAxis(GamepadAxes axis, int16_t value) { gamepad.gamepadSetAxis(axis, value); }
+void BLEHID::gamepadSetAxis(GamepadAnalogue axis, int16_t value) { gamepad.gamepadSetAxis(axis, value); }
 
-int16_t BLEHID::gamepadGetAxis(GamepadAxes axis) { return gamepad.gamepadGetAxis(axis); }
+int16_t BLEHID::gamepadGetAxis(GamepadAnalogue axis) { return gamepad.gamepadGetAxis(axis); }
 
-void BLEHID::gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]) { gamepad.gamepadSetAllAxes(values); }
+void BLEHID::gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]) { gamepad.gamepadSetAllAxes(values); }
 
 void BLEHID::sendGamepadReport() { gamepad.sendGamepadReport(); }
 #endif
