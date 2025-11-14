@@ -12,7 +12,7 @@
 #include "../Event/Types.h"
 
 #define GAMEPAD_BUTTON_COUNT 64
-#define GAMEPAD_AXIS_COUNT 6
+#define GAMEPAD_ANALOGUE_COUNT 6
 
 #define GAMEPAD_ID    0x07
 
@@ -20,7 +20,7 @@ typedef struct {
   uint32_t buttons[2];
   int8_t hat;
   uint8_t padding;
-  int16_t axes[GAMEPAD_AXIS_COUNT];
+  int16_t analogues[GAMEPAD_ANALOGUE_COUNT];
 } GamepadReport;
 
 static const uint8_t _gamepadReportDescriptor[] = {
@@ -225,7 +225,7 @@ MK(GamepadButton, GB_RI, GAMEPAD_RIGHT);
 MK(GamepadButton, GB_DO, GAMEPAD_DOWN);
 MK(GamepadButton, GB_LE, GAMEPAD_LEFT);
 
-enum class GamepadAxes : uint8_t {
+enum class GamepadAnalogues : uint8_t {
 
   AXIS_LX = 0,  // Left stick X
   AXIS_LY = 1,  // Left stick Y
@@ -236,14 +236,14 @@ enum class GamepadAxes : uint8_t {
 
 };
 
-constexpr GamepadAxes GA_LX = GamepadAxes::AXIS_LX;
-constexpr GamepadAxes GA_LY = GamepadAxes::AXIS_LY;
-constexpr GamepadAxes GA_RX = GamepadAxes::AXIS_RX;
-constexpr GamepadAxes GA_RY = GamepadAxes::AXIS_RY;
-constexpr GamepadAxes GA_LT = GamepadAxes::AXIS_LT;
-constexpr GamepadAxes GA_RT = GamepadAxes::AXIS_RT;
+MK(GamepadAnalogue, GA_LX, AXIS_LX);
+MK(GamepadAnalogue, GA_LY, AXIS_LY);
+MK(GamepadAnalogue, GA_RX, AXIS_RX);
+MK(GamepadAnalogue, GA_RY, AXIS_RY);
+MK(GamepadAnalogue, GA_LT, AXIS_LT);
+MK(GamepadAnalogue, GA_RT, AXIS_RT);
 
-enum class GamepadHat : uint8_t {
+enum class GamepadHats : uint8_t {
 
   DPAD_UP         = 0,
   DPAD_UP_RIGHT   = 1,
@@ -257,15 +257,15 @@ enum class GamepadHat : uint8_t {
 
 };
 
-constexpr GamepadHat HAT_UP = GamepadHat::DPAD_UP;
-constexpr GamepadHat HAT_UR = GamepadHat::DPAD_UP_RIGHT;
-constexpr GamepadHat HAT_RI = GamepadHat::DPAD_RIGHT;
-constexpr GamepadHat HAT_DR = GamepadHat::DPAD_DOWN_RIGHT;
-constexpr GamepadHat HAT_DO = GamepadHat::DPAD_DOWN;
-constexpr GamepadHat HAT_DL = GamepadHat::DPAD_DOWN_LEFT;
-constexpr GamepadHat HAT_LE = GamepadHat::DPAD_LEFT;
-constexpr GamepadHat HAT_UL = GamepadHat::DPAD_UP_LEFT;
-constexpr GamepadHat HAT_CE = GamepadHat::DPAD_CENTRE;
+MK(GamepadHat, HAT_UP, DPAD_UP);
+MK(GamepadHat, HAT_UR, DPAD_UP_RIGHT);
+MK(GamepadHat, HAT_RI, DPAD_RIGHT);
+MK(GamepadHat, HAT_DR, DPAD_DOWN_RIGHT);
+MK(GamepadHat, HAT_DO, DPAD_DOWN);
+MK(GamepadHat, HAT_DL, DPAD_DOWN_LEFT);
+MK(GamepadHat, HAT_LE, DPAD_LEFT);
+MK(GamepadHat, HAT_UL, DPAD_UP_LEFT);
+MK(GamepadHat, HAT_CE, DPAD_CENTRE);
 
 constexpr GamepadHat hatPress[4][9] = {
   { HAT_UP, HAT_UR, HAT_UR, HAT_UR, HAT_UP, HAT_UL, HAT_UL, HAT_UL, HAT_UP }, // UP     |  UP     UP-RIGHT  RIGHT  DOWN-RIGHT  DOWN  DOWN-LEFT   LEFT   UP-LEFT   CENTER
@@ -301,9 +301,9 @@ public:
     void    gamepadSetTriggers(int16_t left, int16_t right);
     void    gamepadGetLeftStick(int16_t &x, int16_t &y);
     void    gamepadGetRightStick(int16_t &x, int16_t &y);
-    void    gamepadSetAxis(GamepadAxes axis, int16_t value);
-    int16_t gamepadGetAxis(GamepadAxes axis);
-    void    gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
+    void    gamepadSetAxis(GamepadAnalogue axis, int16_t value);
+    int16_t gamepadGetAxis(GamepadAnalogue axis);
+    void    gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]);
     void    sendGamepadReport();
 };
 #endif
