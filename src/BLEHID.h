@@ -70,16 +70,6 @@
 // Scanning/Polling interval
 #define SCAN_INTERVAL 10
 
-// Define the mouse buttons if we need them but don't have the file where they normally live
-#if DIGITIZER_ENABLE && !MOUSE_ENABLE
-  const uint8_t MO_BTN1 = 1;
-  const uint8_t MO_BTN2 = 2;
-  const uint8_t MO_BTN3 = 4;
-  const uint8_t MO_BTN4 = 8;
-  const uint8_t MO_BTN5 = 16;
-  const uint8_t MO_ALL  = (MO_BTN1 | MO_BTN2 | MO_BTN3);
-#endif
-
 class BLEHID : public Print
     , public NimBLEServerCallbacks
     , public NimBLECharacteristicCallbacks
@@ -120,7 +110,7 @@ private:
   #endif
   
   #if DIGITIZER_ENABLE
-    BLEDIGI               digitizer;
+    BLEDIGI                  digitizer;
     NimBLECharacteristic*    inputDigitizer;
   #endif
   
@@ -133,7 +123,7 @@ private:
   #endif
   
   #if GAMEPAD_ENABLE
-    BLEGAMEPAD            gamepad;
+    BLEGAMEPAD               gamepad;
     NimBLECharacteristic*    inputGamepad;
   #endif
   
@@ -186,16 +176,16 @@ public:
   #endif
   
   #if MOUSE_ENABLE
-    size_t press(char b = MO_BTN1);
-    size_t release(char b = MO_BTN1);
-    void   click(char b = MO_BTN1);
+    size_t press(MouseKey b = MO_BTN1);
+    size_t release(MouseKey b = MO_BTN1);
+    void   click(MouseKey b = MO_BTN1);
     void   move(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
-    bool   mouseIsPressed(char b = MO_BTN1);
+    bool   mouseIsPressed(MouseKey b = MO_BTN1);
   #endif
   
   #if DIGITIZER_ENABLE
-    void click(uint16_t x, uint16_t y, char b = MO_BTN1);
-    void moveTo(uint16_t x, uint16_t y, uint8_t pressure = 0, uint8_t buttons = 0);
+    void click(uint16_t x, uint16_t y, DigitizerKey b = DI_BTN1);
+    void moveTo(uint16_t x, uint16_t y, uint8_t pressure = 0, DigitizerKey buttons = DigitizerKey{0});
     void beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 127);
     void updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
     void endStroke(uint16_t x, uint16_t y);
@@ -227,9 +217,9 @@ public:
     void     gamepadSetTriggers(int16_t left, int16_t right);
     void     gamepadGetLeftStick(int16_t &x, int16_t &y);
     void     gamepadGetRightStick(int16_t &x, int16_t &y);
-    void     gamepadSetAxis(GamepadAxes axis, int16_t value);
-    int16_t  gamepadGetAxis(GamepadAxes axis);
-    void     gamepadSetAllAxes(int16_t values[GAMEPAD_AXIS_COUNT]);
+    void     gamepadSetAxis(GamepadAnalogue axis, int16_t value);
+    int16_t  gamepadGetAxis(GamepadAnalogue axis);
+    void     gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]);
     void     sendGamepadReport();
   #endif
   
