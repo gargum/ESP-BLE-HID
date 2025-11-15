@@ -6,10 +6,9 @@
 #ifndef GEMINIPR_H
 #define GEMINIPR_H
 
-#include "NimBLECharacteristic.h"
-#include "NimBLEServer.h"
 #include <stdint.h>
-#include "../Event/Types.h"
+#include "../../drivers/Event/Types.h"
+#include "../../drivers/Interface/Interface.h"
 
 typedef struct {
   uint8_t byte0;  // Fn  to #6
@@ -110,23 +109,22 @@ enum class  StenoKeys : uint16_t {
  MK(StenoKey, ST_12,    GEMINI_NUM12);
  MK(StenoKey, ST_Z,     GEMINI_Z);
 
-class BLESTENO {
+class SQUIDSTENO {
 private:
     GeminiPRReport _geminiReport;
     uint32_t _delay_ms = 7;
     
     // SPP members
-    NimBLEService* serialService = nullptr;
-    NimBLECharacteristic* serialInput = nullptr;
-    NimBLECharacteristic* serialOutput = nullptr;
-    NimBLE2904* serialOutputDescriptor = nullptr;
-    bool serialConnected = false;
+    SquidService*        serialService = nullptr;
+    SquidCharacteristic* serialInput = nullptr;
+    SquidCharacteristic* serialOutput = nullptr;
+    bool                 serialConnected = false;
     
 public:
-    BLESTENO();
-    ~BLESTENO();
+    SQUIDSTENO();
+    ~SQUIDSTENO();
     
-    void begin(NimBLEService* service, NimBLECharacteristic* input, NimBLECharacteristic* output, uint32_t delay_ms = 7);
+    void begin(SquidService* service, SquidCharacteristic* input, SquidCharacteristic* output, uint32_t delay_ms = 7);
     bool isConnected();
     void releaseAll();
     
