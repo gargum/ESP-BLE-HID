@@ -7,9 +7,9 @@
 #define MOUSE_H
 
 #include "HIDTypes.h"
-#include "NimBLECharacteristic.h"
 #include <stdint.h>
-#include "../Event/Types.h"
+#include "../../drivers/Event/Types.h"
+#include "../../drivers/Interface/Interface.h"
 
 #define MOUSE_ID      0x04
 
@@ -62,17 +62,17 @@ MK(MouseKey, MO_BTN3, MOUSE_MIDDLE);
 MK(MouseKey, MO_BTN4, MOUSE_BACK);
 MK(MouseKey, MO_BTN5, MOUSE_FORWARD);
 
-class BLEMOUSE {
+class SQUIDMOUSE {
 private:
-    NimBLECharacteristic* inputMouse;
-    MouseReport _mouseReport;
-    MouseKey    _mouseKeys;
-    uint32_t    _delay_ms;
+    SquidCharacteristic* inputMouse;
+    MouseReport          _mouseReport;
+    MouseKey             _mouseKeys;
+    uint32_t             _delay_ms;
     
 public:
-    BLEMOUSE();
+    SQUIDMOUSE();
     
-    void begin(NimBLECharacteristic* mouseChar, uint32_t delay_ms = 7);
+    void begin(SquidCharacteristic* mouseChar, uint32_t delay_ms = 7);
     bool isConnected();
     
     // Mouse methods
