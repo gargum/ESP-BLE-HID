@@ -7,9 +7,9 @@
 #define GAMEPAD_H
 
 #include "HIDTypes.h"
-#include "NimBLECharacteristic.h"
 #include <stdint.h>
-#include "../Event/Types.h"
+#include "../../drivers/Event/Types.h"
+#include "../../drivers/Interface/Interface.h"
 
 #define GAMEPAD_BUTTON_COUNT 64
 #define GAMEPAD_ANALOGUE_COUNT 6
@@ -279,16 +279,16 @@ constexpr GamepadHat hatRelease[4][9] = {
   { HAT_UP, HAT_UR, HAT_RI, HAT_RI, HAT_CE, HAT_LE, HAT_LE, HAT_UL, HAT_CE}, // DOWN    |     This means, "If you're pressing UP and you release UP, the result is 0x08 (CENTER)
   { HAT_UP, HAT_UR, HAT_RI, HAT_DR, HAT_DO, HAT_DO, HAT_CE, HAT_UP, HAT_CE}};// LEFT    |     First value, so "If pressing UP", first row of hatRelease so "and UP is released", code is the result.
 
-class BLEGAMEPAD {
+class SQUIDGAMEPAD {
 private:
-    NimBLECharacteristic* inputGamepad;
+    SquidCharacteristic* inputGamepad;
     GamepadReport _gamepadReport;
     uint32_t _delay_ms;
 
 public:
-    BLEGAMEPAD();
+    SQUIDGAMEPAD();
     
-    void begin(NimBLECharacteristic* gamepadChar, uint32_t delay_ms = 7);
+    void begin(SquidCharacteristic* gamepadChar, uint32_t delay_ms = 7);
     bool isConnected();
     
     // Gamepad methods
