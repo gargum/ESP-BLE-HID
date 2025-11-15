@@ -1,15 +1,15 @@
 /**
- * @file BLEHID.cpp
+ * @file SQUIDHID.cpp
  * @brief Implementation of the full library
  */
 
-#include "BLEHID.h"
+#include "SQUIDHID.h"
 
 #if GEMINIPR_ENABLE
 // SPP UUIDs (Standard Serial Port Service)
-const char* BLEHID::SERIAL_SERVICE_UUID           = "00001101-0000-1000-8000-00805f9b34fb";
-const char* BLEHID::SERIAL_CHARACTERISTIC_UUID_TX = "00001102-0000-1000-8000-00805f9b34fb";
-const char* BLEHID::SERIAL_CHARACTERISTIC_UUID_RX = "00001103-0000-1000-8000-00805f9b34fb";
+const char* SQUIDHID::SERIAL_SERVICE_UUID           = "00001101-0000-1000-8000-00805f9b34fb";
+const char* SQUIDHID::SERIAL_CHARACTERISTIC_UUID_TX = "00001102-0000-1000-8000-00805f9b34fb";
+const char* SQUIDHID::SERIAL_CHARACTERISTIC_UUID_RX = "00001103-0000-1000-8000-00805f9b34fb";
 #endif
 
 #define KEYBOARD_ID   0x01
@@ -60,10 +60,9 @@ const size_t       descriptorSize = 0
   ;                      
                         
 static uint8_t     _hidReportDescriptor[descriptorSize];
-static const char* LOG_TAG = "BLEHID";
-static             BLEHID* _activeBLEHIDInstance = nullptr;
+static const char* LOG_TAG = "SQUIDHID";
+static             SQUIDHID* _activeSQUIDHIDInstance = nullptr;
 void               pollConnection(void * arg);
-bool               getInitialized = false;
 
 class HIDDescriptorInitializer {
 public:
@@ -100,48 +99,80 @@ public:
 
 static HIDDescriptorInitializer _hidDescriptorInitializer;
 
-// This is a "constructor". It takes that class from the BLEHID.h file, and turns it into "objects" that can actually be used.
-BLEHID::BLEHID(std::string deviceName, std::string deviceManufacturer, uint8_t batteryLevel) 
-    : hid(0)
+// This is a "constructor". It takes that class from the SQUIDHID.h file, and turns it into "objects" that can actually be used.
+SQUIDHID::SQUIDHID(std::string deviceName, std::string deviceManufacturer, uint8_t batteryLevel, SquidFactory::Implementation impl)
+    : ble(SquidFactory::create(impl))
     , deviceName(std::string(deviceName).substr(0, 15))
     , deviceManufacturer(std::string(deviceManufacturer).substr(0,15))
-    , batteryLevel(batteryLevel) 
-    , lastPollTime(0) 
+    , batteryLevel(batteryLevel)
+    , initialized(false)
+    , last_connected_count(0)
+    , lastPollTime(0)
+    , _delay_ms(7)
 {
-  BLELOGS::getInstance().initialize(); 
-  _activeBLEHIDInstance = this;
-  BLE_LOG_INFO(LOG_TAG, "BLEHID instance created");
-}
-// This is a "destructor". It takes objects the contructor made, and destroys them whenever you tell it to. 
-BLEHID::~BLEHID() { 
-    // Unregister this instance
-    if (_activeBLEHIDInstance == this) {
-        _activeBLEHIDInstance = nullptr;
-    }
+    SQUIDLOGS::getInstance().initialize(); 
+    _activeSQUIDHIDInstance = this;
+    SQUID_LOG_INFO(LOG_TAG, "SQUIDHID instance created");
 }
 
-void BLEHID::begin(void) {
-    // Initialise BLE stack only once
-    if (getInitialized) {
-        BLE_LOG_WARN(LOG_TAG, "BLE already initialized, cleaning up first...");
+// This is a "destructor". It takes objects the contructor made, and destroys them whenever you tell it to. 
+SQUIDHID::~SQUIDHID() { 
+    SQUID_LOG_DEBUG(LOG_TAG, "SQUIDHID destructor called");
+    
+    // Always call end() to ensure proper cleanup
+    end();
+
+    // Unregister this instance
+    if (_activeSQUIDHIDInstance == this) {
+        _activeSQUIDHIDInstance = nullptr;
+        SQUID_LOG_DEBUG(LOG_TAG, "Active instance unregistered");
+    }
+    
+    SQUID_LOG_DEBUG(LOG_TAG, "SQUIDHID destructor completed");
+}
+
+void SQUIDHID::begin(void) {
+    if (initialized) {
+        SQUID_LOG_WARN(LOG_TAG, "BLE already initialized, cleaning up first...");
         end();
         delay(100);
-    } else { NimBLEDevice::init(deviceName.c_str()); }
+    }
     
-    NimBLEDevice::setSecurityAuth(false, true, true); // Bonding, MITM, Secure Connections disabled
-    BLE_LOG_INFO(LOG_TAG, "Just Works simple pairing enabled");
+    if (!ble->init(deviceName.c_str())) {
+        SQUID_LOG_ERROR(LOG_TAG, "Failed to initialize BLE stack");
+        return;
+    }
     
-    // Create server & install callbacks
-    NimBLEServer *pServer = NimBLEDevice::createServer();
+    ble->setSecurityAuth(false, true, true);
+    SQUID_LOG_INFO(LOG_TAG, "Just Works simple pairing enabled");
+    
+    // Create server - store raw pointer (owned by ble)
+    pServer = ble->createServer();
+    if (!pServer) {
+        SQUID_LOG_ERROR(LOG_TAG, "Failed to create BLE server");
+        return;
+    }
     pServer->setCallbacks(this);
 
-    // Create HID device object
-    hid = new NimBLEHIDDevice(pServer);
+    // Create HID device using smart pointer
+    hid.reset(ble->createHIDDevice(pServer));
+    if (!hid) {
+        SQUID_LOG_ERROR(LOG_TAG, "Failed to create HID device");
+        return;
+    }
 
-    // Obtain report-characteristic pointers
+    // Create advertising using smart pointer
+    advertising.reset(ble->getAdvertising());
+    if (!advertising) {
+        SQUID_LOG_ERROR(LOG_TAG, "Failed to get advertising object");
+        return;
+    }
+
+    // Obtain characteristics - these are raw pointers (owned by hid device)
     outputKeyboard = hid->getOutputReport(KEYBOARD_ID);
+    
     #if KEYBOARD_ENABLE
-    inputNKRO      = hid->getInputReport(NKRO_ID);
+    inputNKRO = hid->getInputReport(NKRO_ID);
     #endif
     
     #if MEDIA_ENABLE
@@ -149,229 +180,379 @@ void BLEHID::begin(void) {
     #endif
     
     #if MOUSE_ENABLE
-    inputMouse     = hid->getInputReport(MOUSE_ID);
+    inputMouse = hid->getInputReport(MOUSE_ID);
     #endif
     
     #if DIGITIZER_ENABLE
     inputDigitizer = hid->getInputReport(DIGITIZER_ID);
     #endif
     
-    #if GEMINIPR_ENABLE
-      BLEService* serialService = pServer->createService(SERIAL_SERVICE_UUID);
-
-      // Create TX Characteristic (device -> client)
-      BLECharacteristic* serialInput = serialService->createCharacteristic(SERIAL_CHARACTERISTIC_UUID_TX, NIMBLE_PROPERTY::NOTIFY);
-
-      // Create RX Characteristic (client -> device)  
-      BLECharacteristic* serialOutput = serialService->createCharacteristic(SERIAL_CHARACTERISTIC_UUID_RX, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
-    #endif
-    
     #if GAMEPAD_ENABLE
-    inputGamepad   = hid->getInputReport(GAMEPAD_ID);
+    inputGamepad = hid->getInputReport(GAMEPAD_ID);
     #endif
     
-    // Set callbacks
-    outputKeyboard->setCallbacks(this);
+    // Set callbacks using raw pointers
+    if (outputKeyboard) {
+        outputKeyboard->setCallbacks(this);
+    }
     
+    // Initialize feature modules with raw pointers
     #if KEYBOARD_ENABLE
     if (inputNKRO) {
-      inputNKRO->setCallbacks(this);
-      nkro.begin(inputNKRO, _delay_ms);  // Initialize the BLENKRO instance
+        inputNKRO->setCallbacks(this);
+        nkro.begin(inputNKRO, _delay_ms);
     }
     #endif
     
     #if MEDIA_ENABLE
     if (inputMediaKeys) {
-      inputMediaKeys->setCallbacks(this);
-      media.begin(inputMediaKeys, _delay_ms);  // Initialize the BLEMEDIA instance
+        inputMediaKeys->setCallbacks(this);
+        media.begin(inputMediaKeys, _delay_ms);
     }
     #endif
     
     #if MOUSE_ENABLE
     if (inputMouse) {
-      inputMouse->setCallbacks(this);
-      mouse.begin(inputMouse, _delay_ms);
+        inputMouse->setCallbacks(this);
+        mouse.begin(inputMouse, _delay_ms);
     }
     #endif
     
     #if DIGITIZER_ENABLE
     if (inputDigitizer) {
-      inputDigitizer->setCallbacks(this);
-      digitizer.begin(inputDigitizer, _delay_ms);
+        inputDigitizer->setCallbacks(this);
+        digitizer.begin(inputDigitizer, _delay_ms);
+    }
+    #endif
+    
+    #if GAMEPAD_ENABLE
+    if (inputGamepad) {
+        inputGamepad->setCallbacks(this);
+        gamepad.begin(inputGamepad, _delay_ms);
     }
     #endif
     
     #if GEMINIPR_ENABLE
-    serialOutput->setCallbacks(this);
-    steno.begin(serialService, serialInput, serialOutput, _delay_ms);
+    // Create serial service using smart pointer
+    serialService.reset(pServer->createService(SERIAL_SERVICE_UUID));
+    if (serialService) {
+        // These factory methods return smart pointers
+        serialInput = serialService->createCharacteristic(SERIAL_CHARACTERISTIC_UUID_TX, SquidProperty::NOTIFY);
+        serialOutput = serialService->createCharacteristic(SERIAL_CHARACTERISTIC_UUID_RX, SquidProperty::WRITE | SquidProperty::WRITE_NR);
+        
+        if (serialInput && serialOutput) {
+            serialOutput->setCallbacks(this);
+            serialService->start();
+            steno.begin(serialService.get(), serialInput.get(), serialOutput.get(), _delay_ms);
+            SQUID_LOG_INFO(LOG_TAG, "Serial service started successfully");
+        }
+    }
     #endif
     
-    if (inputGamepad) {
-        inputGamepad->setCallbacks(this);
-        gamepad.begin(inputGamepad, _delay_ms);  // Initialize the BLEGAMEPAD instance
-    }
-    
     // Manufacturer / PnP / HID-info
-    hid->setManufacturer(std::string(deviceManufacturer.c_str()));
+    hid->setManufacturer(deviceManufacturer);
     hid->setHidInfo(0x11, 0x01);
 
     // Publish HID report map and start services
     hid->setReportMap((uint8_t *)_hidReportDescriptor, sizeof(_hidReportDescriptor));
     hid->startServices();
     
-    // Create complete Device Information Service
-    BLEService* disService = pServer->createService(NimBLEUUID((uint16_t)0x180A));
+    // Create Device Information Service - use local smart pointers (not class members)
+    P_AUTO(disService, pServer->createService(0x180A));
+    if (disService) {
+        // These factory methods return smart pointers
+        P_AUTO(manufChar, disService->createCharacteristic(0x2A29, SquidProperty::READ));
+        if (manufChar) manufChar->setValue(deviceManufacturer);
 
-    // Manufacturer Name
-    BLECharacteristic* manufChar = disService->createCharacteristic(
-      (uint16_t)0x2A29, 
-      NIMBLE_PROPERTY::READ
-    );
-    manufChar->setValue(deviceManufacturer.c_str());
+        P_AUTO(modelChar, disService->createCharacteristic(0x2A24, SquidProperty::READ));
+        if (modelChar) modelChar->setValue(deviceName);
 
-    // Model Number
-    BLECharacteristic* modelChar = disService->createCharacteristic(
-      (uint16_t)0x2A24,
-      NIMBLE_PROPERTY::READ
-    );
-    modelChar->setValue(deviceName.c_str());
+        P_AUTO(fwChar, disService->createCharacteristic(0x2A26, SquidProperty::READ));
+        if (fwChar) fwChar->setValue(BLE_KEYBOARD_VERSION);
 
-    // Firmware Version
-    BLECharacteristic* fwChar = disService->createCharacteristic(
-      (uint16_t)0x2A26,
-      NIMBLE_PROPERTY::READ
-    );
-    fwChar->setValue(BLE_KEYBOARD_VERSION);
-
-    // PnP ID (required)
-    BLECharacteristic* pnpChar = disService->createCharacteristic(
-      (uint16_t)0x2A50,
-      NIMBLE_PROPERTY::READ
-    );
-
-    uint8_t pnpId[7] = {
-      0x02,           // Vendor ID source (USB-IF)
-      vid & 0xFF, vid >> 8,
-      pid & 0xFF, pid >> 8,
-      version & 0xFF, version >> 8
-    };
-    pnpChar->setValue(pnpId, 7);
-
-    disService->start();
+        P_AUTO(pnpChar, disService->createCharacteristic(0x2A50, SquidProperty::READ));
+        if (pnpChar) {
+            uint8_t pnpId[7] = {0x02, vid & 0xFF, vid >> 8, pid & 0xFF, pid >> 8, version & 0xFF, version >> 8};
+            pnpChar->setValue(pnpId, 7);
+        }
+        disService->start();
+        SQUID_LOG_DEBUG(LOG_TAG, "Device Information Service started");
+    }
 
     // Advertising setup
-    advertising = pServer->getAdvertising();
-    BLEAdvertisementData adv, scan;
+    advData = ble->createAdvertisementData();
+    scanData = ble->createAdvertisementData();
     
-    auto configureAdvertisement = [&](BLEAdvertisementData &ad) {
-        ad.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
-        ad.setName(deviceName.c_str());
-        ad.setShortName(deviceName.substr(0, 8).c_str());
+    if (!advData || !scanData) {
+        SQUID_LOG_ERROR(LOG_TAG, "Failed to create advertisement data");
+        return;
+    }
+    
+    // Configure advertisements
+    auto configureAd = [this](SquidAdvertisementData& ad) {
+        ad.setFlags(0x06);
+        ad.setName(deviceName);
         ad.setAppearance(this->appearance);
-        ad.setManufacturerData(deviceManufacturer.c_str());
-        ad.addServiceUUID(BLEUUID((uint16_t)0x180F));
     };
     
-    // Configure both advertisements
-    configureAdvertisement(scan);
-    configureAdvertisement(adv);
+    configureAd(*advData);
+    configureAd(*scanData);
+    scanData->setShortName(deviceName.substr(0, 8));
     
-    // Add unique elements to each
-    scan.addServiceUUID(hid->getHidService()->getUUID());
-    adv.setCompleteServices(hid->getHidService()->getUUID());
-    adv.addServiceUUID(hid->getHidService()->getUUID());
+    // Add services to advertisements - getHidService() returns smart pointer
+    P_AUTO(hidService, hid->getHidService());
+    if (hidService) {
+        P_AUTO(hidUUID, hidService->getUUID());
+        if (hidUUID) {
+            scanData->addServiceUUID(*hidUUID);
+            advData->setCompleteServices(*hidUUID);
+            SQUID_LOG_DEBUG(LOG_TAG, "Added HID service to advertisement");
+        }
+    }
     
     #if GEMINIPR_ENABLE
-      // Add SPP service
-      NimBLEUUID serialUUID(SERIAL_SERVICE_UUID);
-      scan.addServiceUUID(serialUUID);
-      adv.addServiceUUID(serialUUID);
-      adv.setCompleteServices(serialUUID);
+    if (serialService) {
+        P_AUTO(serialUUID, serialService->getUUID());
+        if (serialUUID) {
+            scanData->addServiceUUID(*serialUUID);
+            advData->addServiceUUID(*serialUUID);
+            SQUID_LOG_DEBUG(LOG_TAG, "Added Serial service to advertisement");
+        }
+    }
     #endif
-    
-    advertising->setMinInterval(40);   // 25ms  (40  * 0.625ms)
-    advertising->setMaxInterval(160);  // 100ms (160 * 0.625ms)  
-    advertising->setAdvertisementData(adv);
-    advertising->setScanResponseData(scan);
 
-    // Start advertising & finish
+    advertising->setMinInterval(40);
+    advertising->setMaxInterval(160);
+    advertising->setAdvertisementData(*advData);
+    advertising->setScanResponseData(*scanData);
+
+    // Start advertising
     onStarted(pServer);
     advertising->start();
     hid->setBatteryLevel(batteryLevel);
     
     lastPollTime = millis();
-
-    BLE_LOG_INFO(LOG_TAG, "Advertising started!");
-    BLE_LOG_INFO(LOG_TAG, "Device name: %s", deviceName.c_str());
-    BLE_LOG_INFO(LOG_TAG, "Service UUID: %s", hid->getHidService()->getUUID().toString().c_str());
-    BLE_LOG_INFO(LOG_TAG, "Using %s mode by default", nkro.isNKROEnabled() ? "NKRO" : "6KRO");
+    initialized = true;
     
-    getInitialized = true;
+    SQUID_LOG_INFO(LOG_TAG, "SQUIDHID started successfully");
 }
 
 // Update/polling function
-void BLEHID::update() {
-  static uint32_t lastUpdateTime        = 0;
-  static uint32_t lastBatteryUpdateTime = 0;
-  static uint32_t lastLogProcessTime    = 0;
-  uint32_t currentTime                  = millis();
-  
-  if (currentTime - lastLogProcessTime >= 10) {
-        lastLogProcessTime = currentTime;
-        BLE_LOG_PROCESS();
-  }
-  
-  if (currentTime - lastUpdateTime >= SCAN_INTERVAL) {
-    lastUpdateTime = currentTime;
+void SQUIDHID::update() {
     
-    if (_activeBLEHIDInstance) {
-      uint32_t currentPollTime = millis();
-      
-      // Handle millis() rollover
-      if (currentPollTime < lastPollTime) {
-        lastPollTime = currentPollTime;
-        return;
-      }
-      
-      if (currentPollTime - lastPollTime >= POLL_INTERVAL) {
-        lastPollTime = currentPollTime;
-        pollConnection(this);
-      }
+    static uint32_t lastHeartBeat = 0;
+    static uint32_t lastUpdateTime = 0;
+    static uint32_t lastBatteryUpdateTime = 0;
+    static uint32_t lastLogProcessTime = 0;
+    uint32_t currentTime = millis();
+    
+    // Process logs every 50ms (safe to do even if not initialized)
+    if (currentTime - lastLogProcessTime >= 50) {
+        lastLogProcessTime = currentTime;
+        SQUID_LOG_PROCESS();
     }
-  }
-  
-  // Update battery level every 30 seconds if connected
-  if (isConnected() && (currentTime - lastBatteryUpdateTime >= 30000)) {
-    lastBatteryUpdateTime = currentTime;
-    // This ensures the host device always has the current battery level
-    if (hid != 0) {
-      BLEService* batteryService = hid->getBatteryService();
-      if (batteryService) {
-        BLECharacteristic* batteryLevelChar = batteryService->getCharacteristic((uint16_t)0x2A19);
-        if (batteryLevelChar) {
-          batteryLevelChar->setValue(&batteryLevel, 1);
+    
+    // Process heartbeat every 50ms to keep our objects alive
+    if (currentTime - lastHeartBeat >= 50) {          
+        lastHeartBeat = currentTime;
+
+        if (hid) {
+            #if KEYBOARD_ENABLE
+            nkro.sendNKROReport();       // NKRO heartbeat
+            #endif
+            #if MEDIA_ENABLE
+            media.sendMediaReport(); // Media heartbeat
+            #endif
+            #if DIGITIZER_ENABLE
+            digitizer.sendDigitizerReport(); // Digitizer heartbeat
+            #endif
+            #if GAMEPAD_ENABLE
+            gamepad.sendGamepadReport(); // Gamepad heartbeat
+            #endif
         }
-      }
     }
-  }
+    
+    // CRITICAL SAFETY CHECK: Ensure instance is fully initialized and valid
+    if (!initialized || !ble) {
+        // Only log this warning occasionally to avoid spam
+        static uint32_t lastWarningTime = 0;
+        if (currentTime - lastWarningTime > 5000) { // Every 5 seconds
+            SQUID_LOG_WARN(LOG_TAG, "Update called but BLE not initialized (init: %d, ble: %d)", 
+                          initialized, ble != nullptr);
+            lastWarningTime = currentTime;
+        }
+        return;
+    }
+    
+    // Handle SCAN_INTERVAL timing
+    if (currentTime - lastUpdateTime >= SCAN_INTERVAL) {
+        lastUpdateTime = currentTime;
+        
+        uint32_t currentPollTime = millis();
+        
+        // Handle millis() rollover safely
+        if (currentPollTime < lastPollTime) {
+            lastPollTime = currentPollTime;
+            return;
+        }
+        
+        // Handle POLL_INTERVAL timing with safety checks
+        if (currentPollTime - lastPollTime >= POLL_INTERVAL) {
+            lastPollTime = currentPollTime;
+            
+            // Direct polling implementation (replaces pollConnection function)
+            // Double-check ble is still valid
+            if (ble) {
+                uint8_t cnt = ble->getConnectedCount();
+                
+                // Connection state changed from connected to disconnected
+                if (last_connected_count && !cnt) {
+                    SQUID_LOG_WARN(LOG_TAG, "Connection lost - clients dropped from %d to %d", 
+                                  last_connected_count, cnt);
+                    
+                    // Small delay to ensure BLE stack is ready
+                    delay(100);
+                    
+                    // Safely restart advertising if needed
+                    if (advertising) {
+                        if (!advertising->isAdvertising()) {
+                            SQUID_LOG_INFO(LOG_TAG, "Advertising not running, attempting to restart");
+                        } else {
+                            SQUID_LOG_DEBUG(LOG_TAG, "Advertising already running, no restart needed");
+                        }
+                    } else {
+                        SQUID_LOG_WARN(LOG_TAG, "No advertising object available to restart");
+                    }
+                }
+                // Connection state changed from disconnected to connected
+                else if (!last_connected_count && cnt) {
+                    SQUID_LOG_INFO(LOG_TAG, "Connection established - clients: %d", cnt);
+                }
+                
+                last_connected_count = cnt;
+            } else {
+                SQUID_LOG_ERROR(LOG_TAG, "BLE interface became null during polling");
+                initialized = false; // Mark as uninitialized to prevent further operations
+            }
+        }
+    }
+    
+    // Update battery level every 30 seconds if connected
+    if (isConnected() && (currentTime - lastBatteryUpdateTime >= 30000)) {
+        lastBatteryUpdateTime = currentTime;
+        
+        // Triple-check all pointers before battery update
+        if (hid) {
+            P_AUTO(batteryService, hid->getBatteryService());
+            if (batteryService) {
+                P_AUTO(batteryLevelChar, batteryService->getCharacteristic(0x2A19));
+                if (batteryLevelChar) {
+                    // Update the characteristic value
+                    batteryLevelChar->setValue(&batteryLevel, 1);
+                    SQUID_LOG_DEBUG(LOG_TAG, "Battery level updated to %d%%", batteryLevel);
+                    
+                    // Optional: Notify connected clients (if supported and connected)
+                    // Note: Some systems may not support notifications for battery level
+                    if (isConnected()) {
+                        batteryLevelChar->notify();
+                    }
+                } else {
+                    SQUID_LOG_WARN(LOG_TAG, "Battery level characteristic not found");
+                }
+            } else {
+                SQUID_LOG_WARN(LOG_TAG, "Battery service not available");
+            }
+        } else {
+            SQUID_LOG_WARN(LOG_TAG, "HID device not available for battery update");
+        }
+    }
+    
+    // Optional: Add periodic health check (every 60 seconds)
+    static uint32_t lastHealthCheckTime = 0;
+    if (currentTime - lastHealthCheckTime >= 60000) {
+        lastHealthCheckTime = currentTime;
+        
+        SQUID_LOG_DEBUG(LOG_TAG, "Health check - Init: %d, BLE: %d, Advertising: %d, HID: %d, Connected: %d",
+                       initialized, 
+                       ble != nullptr,
+                       advertising != nullptr,
+                       hid != nullptr,
+                       isConnected());
+        
+        // If we think we're initialized but critical components are missing, auto-recover
+        if (initialized && (!ble || !advertising || !hid)) {
+            SQUID_LOG_ERROR(LOG_TAG, "Health check failed - critical components missing, attempting recovery");
+            end(); // Clean up
+            delay(100);
+            begin(); // Try to reinitialize
+        }
+    }
 }
 
-void BLEHID::end(void) {
-  if (hid != 0) {
-    delete hid;
-    hid = 0;
-  }
-  BLEDevice::deinit(true);
-  getInitialized = false;
-  BLE_LOG_INFO(LOG_TAG, "BLE Keyboard stopped");
+void SQUIDHID::end(void) {
+    SQUID_LOG_DEBUG(LOG_TAG, "SQUIDHID end() called");
+    
+    if (!initialized) {
+        SQUID_LOG_DEBUG(LOG_TAG, "SQUIDHID not initialized, nothing to clean up");
+        return;
+    }
+    
+    // Stop advertising first
+    if (advertising) {
+        advertising->stop();
+        SQUID_LOG_DEBUG(LOG_TAG, "Advertising stopped");
+    }
+    
+    // Reset raw pointers (we don't own these)
+    pServer = nullptr;
+    outputKeyboard = nullptr;
+    
+    #if KEYBOARD_ENABLE
+    inputNKRO = nullptr;
+    #endif
+    #if MEDIA_ENABLE
+    inputMediaKeys = nullptr;
+    #endif
+    #if MOUSE_ENABLE
+    inputMouse = nullptr;
+    #endif
+    #if DIGITIZER_ENABLE
+    inputDigitizer = nullptr;
+    #endif
+    #if GAMEPAD_ENABLE
+    inputGamepad = nullptr;
+    #endif
+    
+    // Reset smart pointers (this will delete the objects)
+    hid.reset();
+    advertising.reset();
+    advData.reset();
+    scanData.reset();
+    
+    #if GEMINIPR_ENABLE
+    serialService.reset();
+    serialInput.reset();
+    serialOutput.reset();
+    #endif
+    
+    // Deinitialize BLE stack
+    if (ble) {
+        ble->deinit(true);
+        SQUID_LOG_DEBUG(LOG_TAG, "BLE stack deinitialized");
+    }
+    
+    // Reset initialization flag
+    initialized = false;
+    
+    SQUID_LOG_INFO(LOG_TAG, "BLE Keyboard stopped completely");
 }
 
 //
 // ----------------------------------------- Global Function Block
 //
 
-void BLEHID::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
-    BLE_LOG_DEBUG(LOG_TAG, "ESP-HID onConnect callback triggered");
+void SQUIDHID::onConnect(SquidServer *pServer) {
+    SQUID_LOG_DEBUG(LOG_TAG, "ESP-HID onConnect callback triggered");
     
     #if KEYBOARD_ENABLE
       if (inputNKRO) inputNKRO->notify();
@@ -391,15 +572,15 @@ void BLEHID::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
     
     #if GEMINIPR_ENABLE
       steno.setSerialConnected(true);
-      BLE_LOG_INFO(LOG_TAG, "SPP Serial connected");
+      SQUID_LOG_INFO(LOG_TAG, "SPP Serial connected");
     #endif
     
     #if GAMEPAD_ENABLE
     if (inputGamepad) inputGamepad->notify();
     #endif
     
-    BLE_LOG_INFO(LOG_TAG, "Client connected - Connection count: %d, Services: HID%s",
-    NimBLEDevice::getServer()->getConnectedCount(),
+    SQUID_LOG_INFO(LOG_TAG, "Client connected - Connection count: %d, Services: HID%s",
+    ble->getConnectedCount(),
     #if GEMINIPR_ENABLE
       "+SPP"
     #else
@@ -408,99 +589,97 @@ void BLEHID::onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
     );
 }
 
-bool BLEHID::isConnected(void) {
-    // Always check the actual BLE state - relying on cached flags kept breaking for some reason
-    if (NimBLEDevice::getServer()) {
-        int connectedClients = NimBLEDevice::getServer()->getConnectedCount();
-        
-        // Debug logging (every 10 seconds)
+bool SQUIDHID::isConnected(void) {
+    // Comprehensive safety check
+    if (!initialized || !ble || !ble.get()) {
+        return false;
+    }
+    
+    try {
+        int connectedClients = ble->getConnectedCount();
+
+        // Debug logging (every 10 seconds max to avoid spam)
         static uint64_t lastLogTime = 0;
         uint64_t currentTime = micros();
         
-        if (currentTime - lastLogTime > 10000000) { // This is just 10 seconds in microseconds
-            BLE_LOG_DEBUG(LOG_TAG, "BLE Status - Connected clients: %d, Advertising: %s",
-                    connectedClients,
-                    advertising ? (advertising->isAdvertising() ? "Yes" : "No") : "Null");
+        if (currentTime - lastLogTime > 10000000) {
+            SQUID_LOG_DEBUG(LOG_TAG, "Connection check - Clients: %d, Advertising: %s, Init: %d",
+                          connectedClients,
+                          advertising ? (advertising->isAdvertising() ? "Yes" : "No") : "Null",
+                          initialized);
             lastLogTime = currentTime;
         }
         
-        return (connectedClients > 0);
+        return connectedClients > 0;
+    } catch (...) {
+        // Catch any exceptions that might occur (defensive programming)
+        SQUID_LOG_ERROR(LOG_TAG, "Exception in isConnected()");
+        return false;
     }
-    
-    static uint64_t lastLogTime = 0;
-    uint64_t currentTime = micros();
-    
-    if (currentTime - lastLogTime > 10000000) {
-        BLE_LOG_DEBUG(LOG_TAG, "BLE Status: No server instance available");
-        lastLogTime = currentTime;
-    }
-    
-    return false;
 }
 
 void pollConnection(void * arg) {
-    BLEHID * kb = static_cast<BLEHID*>(arg);
-    uint8_t cnt = NimBLEDevice::getServer()->getConnectedCount();
+    SQUIDHID * kb = static_cast<SQUIDHID*>(arg);
+    if (!kb || !kb->ble) {
+        return;
+    }
+    
+    uint8_t cnt = kb->ble->getConnectedCount();
 
-    if (kb->last_connected_count && !cnt) {   // Connection just dropped
-        BLE_LOG_WARN(LOG_TAG, "Poller: link lost - restarting advertising");
+    if (kb->last_connected_count && !cnt) {
+        SQUID_LOG_WARN(LOG_TAG, "Poller: link lost - restarting advertising");
         
-        // Small delay to ensure BLE stack is ready
         delay(100);
         
         if (kb->advertising) {
-            kb->advertising->stop();
-            delay(50);
-            if (!kb->advertising->start()) {
-                BLE_LOG_ERROR(LOG_TAG, "Poller: Failed to restart advertising, will retry");
+            if (!kb->advertising->isAdvertising()) {
+                kb->advertising->start();
+                SQUID_LOG_INFO(LOG_TAG, "Advertising restarted by poller");
             }
         }
     }
     kb->last_connected_count = cnt;
 }
 
-void BLEHID::onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) {
-  NimBLEServerCallbacks::onDisconnect(pServer, connInfo, reason);
+void SQUIDHID::onDisconnect(SquidServer *pServer) {
   #if GEMINIPR_ENABLE
     steno.setSerialConnected(false);
-    BLE_LOG_INFO(LOG_TAG, "SPP Serial disconnected");
+    SQUID_LOG_INFO(LOG_TAG, "SPP Serial disconnected");
   #endif
   // Restart advertising immediately when disconnected
   if (advertising) {
     advertising->start();
-    BLE_LOG_INFO(LOG_TAG, "Advertising restarted after disconnect (reason: %d)", reason);
+    SQUID_LOG_INFO(LOG_TAG, "Advertising restarted after disconnect");
   }
 }
 
-void BLEHID::onWrite(NimBLECharacteristic* me) {
+void SQUIDHID::onWrite(SquidCharacteristic* me) {
     #if GEMINIPR_ENABLE
-    if (me->getUUID().toString() == SERIAL_CHARACTERISTIC_UUID_RX) {
-        // Handle incoming serial data if needed
+    P_AUTO(uuid, me->getUUID());
+    if (uuid && uuid->isEqualToString(SERIAL_CHARACTERISTIC_UUID_RX)) {
         std::string value = me->getValue();
-        BLE_LOG_DEBUG(LOG_TAG, "Received serial data: %s", value.c_str());
+        SQUID_LOG_DEBUG(LOG_TAG, "Received serial data: %s", value.c_str());
     } else {
-        // Existing HID write handling
-        BLE_LOG_DEBUG(LOG_TAG, "ESP-HID onWrite callback triggered");
+        SQUID_LOG_DEBUG(LOG_TAG, "ESP-HID onWrite callback triggered");
         uint8_t* value = (uint8_t*)(me->getValue().c_str());
         size_t length = me->getValue().length();
-        BLE_LOG_DEBUG(LOG_TAG, "special keys: %d", *value);
+        SQUID_LOG_DEBUG(LOG_TAG, "special keys: %d", *value);
     }
     #else
-    // HID-only write handling when GeminiPR is disabled
-    BLE_LOG_DEBUG(LOG_TAG, "ESP-HID onWrite callback triggered");
+    SQUID_LOG_DEBUG(LOG_TAG, "ESP-HID onWrite callback triggered");
     uint8_t* value = (uint8_t*)(me->getValue().c_str());
     size_t length = me->getValue().length();
-    BLE_LOG_DEBUG(LOG_TAG, "special keys: %d", *value);
+    SQUID_LOG_DEBUG(LOG_TAG, "special keys: %d", *value);
     #endif
 }
 
-size_t BLEHID::write(const uint8_t *buf, size_t len) {
+size_t SQUIDHID::write(const uint8_t *buf, size_t len) {
     size_t n = 0;
     while (len--) n += write(*buf++);
     return n;
 }
 
-void BLEHID::releaseAll() {
+void SQUIDHID::releaseAll() {
   #if KEYBOARD_ENABLE
   nkro.releaseAll();
   #endif
@@ -522,7 +701,7 @@ void BLEHID::releaseAll() {
   #endif
 }
 
-void BLEHID::setAppearance(uint16_t newAppearance) {
+void SQUIDHID::setAppearance(uint16_t newAppearance) {
   this->appearance = newAppearance;
   
   #if DIGITIZER_ENABLE
@@ -530,73 +709,77 @@ void BLEHID::setAppearance(uint16_t newAppearance) {
   #endif
   
   #if DIGITIZER_ENABLE && MOUSE_ENABLE
-  BLE_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X, Mode: %s", newAppearance, digitizer.isAbsoluteMode() ? "absolute" : "relative");
+  SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X, Mode: %s", newAppearance, digitizer.isAbsoluteMode() ? "absolute" : "relative");
   #elif !DIGITIZER_ENABLE && MOUSE_ENABLE
-  BLE_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X (Mouse only)", newAppearance);
+  SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X (Mouse only)", newAppearance);
   #elif DIGITIZER_ENABLE && !MOUSE_ENABLE
-  BLE_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X (Digitizer only)", newAppearance);
+  SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X (Digitizer only)", newAppearance);
   #else
-  BLE_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X", newAppearance);
+  SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X", newAppearance);
   #endif
 }
 
-void BLEHID::setBatteryLevel(uint8_t level) {
-  this->batteryLevel = level;
-  if (hid != 0) {
-    this->hid->setBatteryLevel(this->batteryLevel);
-    
-    // Force an update to the BLE characteristic
-    if (isConnected()) {
-      // This ensures the host device receives the updated battery level
-      hid->getBatteryService()->getCharacteristic((uint16_t)0x2A19)->setValue(&batteryLevel, 1);
-      hid->getBatteryService()->getCharacteristic((uint16_t)0x2A19)->notify();
+void SQUIDHID::setBatteryLevel(uint8_t level) {
+    this->batteryLevel = level;
+    if (hid) {
+        hid->setBatteryLevel(this->batteryLevel);
+        
+        if (isConnected()) {
+            P_AUTO(batteryService, hid->getBatteryService());
+            if (batteryService) {
+                P_AUTO(batteryLevelChar, batteryService->getCharacteristic(0x2A19));
+                if (batteryLevelChar) {
+                    batteryLevelChar->setValue(&batteryLevel, 1);
+                    batteryLevelChar->notify();
+                }
+            }
+        }
     }
-  }
 }
 
 //must be called before begin in order to set the name
-void BLEHID::setName(std::string deviceName) { this->deviceName = deviceName; }
+void SQUIDHID::setName(std::string deviceName) { this->deviceName = deviceName; }
 
 //must be called before begin in order to set the manufacturer
-void BLEHID::setManufacturer(std::string deviceManufacturer) { this->deviceManufacturer = deviceManufacturer; }
+void SQUIDHID::setManufacturer(std::string deviceManufacturer) { this->deviceManufacturer = deviceManufacturer; }
 
 // Sets the waiting time (in milliseconds) between multiple keystrokes
-void BLEHID::setDelay(uint32_t ms) { _delay_ms = ms; }
+void SQUIDHID::setDelay(uint32_t ms) { _delay_ms = ms; }
 
-void BLEHID::setVendorId(uint16_t vid) { this->vid = vid; }
+void SQUIDHID::setVendorId(uint16_t vid) { this->vid = vid; }
 
-void BLEHID::setProductId(uint16_t pid) { this->pid = pid; }
+void SQUIDHID::setProductId(uint16_t pid) { this->pid = pid; }
 
-void BLEHID::setVersion(uint16_t version) { this->version = version; }
+void SQUIDHID::setVersion(uint16_t version) { this->version = version; }
 
 //
 // ----------------------------------------- NKRO Keyboard Block
 //
 
 #if KEYBOARD_ENABLE
-size_t BLEHID::press(NKROKey k) { return nkro.press(k); }
+size_t SQUIDHID::press(NKROKey k) { return nkro.press(k); }
 
-size_t BLEHID::press(ModKey modifier) { return nkro.press(modifier); }
+size_t SQUIDHID::press(ModKey modifier) { return nkro.press(modifier); }
 
-size_t BLEHID::release(NKROKey k) { return nkro.release(k); }
+size_t SQUIDHID::release(NKROKey k) { return nkro.release(k); }
 
-size_t BLEHID::release(ModKey modifier) { return nkro.release(modifier); }
+size_t SQUIDHID::release(ModKey modifier) { return nkro.release(modifier); }
 
-size_t BLEHID::write(uint8_t c) { return nkro.write(c); }
+size_t SQUIDHID::write(uint8_t c) { return nkro.write(c); }
 
-size_t BLEHID::write(ModKey modifier) { return nkro.write(modifier); }
+size_t SQUIDHID::write(ModKey modifier) { return nkro.write(modifier); }
 
-void BLEHID::useNKRO(bool state) { nkro.useNKRO(state); }
+void SQUIDHID::useNKRO(bool state) { nkro.useNKRO(state); }
 
-void BLEHID::use6KRO(bool state) { nkro.use6KRO(state); }
+void SQUIDHID::use6KRO(bool state) { nkro.use6KRO(state); }
 
-bool BLEHID::isNKROEnabled() { return nkro.isNKROEnabled(); }
+bool SQUIDHID::isNKROEnabled() { return nkro.isNKROEnabled(); }
 
-void BLEHID::setModifiers(ModKey modifiers) { nkro.setModifiers(modifiers); }
+void SQUIDHID::setModifiers(ModKey modifiers) { nkro.setModifiers(modifiers); }
 
-uint8_t BLEHID::getModifiers() { return nkro.getModifiers(); }
+uint8_t SQUIDHID::getModifiers() { return nkro.getModifiers(); }
 
-void BLEHID::sendNKROReport() { nkro.sendNKROReport(); }
+void SQUIDHID::sendNKROReport() { nkro.sendNKROReport(); }
 #endif
 
 //
@@ -604,13 +787,13 @@ void BLEHID::sendNKROReport() { nkro.sendNKROReport(); }
 //
 
 #if MEDIA_ENABLE
-size_t BLEHID::press(MediaKey mediaKey) { return media.press(mediaKey); }
+size_t SQUIDHID::press(MediaKey mediaKey) { return media.press(mediaKey); }
 
-size_t BLEHID::release(MediaKey mediaKey) { return media.release(mediaKey); }
+size_t SQUIDHID::release(MediaKey mediaKey) { return media.release(mediaKey); }
 
-size_t BLEHID::write(MediaKey mediaKey) { return media.write(mediaKey); }
+size_t SQUIDHID::write(MediaKey mediaKey) { return media.write(mediaKey); }
 
-void BLEHID::sendMediaReport() { media.sendMediaReport(); }
+void SQUIDHID::sendMediaReport() { media.sendMediaReport(); }
 #endif
 
 //
@@ -618,15 +801,15 @@ void BLEHID::sendMediaReport() { media.sendMediaReport(); }
 //
 
 #if MOUSE_ENABLE
-size_t BLEHID::press(MouseKey b) { return mouse.press(b); }
+size_t SQUIDHID::press(MouseKey b) { return mouse.press(b); }
 
-size_t BLEHID::release(MouseKey b) { return mouse.release(b); }
+size_t SQUIDHID::release(MouseKey b) { return mouse.release(b); }
 
-void BLEHID::click(MouseKey b) { mouse.click(b); }
+void SQUIDHID::click(MouseKey b) { mouse.click(b); }
 
-void BLEHID::move(signed char x, signed char y, signed char wheel, signed char hWheel) { mouse.move(x, y, wheel, hWheel); }
+void SQUIDHID::move(signed char x, signed char y, signed char wheel, signed char hWheel) { mouse.move(x, y, wheel, hWheel); }
 
-bool BLEHID::mouseIsPressed(MouseKey b) { return mouse.mouseIsPressed(b); }
+bool SQUIDHID::mouseIsPressed(MouseKey b) { return mouse.mouseIsPressed(b); }
 #endif
 
 //
@@ -634,27 +817,27 @@ bool BLEHID::mouseIsPressed(MouseKey b) { return mouse.mouseIsPressed(b); }
 //
 
 #if DIGITIZER_ENABLE
-void BLEHID::click(uint16_t x, uint16_t y, DigitizerKey b) { digitizer.click(x, y, b); }
+void SQUIDHID::click(uint16_t x, uint16_t y, DigitizerKey b) { digitizer.click(x, y, b); }
 
-void BLEHID::moveTo(uint16_t x, uint16_t y, uint8_t pressure, DigitizerKey buttons) { digitizer.moveTo(x, y, pressure, buttons); }
+void SQUIDHID::moveTo(uint16_t x, uint16_t y, uint8_t pressure, DigitizerKey buttons) { digitizer.moveTo(x, y, pressure, buttons); }
 
-void BLEHID::beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure) { digitizer.beginStroke(x, y, initialPressure); }
+void SQUIDHID::beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure) { digitizer.beginStroke(x, y, initialPressure); }
 
-void BLEHID::updateStroke(uint16_t x, uint16_t y, uint16_t pressure) { digitizer.updateStroke(x, y, pressure); }
+void SQUIDHID::updateStroke(uint16_t x, uint16_t y, uint16_t pressure) { digitizer.updateStroke(x, y, pressure); }
 
-void BLEHID::endStroke(uint16_t x, uint16_t y) { digitizer.endStroke(x, y); }
+void SQUIDHID::endStroke(uint16_t x, uint16_t y) { digitizer.endStroke(x, y); }
 
-void BLEHID::useAbsoluteMode(bool state) { digitizer.useAbsoluteMode(state); }
+void SQUIDHID::useAbsoluteMode(bool state) { digitizer.useAbsoluteMode(state); }
 
-bool BLEHID::isAbsoluteMode() { return digitizer.isAbsoluteMode(); }
+bool SQUIDHID::isAbsoluteMode() { return digitizer.isAbsoluteMode(); }
 
-void BLEHID::useAutoMode(bool state) { digitizer.useAutoMode(state); }
+void SQUIDHID::useAutoMode(bool state) { digitizer.useAutoMode(state); }
 
-void BLEHID::setDigitizerRange(uint16_t maxX, uint16_t maxY) { digitizer.setDigitizerRange(maxX, maxY); }
+void SQUIDHID::setDigitizerRange(uint16_t maxX, uint16_t maxY) { digitizer.setDigitizerRange(maxX, maxY); }
 
-bool BLEHID::isAutoModeEnabled() { return digitizer.isAutoModeEnabled(); }
+bool SQUIDHID::isAutoModeEnabled() { return digitizer.isAutoModeEnabled(); }
 
-void BLEHID::sendDigitizerReport() { digitizer.sendDigitizerReport(); }
+void SQUIDHID::sendDigitizerReport() { digitizer.sendDigitizerReport(); }
 #endif
 
 //
@@ -662,19 +845,19 @@ void BLEHID::sendDigitizerReport() { digitizer.sendDigitizerReport(); }
 //
 
 #if GEMINIPR_ENABLE
-size_t BLEHID::press(StenoKey stenoKey) { return steno.press(stenoKey); }
+size_t SQUIDHID::press(StenoKey stenoKey) { return steno.press(stenoKey); }
 
-size_t BLEHID::release(StenoKey stenoKey) { return steno.release(stenoKey); }
+size_t SQUIDHID::release(StenoKey stenoKey) { return steno.release(stenoKey); }
 
-void BLEHID::geminiStroke(const StenoKey* keys, size_t count) { steno.geminiStroke(keys, count); }
+void SQUIDHID::geminiStroke(const StenoKey* keys, size_t count) { steno.geminiStroke(keys, count); }
 
-uint8_t BLEHID::stenoCharToKey(char c) { return steno.stenoCharToKey(c); }
+uint8_t SQUIDHID::stenoCharToKey(char c) { return steno.stenoCharToKey(c); }
 
-void BLEHID::sendGeminiPRReport() { steno.sendGeminiPRReport(); }
+void SQUIDHID::sendGeminiPRReport() { steno.sendGeminiPRReport(); }
 
-void BLEHID::sendSerialData(const uint8_t* data, size_t length) { steno.sendSerialData(data, length); }
+void SQUIDHID::sendSerialData(const uint8_t* data, size_t length) { steno.sendSerialData(data, length); }
 
-bool BLEHID::isSerialConnected() { return steno.isSerialConnected(); }
+bool SQUIDHID::isSerialConnected() { return steno.isSerialConnected(); }
 #endif
 
 //
@@ -682,58 +865,58 @@ bool BLEHID::isSerialConnected() { return steno.isSerialConnected(); }
 //
 
 #if GAMEPAD_ENABLE
-size_t BLEHID::press(GamepadButton button) { return gamepad.press(button); }
+size_t SQUIDHID::press(GamepadButton button) { return gamepad.press(button); }
 
-size_t BLEHID::release(GamepadButton button) { return gamepad.release(button); }
+size_t SQUIDHID::release(GamepadButton button) { return gamepad.release(button); }
 
-bool BLEHID::gamepadIsPressed(GamepadButton button) { return gamepad.gamepadIsPressed(button); }
+bool SQUIDHID::gamepadIsPressed(GamepadButton button) { return gamepad.gamepadIsPressed(button); }
 
-void BLEHID::gamepadSetLeftStick(int16_t x, int16_t y) { gamepad.gamepadSetLeftStick(x, y); }
+void SQUIDHID::gamepadSetLeftStick(int16_t x, int16_t y) { gamepad.gamepadSetLeftStick(x, y); }
 
-void BLEHID::gamepadSetRightStick(int16_t x, int16_t y) { gamepad.gamepadSetRightStick(x, y); }
+void SQUIDHID::gamepadSetRightStick(int16_t x, int16_t y) { gamepad.gamepadSetRightStick(x, y); }
 
-void BLEHID::gamepadSetTriggers(int16_t left, int16_t right) { gamepad.gamepadSetTriggers(left, right); }
+void SQUIDHID::gamepadSetTriggers(int16_t left, int16_t right) { gamepad.gamepadSetTriggers(left, right); }
 
-void BLEHID::gamepadGetLeftStick(int16_t &x, int16_t &y) { gamepad.gamepadGetLeftStick(x, y); }
+void SQUIDHID::gamepadGetLeftStick(int16_t &x, int16_t &y) { gamepad.gamepadGetLeftStick(x, y); }
 
-void BLEHID::gamepadGetRightStick(int16_t &x, int16_t &y) { gamepad.gamepadGetRightStick(x, y); }
+void SQUIDHID::gamepadGetRightStick(int16_t &x, int16_t &y) { gamepad.gamepadGetRightStick(x, y); }
 
-void BLEHID::gamepadSetAxis(GamepadAnalogue axis, int16_t value) { gamepad.gamepadSetAxis(axis, value); }
+void SQUIDHID::gamepadSetAxis(GamepadAnalogue axis, int16_t value) { gamepad.gamepadSetAxis(axis, value); }
 
-int16_t BLEHID::gamepadGetAxis(GamepadAnalogue axis) { return gamepad.gamepadGetAxis(axis); }
+int16_t SQUIDHID::gamepadGetAxis(GamepadAnalogue axis) { return gamepad.gamepadGetAxis(axis); }
 
-void BLEHID::gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]) { gamepad.gamepadSetAllAxes(values); }
+void SQUIDHID::gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]) { gamepad.gamepadSetAllAxes(values); }
 
-void BLEHID::sendGamepadReport() { gamepad.sendGamepadReport(); }
+void SQUIDHID::sendGamepadReport() { gamepad.sendGamepadReport(); }
 #endif
 
 //
 // ----------------------------------------- Logger Block
 //
 
-void BLEHID::setLogLevel(LogLevel level) { BLELOGS::getInstance().setLogLevel(level); }
+void SQUIDHID::setLogLevel(LogLevel level) { SQUIDLOGS::getInstance().setLogLevel(level); }
 
-LogLevel BLEHID::getLogLevel() const { return BLELOGS::getInstance().getLogLevel(); }
+LogLevel SQUIDHID::getLogLevel() const { return SQUIDLOGS::getInstance().getLogLevel(); }
 
-void BLEHID::initialize(std::function<void(const LogEntry&)> handler) { BLELOGS::getInstance().initialize(handler); }
+void SQUIDHID::initialize(std::function<void(const LogEntry&)> handler) { SQUIDLOGS::getInstance().initialize(handler); }
 
-void BLEHID::log(LogLevel level, const std::string& tag, const std::string& message) { BLELOGS::getInstance().log(level, tag, message); }
+void SQUIDHID::log(LogLevel level, const std::string& tag, const std::string& message) { SQUIDLOGS::getInstance().log(level, tag, message); }
 
-void BLEHID::processQueue() { BLELOGS::getInstance().processQueue(); }
+void SQUIDHID::processQueue() { SQUIDLOGS::getInstance().processQueue(); }
 
-void BLEHID::flush() { BLELOGS::getInstance().flush(); }
+void SQUIDHID::flush() { SQUIDLOGS::getInstance().flush(); }
 
-void BLEHID::setMaxQueueSize(uint32_t size) { BLELOGS::getInstance().setMaxQueueSize(size); }
+void SQUIDHID::setMaxQueueSize(uint32_t size) { SQUIDLOGS::getInstance().setMaxQueueSize(size); }
 
-size_t BLEHID::getQueueSize() const { return BLELOGS::getInstance().getQueueSize(); }
+size_t SQUIDHID::getQueueSize() const { return SQUIDLOGS::getInstance().getQueueSize(); }
 
-bool BLEHID::isInitialized() const { return BLELOGS::getInstance().isInitialized(); }
+bool SQUIDHID::isInitialized() const { return SQUIDLOGS::getInstance().isInitialized(); }
 
-bool BLEHID::isQueueEmpty() const { return BLELOGS::getInstance().isQueueEmpty(); }
+bool SQUIDHID::isQueueEmpty() const { return SQUIDLOGS::getInstance().isQueueEmpty(); }
 
 // Platform-specific control methods
-#if defined(BLEHID_PLATFORM_ESP32)
-void BLEHID::setESP32LogLevel(esp_log_level_t level) { BLELOGS::getInstance().setESP32LogLevel(level); }
-#elif defined(BLEHID_PLATFORM_NRF52)
-void BLEHID::setNRF52LogLevel(nrf_log_severity_t severity) { BLELOGS::getInstance().setNRF52LogLevel(severity); }
+#if defined(SQUIDHID_PLATFORM_ESP32)
+void SQUIDHID::setESP32LogLevel(esp_log_level_t level) { SQUIDLOGS::getInstance().setESP32LogLevel(level); }
+#elif defined(SQUIDHID_PLATFORM_NRF52)
+void SQUIDHID::setNRF52LogLevel(nrf_log_severity_t severity) { SQUIDLOGS::getInstance().setNRF52LogLevel(severity); }
 #endif
