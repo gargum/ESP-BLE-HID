@@ -4,31 +4,24 @@
  */
 
 #include "GeminiPR.h"
-#include "NimBLEDevice.h"
-#include "../Log/Log.h"
+#include "../../drivers/Log/Log.h"
 
-static const char* STENO_TAG = "BLESTENO";
+static const char* STENO_TAG = "SQUIDSTENO";
 
-BLESTENO::BLESTENO() 
+SQUIDSTENO::SQUIDSTENO() 
     : serialService(nullptr), serialInput(nullptr), serialOutput(nullptr), 
-      serialOutputDescriptor(nullptr), serialConnected(false) {
+      serialConnected(false) {
     memset(&_geminiReport, 0, sizeof(_geminiReport));
     
-    BLE_LOG_DEBUG(STENO_TAG, "Stenotype instance created");
+    SQUID_LOG_DEBUG(STENO_TAG, "Stenotype instance created");
 }
 
-BLESTENO::~BLESTENO() {
-    // Clean up SPP resources
-    if (serialOutputDescriptor) {
-        delete serialOutputDescriptor;
-        serialOutputDescriptor = nullptr;
-        BLE_LOG_DEBUG(STENO_TAG, "Serial output descriptor cleaned up");
-    }
+SQUIDSTENO::~SQUIDSTENO() {
     // Note: serialService, serialInput, serialOutput are managed by BLE stack
-    BLE_LOG_DEBUG(STENO_TAG, "Stenotype instance destroyed");
+    SQUID_LOG_DEBUG(STENO_TAG, "Stenotype instance destroyed");
 }
 
-void BLESTENO::begin(NimBLEService* service, NimBLECharacteristic* input, NimBLECharacteristic* output, uint32_t delay_ms) {
+void SQUIDSTENO::begin(SquidService* service, SquidCharacteristic* input, SquidCharacteristic* output, uint32_t delay_ms) {
     serialService = service;
     serialInput = input;
     serialOutput = output;
@@ -37,19 +30,22 @@ void BLESTENO::begin(NimBLEService* service, NimBLECharacteristic* input, NimBLE
     // Initialize the report
     memset(&_geminiReport, 0, sizeof(_geminiReport));
     
-    // Add CCCD descriptor for TX characteristic
-    serialOutputDescriptor = new BLE2904();
-    serialInput->addDescriptor(serialOutputDescriptor);
+    // Add CCCD descriptor for TX characteristic using the abstract interface
+    if (serialInput) {
+        serialInput->createDescriptor(0x2904, SquidProperty::READ | SquidProperty::WRITE);
+    }
     
     // Start the serial service
-    serialService->start();
+    if (serialService) {
+        serialService->start();
+    }
     
-    BLE_LOG_DEBUG(STENO_TAG, "SPP service initialized with delay: %lu ms", delay_ms);
-    BLE_LOG_INFO(STENO_TAG, "SPP service started");
+    SQUID_LOG_DEBUG(STENO_TAG, "SPP service initialized with delay: %lu ms", delay_ms);
+    SQUID_LOG_INFO(STENO_TAG, "SPP service started");
 }
 
-size_t BLESTENO::press(StenoKey stenoKey) {
-    BLE_LOG_DEBUG(STENO_TAG, "Stenotype key press: %ld", stenoKey);
+size_t SQUIDSTENO::press(StenoKey stenoKey) {
+    SQUID_LOG_DEBUG(STENO_TAG, "Stenotype key press: %ld", stenoKey);
     
     uint8_t previousByte = 0;
     uint8_t newByte = 0;
@@ -106,18 +102,18 @@ size_t BLESTENO::press(StenoKey stenoKey) {
         case ST_Z:     previousByte = _geminiReport.byte5; _geminiReport.byte5 |= 0x40; newByte = _geminiReport.byte5; break;
         
         default:
-            BLE_LOG_WARN(STENO_TAG, "Invalid stenotype key press attempt: %ld", stenoKey);
+            SQUID_LOG_WARN(STENO_TAG, "Invalid stenotype key press attempt: %ld", stenoKey);
             return 0;
     }
     
-    BLE_LOG_DEBUG(STENO_TAG, "Key press - Key: %ld, Byte changed: 0x%02X -> 0x%02X", stenoKey, previousByte, newByte);
+    SQUID_LOG_DEBUG(STENO_TAG, "Key press - Key: %ld, Byte changed: 0x%02X -> 0x%02X", stenoKey, previousByte, newByte);
     
     sendGeminiPRReport();
     return 1;
 }
 
-size_t BLESTENO::release(StenoKey stenoKey) {
-    BLE_LOG_DEBUG(STENO_TAG, "Stenotype key release: %ld", stenoKey);
+size_t SQUIDSTENO::release(StenoKey stenoKey) {
+    SQUID_LOG_DEBUG(STENO_TAG, "Stenotype key release: %ld", stenoKey);
     
     uint8_t previousByte = 0;
     uint8_t newByte = 0;
@@ -174,41 +170,41 @@ size_t BLESTENO::release(StenoKey stenoKey) {
         case ST_Z:     previousByte = _geminiReport.byte5; _geminiReport.byte5 &= ~0x40; newByte = _geminiReport.byte5; break;
         
         default:
-            BLE_LOG_WARN(STENO_TAG, "Invalid stenotype key release attempt: %ld", stenoKey);
+            SQUID_LOG_WARN(STENO_TAG, "Invalid stenotype key release attempt: %ld", stenoKey);
             return 0;
     }
     
-    BLE_LOG_DEBUG(STENO_TAG, "Key release - Key: %ld, Byte changed: 0x%02X -> 0x%02X", stenoKey, previousByte, newByte);
+    SQUID_LOG_DEBUG(STENO_TAG, "Key release - Key: %ld, Byte changed: 0x%02X -> 0x%02X", stenoKey, previousByte, newByte);
     
     sendGeminiPRReport();
     return 1;
 }
 
-void BLESTENO::releaseAll() {
-    BLE_LOG_DEBUG(STENO_TAG, "Releasing all stenotype keys - Current state: %02X %02X %02X %02X %02X %02X",
+void SQUIDSTENO::releaseAll() {
+    SQUID_LOG_DEBUG(STENO_TAG, "Releasing all stenotype keys - Current state: %02X %02X %02X %02X %02X %02X",
                  _geminiReport.byte0, _geminiReport.byte1, _geminiReport.byte2,
                  _geminiReport.byte3, _geminiReport.byte4, _geminiReport.byte5);
     
     memset(&_geminiReport, 0, sizeof(_geminiReport));
     sendGeminiPRReport();
     
-    BLE_LOG_DEBUG(STENO_TAG, "All stenotype keys released");
+    SQUID_LOG_DEBUG(STENO_TAG, "All stenotype keys released");
 }
 
-void BLESTENO::geminiStroke(const StenoKey* keys, size_t count) {
-    BLE_LOG_DEBUG(STENO_TAG, "Executing Gemini stroke with %zu keys", count);
+void SQUIDSTENO::geminiStroke(const StenoKey* keys, size_t count) {
+    SQUID_LOG_DEBUG(STENO_TAG, "Executing Gemini stroke with %zu keys", count);
     
     releaseAll();
     for (size_t i = 0; i < count; i++) {
         press(keys[i]);
-        BLE_LOG_DEBUG(STENO_TAG, "Stroke key %zu: %ld", i, keys[i]);
+        SQUID_LOG_DEBUG(STENO_TAG, "Stroke key %zu: %ld", i, keys[i]);
     }
     sendGeminiPRReport();
     
-    BLE_LOG_DEBUG(STENO_TAG, "Gemini stroke completed");
+    SQUID_LOG_DEBUG(STENO_TAG, "Gemini stroke completed");
 }
 
-uint8_t BLESTENO::stenoCharToKey(char c) {
+uint8_t SQUIDSTENO::stenoCharToKey(char c) {
     uint8_t key = 0;
     
     switch (toupper(c)) {
@@ -252,12 +248,12 @@ uint8_t BLESTENO::stenoCharToKey(char c) {
         default:  key = 0;      break;
     }
     
-    BLE_LOG_DEBUG(STENO_TAG, "Character to key conversion - Char: '%c', Key: %u", c, key);
+    SQUID_LOG_DEBUG(STENO_TAG, "Character to key conversion - Char: '%c', Key: %u", c, key);
     return key;
 }
 
-void BLESTENO::sendGeminiPRReport() {
-    BLE_LOG_DEBUG(STENO_TAG, "Preparing GeminiPR report: %02X %02X %02X %02X %02X %02X",
+void SQUIDSTENO::sendGeminiPRReport() {
+    SQUID_LOG_DEBUG(STENO_TAG, "Preparing GeminiPR report: %02X %02X %02X %02X %02X %02X",
                  _geminiReport.byte0, _geminiReport.byte1, _geminiReport.byte2,
                  _geminiReport.byte3, _geminiReport.byte4, _geminiReport.byte5);
     
@@ -273,11 +269,11 @@ void BLESTENO::sendGeminiPRReport() {
         };
         
         sendSerialData(serialData, 6);
-        BLE_LOG_DEBUG(STENO_TAG, "GeminiPR SPP data sent: %02X %02X %02X %02X %02X %02X",
+        SQUID_LOG_DEBUG(STENO_TAG, "GeminiPR SPP data sent: %02X %02X %02X %02X %02X %02X",
                      serialData[0], serialData[1], serialData[2],
                      serialData[3], serialData[4], serialData[5]);
     } else {
-        BLE_LOG_WARN(STENO_TAG, "GeminiPR stroke ready but SPP not connected: %02X %02X %02X %02X %02X %02X",
+        SQUID_LOG_WARN(STENO_TAG, "GeminiPR stroke ready but SPP not connected: %02X %02X %02X %02X %02X %02X",
                      _geminiReport.byte0, _geminiReport.byte1, _geminiReport.byte2,
                      _geminiReport.byte3, _geminiReport.byte4, _geminiReport.byte5);
     }
@@ -285,32 +281,32 @@ void BLESTENO::sendGeminiPRReport() {
     delay(_delay_ms);
 }
 
-void BLESTENO::sendSerialData(const uint8_t* data, size_t length) {
+void SQUIDSTENO::sendSerialData(const uint8_t* data, size_t length) {
     if (serialConnected && serialInput) {
         serialInput->setValue(data, length);
         
         if (serialInput->notify()) {
-            BLE_LOG_DEBUG(STENO_TAG, "Serial data sent successfully - Length: %zu", length);
+            SQUID_LOG_DEBUG(STENO_TAG, "Serial data sent successfully - Length: %zu", length);
         } else {
-            BLE_LOG_WARN(STENO_TAG, "Failed to send serial data notification - Length: %zu", length);
+            SQUID_LOG_WARN(STENO_TAG, "Failed to send serial data notification - Length: %zu", length);
         }
     } else {
-        BLE_LOG_DEBUG(STENO_TAG, "Cannot send serial data - %s%s", 
+        SQUID_LOG_DEBUG(STENO_TAG, "Cannot send serial data - %s%s", 
                      !serialConnected ? "not connected" : "", 
                      !serialInput ? "no input characteristic" : "");
     }
 }
 
-void BLESTENO::setSerialConnected(bool connected) {
+void SQUIDSTENO::setSerialConnected(bool connected) {
     bool previousState = serialConnected;
     serialConnected = connected;
     
-    BLE_LOG_INFO(STENO_TAG, "Serial connection state changed: %s -> %s", 
+    SQUID_LOG_INFO(STENO_TAG, "Serial connection state changed: %s -> %s", 
                  previousState ? "connected" : "disconnected",
                  connected ? "connected" : "disconnected");
 }
 
-bool BLESTENO::isSerialConnected() {
+bool SQUIDSTENO::isSerialConnected() {
     bool connected = false;
     
     // If serial is neither on nor connected, then just return false
@@ -321,6 +317,6 @@ bool BLESTENO::isSerialConnected() {
         connected = serialConnected;
     }
     
-    BLE_LOG_DEBUG(STENO_TAG, "Serial connection check: %s", connected ? "connected" : "disconnected");
+    SQUID_LOG_DEBUG(STENO_TAG, "Serial connection check: %s", connected ? "connected" : "disconnected");
     return connected;
 }
