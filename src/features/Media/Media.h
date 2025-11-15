@@ -7,9 +7,9 @@
 #define MEDIA_H
 
 #include "HIDTypes.h"
-#include "NimBLECharacteristic.h"
 #include <stdint.h>
-#include "../Event/Types.h"
+#include "../../drivers/Event/Types.h"
+#include "../../drivers/Interface/Interface.h"
 
 #define MEDIA_KEYS_ID 0x03
 
@@ -85,16 +85,16 @@ MK(MediaKey, KC_WBAK, KEY_MEDIA_WWW_BACK);
 MK(MediaKey, KC_WFWD, KEY_MEDIA_WWW_FORWARD);
 MK(MediaKey, KC_WREF, KEY_MEDIA_WWW_REFRESH);
 
-class BLEMEDIA {
+class SQUIDMEDIA {
 private:
-    NimBLECharacteristic* inputMediaKeys;
-    MediaKey _currentMediaKey;  // Changed from uint32_t bitmask to uint16_t single key
+    SquidCharacteristic* inputMediaKeys;
+    MediaKey _currentMediaKey;
     uint32_t _delay_ms;
     
 public:
-    BLEMEDIA();
+    SQUIDMEDIA();
     
-    void begin(NimBLECharacteristic* mediaChar, uint32_t delay_ms = 7);
+    void begin(SquidCharacteristic* mediaChar, uint32_t delay_ms = 7);
     bool isConnected();
     
     // Media key methods - simplified interface
