@@ -1,8 +1,8 @@
-# ESP-BLE-HID
+# SQUIDHID
 
 This NimBLE-based library allows you to make the ESP32 act as a Bluetooth Keyboard, Mouse, Gamepad, or other [HID device](https://en.wikipedia.org/wiki/Human_interface_device).
 
-ESP-BLE-HID is intended to serve as an ESP32-based alternative to tools like QMK and ZMK with added support for advanced features.
+SQUIDHID is intended to serve as an ESP32-based alternative to tools like QMK and ZMK with added support for advanced features.
 
 All development/testing is performed on boards *without* USB host mode, like the ESP32-C3 Super Mini.
 
@@ -33,7 +33,7 @@ All development/testing is performed on boards *without* USB host mode, like the
 - [ ] Matrix support - Developing the system for defining key matrices and encoder pins
 - [ ] Keymap support - Developing the system to create keymaps corresponding to a user-defined matrix
 - [ ] Split communication - Figuring out BLE mesh wireless support for the full 32,767 board maximum
-- [ ] Documentation - Writing the docs for ESP-BLE-HID
+- [ ] Documentation - Writing the docs for SQUIDHID
 - [ ] Migrating from Arduino IDE/PlatformIO to Standalone - I enjoy making life harder for myself unneccesarily
 - [ ] nRF support - Developing an actually easy/user-friendly system for flashing Nordic chips with my firmware
 - [ ] PS/2 support - Developing the system for PS/2 to BLE so people can use older hardware wirelessly
@@ -42,35 +42,35 @@ All development/testing is performed on boards *without* USB host mode, like the
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
 - Download the .ZIP file of this repo
 - In the Arduino IDE go to "Sketch" -> "Include Library" -> "Add .ZIP Library..." and select the file you just downloaded.
-- You can now go to "File" -> "Examples" -> "ESP-BLE-HID" and select any of the examples to get started.
+- You can now go to "File" -> "Examples" -> "SQUIDHID" and select any of the examples to get started.
 
 ## Example
 
 ``` C++
 /**
- * This example exists to demonstrate the basic functions of ESP-BLE-HID
+ * This example exists to demonstrate the basic functions of SQUIDHID
  *
  * Please feel free to use this example as a reference or template!
  */
 
 
-#include <BLEHID.h>
+#include <SQUIDHID.h>
 
-BLEHID esp("ESP32-TEST", "gargum", 100);   // Here, we set the name to "ESP32-TEST", the manufacturer to "gargum", and the battery level to 100%
+SQUIDHID esp("ESP32-TEST", "gargum", 100);   // Here, we set the name to "ESP32-TEST", the manufacturer to "gargum", and the battery level to 100%
 
 void setup() {
   esp.setAppearance(CYCLING_COMPUTER);          // You can set the device to advertise itself as a wide array of different things!
-  esp.begin();                                  // Here, we start up our ESP32 running ESP-BLE-HID
+  esp.begin();                                  // Here, we start up our ESP32 running SQUIDHID
 }
 
 void loop() {
-  esp.update();            // ESP-BLE-HID requires you to call the 'update()' function in sketches. This is used to control things like the scanning interval.
+  esp.update();            // SQUIDHID requires you to call the 'update()' function in sketches. This is used to control things like the scanning interval.
 
-  esp.press(KC_SLSH);      // ESP-BLE-HID allows you to press down individual keys using the 'press' function!
+  esp.press(KC_SLSH);      // SQUIDHID allows you to press down individual keys using the 'press' function!
   delay(2000);
   esp.press(KC_RSFT);      // NKRO is enabled by default, meaning you can just keep pushing down buttons without letting anything go!
   delay(2000);
-  esp.press(KC_VOLD);      // Any keyboard button in ESP-BLE-HID should be compatible with the 'press' function.
+  esp.press(KC_VOLD);      // Any keyboard button in SQUIDHID should be compatible with the 'press' function.
   delay(2000);
   esp.release(KC_RSFT);    // Using the 'release' function, you can let go of individual keys you've previously 'pressed'.
   delay(2000);
@@ -78,7 +78,7 @@ void loop() {
   delay(2000);
   esp.write(KC_SLSH);      // You can also simply output any keyboard key one time in one command using 'write'.
   delay(2000);             // Please note that 'write' is NOT compatible with gamepad or mouse inputs at this time.
-  esp.print("You can print text strings using ESP-BLE-HID as well!");
+  esp.print("You can print text strings using SQUIDHID as well!");
   delay(2000);
 
   esp.press(MOUSE_RIGHT);  // The press function allows supports mouse buttons. 
@@ -124,7 +124,7 @@ A complete list of all available keycodes and commands is included in the `keywo
 
 To illustrate what this library has to offer, below is a table including the current complete list of the available **media** keycodes alongside the available **appearance codes**. **Media** keycodes are self-explanatory, however **appearance codes** require more elaboration.
 
-ESP-BLE-HID uses **appearance codes** to determine what type of device the ESP32 advertises itself as to hosts. This corresponds to the icon next to the name of the device visible when scanning for Bluetooth devices to pair to, alongside the accompanying text explaining what the device does that is visible to the user on some operating systems. Every appearance code is tested and working.
+SQUIDHID uses **appearance codes** to determine what type of device the ESP32 advertises itself as to hosts. This corresponds to the icon next to the name of the device visible when scanning for Bluetooth devices to pair to, alongside the accompanying text explaining what the device does that is visible to the user on some operating systems. Every appearance code is tested and working.
 
 | FULL MEDIA KEYCODE                 | MEDIA KEYCODE ALIAS       | | APPEARANCE CODE - REGULAR  | APPEARANCE CODE - UNUSUAL |
 | ---------------------------------- | ------------------------- |-| -------------------------- | ------------------------- |
