@@ -1,9 +1,9 @@
 /**
  * This example demonstrates a little of what this library can do with the ESP32, even without USB Host Mode
  */
-#include <BLEHID.h>
+#include <SQUIDHID.h>
 
-BLEHID esp;
+SQUIDHID esp;
 
 void setup() {
   Serial.begin(115200);
