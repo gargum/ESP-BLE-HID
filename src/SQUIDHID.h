@@ -1,5 +1,5 @@
 /**
- * @file BLEHID.h
+ * @file SQUIDHID.h
  * @brief Main header file
  */
 
@@ -13,30 +13,15 @@
 #define NIMBLE_CFG_TRANSPORT_HCI_UART 0
 #define NIMBLE_CFG_TRANSPORT_HCI_IPC 0
 
-#include "NimBLE2904.h"
-#include "NimBLEDevice.h"
-#include "NimBLEHIDDevice.h"
-#include "NimBLECharacteristic.h"
-#include "NimBLEAdvertising.h"
-#include "NimBLEServer.h"
-#include "NimBLEService.h"
-#include "NimBLEUUID.h"
-#include "NimBLEUtils.h"
-#include "NimBLEUUID.h"
-
-#define BLEDevice                  NimBLEDevice
-#define BLEServerCallbacks         NimBLEServerCallbacks
-#define BLECharacteristicCallbacks NimBLECharacteristicCallbacks
-#define BLEHIDDevice               NimBLEHIDDevice
-#define BLECharacteristic          NimBLECharacteristic
-#define BLEAdvertising             NimBLEAdvertising
-#define BLEServer                  NimBLEServer
+#include "drivers/Interface/Interface.h"
+#include "drivers/Interface/NimBLE/NimBLE.h"
 
 #include "Print.h"
 
 #include "config.h"
 #include "features/Appearance.h"
-#include "features/Log/Log.h" 
+#include "drivers/Log/Log.h" 
+#include "drivers/Event/Types.h"
 
 #if KEYBOARD_ENABLE
   #include "features/NKRO/NKRO.h"
@@ -70,67 +55,81 @@
 // Scanning/Polling interval
 #define SCAN_INTERVAL 10
 
-class BLEHID : public Print
-    , public NimBLEServerCallbacks
-    , public NimBLECharacteristicCallbacks
+class SQUIDHID : public Print
+    , public SquidServerCallbacks
+    , public SquidCharacteristicCallbacks
 {
 private:
-  NimBLEHIDDevice*         hid;
-  uint16_t              appearance = HID_KEYBOARD;
-  std::string           deviceName;
-  std::string           deviceManufacturer;
-  uint8_t               batteryLevel;
+  P_SVAL(SquidInterface, ble, nullptr); 
+  P_VAL(SquidHIDDevice,  hid, nullptr);
+  P_VAL(SquidAdvertising,advertising, nullptr); 
+  SquidServer*           pServer = nullptr;
+  uint16_t               appearance = HID_KEYBOARD;
+  std::string            deviceName;
+  std::string            deviceManufacturer;
+  uint8_t                batteryLevel;
   
-  uint16_t vid       =  0x046D; // I picked random numbers here and it worked fine,
-  uint16_t pid       =  0xC52B; // idk if these actually matter at all for anything
-  uint16_t version   =  0x0310;
+  uint16_t vid     =     0x046D; // I picked random numbers here and it worked fine,
+  uint16_t pid     =     0xC52B; // idk if these actually matter at all for anything
+  uint16_t version =     0x0310;
   
-  friend void           pollConnection(void * arg);
-  uint8_t               last_connected_count = 0;   // previous poll result
-  uint32_t              lastPollTime = 0;
-  static const uint32_t POLL_INTERVAL = 1000;       // 1 second in milliseconds
+  bool initialized =     false;
+  friend void            pollConnection(void * arg);
+  uint8_t                last_connected_count = 0;   // previous poll result
+  uint32_t               lastPollTime = 0;
+  static const uint32_t  POLL_INTERVAL = 1000;       // 1 second in milliseconds
 
-  NimBLEAdvertising*       advertising;  
-  NimBLECharacteristic*    outputKeyboard;
-  uint32_t              _delay_ms = 7; 
+
+  SquidCharacteristic*   outputKeyboard = nullptr;
+  uint32_t               _delay_ms = 7; 
   
   #if KEYBOARD_ENABLE
-    BLENKRO                   nkro;
-    NimBLECharacteristic*     inputNKRO;
+    SQUIDNKRO              nkro;
+    SquidCharacteristic*   inputNKRO = nullptr;
   #endif
   
   #if MEDIA_ENABLE
-    BLEMEDIA                  media;
-    NimBLECharacteristic*     inputMediaKeys;
+    SQUIDMEDIA             media;
+    SquidCharacteristic*   inputMediaKeys = nullptr;
   #endif
   
   #if MOUSE_ENABLE
-    BLEMOUSE                  mouse;
-    BLECharacteristic*        inputMouse;
+    SQUIDMOUSE             mouse;
+    SquidCharacteristic*   inputMouse = nullptr;
   #endif
   
   #if DIGITIZER_ENABLE
-    BLEDIGI                  digitizer;
-    NimBLECharacteristic*    inputDigitizer;
+    SQUIDTABLET            digitizer;
+    SquidCharacteristic*   inputDigitizer = nullptr;
   #endif
   
   #if GEMINIPR_ENABLE
-    BLESTENO steno;
+    SQUIDSTENO             steno;
     // SPP UUIDs
-    static const char* SERIAL_SERVICE_UUID;
-    static const char* SERIAL_CHARACTERISTIC_UUID_TX;
-    static const char* SERIAL_CHARACTERISTIC_UUID_RX;
+    static const char*     SERIAL_SERVICE_UUID;
+    static const char*     SERIAL_CHARACTERISTIC_UUID_TX;
+    static const char*     SERIAL_CHARACTERISTIC_UUID_RX;
+    P(SquidService,        serialService);
+    P(SquidCharacteristic, serialInput);
+    P(SquidCharacteristic, serialOutput);
   #endif
   
   #if GAMEPAD_ENABLE
-    BLEGAMEPAD               gamepad;
-    NimBLECharacteristic*    inputGamepad;
+    SQUIDGAMEPAD           gamepad;
+    SquidCharacteristic*   inputGamepad = nullptr;
   #endif
   
-public:
-  BLEHID(std::string deviceName = "ESP32 Keyboard", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
+  // Advertisement data pointers
+  P(SquidAdvertisementData, advData);
+  P(SquidAdvertisementData, scanData);
   
-  ~BLEHID();
+public:
+  SQUIDHID(std::string deviceName            = "ESP32 Keyboard", 
+         std::string deviceManufacturer    = "Espressif", 
+         uint8_t batteryLevel              = 100,
+         SquidFactory::Implementation impl = IMPL);
+  
+  ~SQUIDHID();
   
   void begin(void);
   void update(void);
@@ -235,17 +234,17 @@ public:
     bool     isQueueEmpty() const;
     
     // Platform-specific control methods
-    #if defined(BLEHID_PLATFORM_ESP32)
+    #if defined(SQUIDHID_PLATFORM_ESP32)
     void setESP32LogLevel(esp_log_level_t level);
-    #elif defined(BLEHID_PLATFORM_NRF52)
+    #elif defined(SQUIDHID_PLATFORM_NRF52)
     void setNRF52LogLevel(nrf_log_severity_t severity);
     #endif
   
 protected:
-  virtual void onStarted(BLEServer *pServer) { };
-  virtual void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc);
-  virtual void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason);
-  virtual void onWrite(NimBLECharacteristic* me);
+  virtual void onStarted(SquidServer *pServer) { };
+  virtual void onConnect(SquidServer *pServer);
+  virtual void onDisconnect(SquidServer *pServer);
+  virtual void onWrite(SquidCharacteristic *me);
 };
 
 #endif // CONFIG_BT_ENABLED
