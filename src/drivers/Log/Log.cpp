@@ -5,14 +5,14 @@
 
 #include "Log.h"
 
-void BLELOGS::initialize(std::function<void(const LogEntry&)> handler) {
+void SQUIDLOGS::initialize(std::function<void(const LogEntry&)> handler) {
     if (initialized) return;
     
     if (handler) {
         outputHandler = handler;
     } else {
         // Platform-specific default handlers
-        #if defined(BLEHID_PLATFORM_ESP32)
+        #if defined(SQUIDHID_PLATFORM_ESP32)
             outputHandler = [](const LogEntry& entry) {
                 const char* levelStr = "";
                 esp_log_level_t espLevel = ESP_LOG_INFO;
@@ -48,7 +48,7 @@ void BLELOGS::initialize(std::function<void(const LogEntry&)> handler) {
                 esp_log_write(espLevel, entry.tag.c_str(), "[%08lu] [%s] [%s] %s\n", entry.timestamp, levelStr, entry.tag.c_str(), entry.message.c_str());
             };
             
-        #elif defined(BLEHID_PLATFORM_NRF52)
+        #elif defined(SQUIDHID_PLATFORM_NRF52)
             outputHandler = [](const LogEntry& entry) {
                 const char* levelStr = "";
                 
@@ -69,7 +69,7 @@ void BLELOGS::initialize(std::function<void(const LogEntry&)> handler) {
     }
     
     // Platform-specific initialization
-    #if defined(BLEHID_PLATFORM_NRF52)
+    #if defined(SQUIDHID_PLATFORM_NRF52)
         ret_code_t err_code = NRF_LOG_INIT(NULL);
         NRF_LOG_DEFAULT_BACKENDS_INIT();
     #endif
@@ -77,7 +77,7 @@ void BLELOGS::initialize(std::function<void(const LogEntry&)> handler) {
     initialized = true;
 }
 
-void BLELOGS::log(LogLevel level, const std::string& tag, const std::string& message) {
+void SQUIDLOGS::log(LogLevel level, const std::string& tag, const std::string& message) {
     // Early return if logging is disabled for this level
     if (!initialized || static_cast<int>(level) > static_cast<int>(currentLogLevel)) {
         return;
@@ -93,11 +93,11 @@ void BLELOGS::log(LogLevel level, const std::string& tag, const std::string& mes
     logQueue.emplace(timestamp, level, tag, message);
 }
 
-void BLELOGS::setLogLevel(LogLevel level) {
+void SQUIDLOGS::setLogLevel(LogLevel level) {
     currentLogLevel = level;
     
     // Also set platform-specific log levels for underlying systems
-    #if defined(BLEHID_PLATFORM_ESP32)
+    #if defined(SQUIDHID_PLATFORM_ESP32)
         esp_log_level_t espLevel;
         switch (level) {
             case LogLevel::NONE:     espLevel = ESP_LOG_NONE; break;
@@ -110,7 +110,7 @@ void BLELOGS::setLogLevel(LogLevel level) {
         }
         esp_log_level_set("*", espLevel);
         
-    #elif defined(BLEHID_PLATFORM_NRF52)
+    #elif defined(SQUIDHID_PLATFORM_NRF52)
         nrf_log_severity_t nrfLevel;
         switch (level) {
             case LogLevel::NONE:     nrfLevel = NRF_LOG_SEVERITY_NONE; break;
@@ -138,7 +138,7 @@ void BLELOGS::setLogLevel(LogLevel level) {
     log(LogLevel::INFO, "LOG", std::string("Log level set to: ") + levelStr);
 }
 
-void BLELOGS::processQueue() {
+void SQUIDLOGS::processQueue() {
     if (!initialized) return;
     
     // Process all queued messages
@@ -151,25 +151,25 @@ void BLELOGS::processQueue() {
     }
     
     // Platform-specific flush if needed
-    #if defined(BLEHID_PLATFORM_NRF52)
+    #if defined(SQUIDHID_PLATFORM_NRF52)
         NRF_LOG_FLUSH();
     #endif
 }
 
-void BLELOGS::flush() {
+void SQUIDLOGS::flush() {
     processQueue();
     
     // Small delay to ensure platform-specific logging completes
-    #if defined(BLEHID_PLATFORM_NRF52)
+    #if defined(SQUIDHID_PLATFORM_NRF52)
         delay(1); // nRF52 may need a moment for log flushing
-    #elif defined(BLEHID_PLATFORM_ESP32)
+    #elif defined(SQUIDHID_PLATFORM_ESP32)
         delay(1); // ESP32 logging is generally fast but safe to wait
     #endif
 }
 
 // Platform-specific implementations (backward compatibility)
-#if defined(BLEHID_PLATFORM_ESP32)
-void BLELOGS::setESP32LogLevel(esp_log_level_t level) {
+#if defined(SQUIDHID_PLATFORM_ESP32)
+void SQUIDLOGS::setESP32LogLevel(esp_log_level_t level) {
     // Map ESP32 level to our unified level
     LogLevel unifiedLevel;
     switch (level) {
@@ -183,8 +183,8 @@ void BLELOGS::setESP32LogLevel(esp_log_level_t level) {
     }
     setLogLevel(unifiedLevel);
 }
-#elif defined(BLEHID_PLATFORM_NRF52)
-void BLELOGS::setNRF52LogLevel(nrf_log_severity_t severity) {
+#elif defined(SQUIDHID_PLATFORM_NRF52)
+void SQUIDLOGS::setNRF52LogLevel(nrf_log_severity_t severity) {
     // Map nRF52 level to our unified level
     LogLevel unifiedLevel;
     switch (severity) {
