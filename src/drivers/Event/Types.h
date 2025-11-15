@@ -100,3 +100,29 @@ constexpr DigitizerKey operator"" _digitizer(unsigned long long value) {
 // Main MK macro with automatic enum type detection
 #define MK(type, short_name, enum_value) \
     constexpr type short_name = type{static_cast<int32_t>(GET_ENUM_TYPE_FROM_KEY_TYPE(type)::enum_value)}
+
+// Basic declaration: P(Type, name) 
+// Expands to: std::unique_ptr<Type> name
+#define P(Type, name) std::unique_ptr<Type> name
+
+// Assignment declaration: P_VAL(Type, name) 
+// Expands to: std::unique_ptr<Type> name = value
+#define P_VAL(Type, name, value) std::unique_ptr<Type> name = value
+
+// Basic declaration: P_S(Type, name) 
+// Expands to: std::shared_ptr<Type> name
+#define P_S(Type, name) std::shared_ptr<Type> name
+
+// Assignment declaration: P_SVAL(Type, name) 
+// Expands to: std::shared_ptr<Type> name = value
+#define P_SVAL(Type, name, value) std::shared_ptr<Type> name = value
+
+// Assignment declaration (for local variables only): P_AUTO(name, value)
+// Usage: P_AUTO(ble, thing->function())
+// Expands to: auto ble = thing->function()
+#define P_AUTO(name, value) auto name = value
+
+// Interface method (pure virtual): P_INTERFACE(Type, name, ...)
+// Usage: P_INTERFACE(SquidInterface, createSquid, int size) = 0
+// Expands to: virtual std::unique_ptr<SquidInterface> createSquid(int size) = 0
+#define P_INTERFACE(Type, name, ...) virtual std::unique_ptr<Type> name(__VA_ARGS__) = 0
