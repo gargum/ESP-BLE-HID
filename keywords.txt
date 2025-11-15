@@ -1,10 +1,10 @@
 #######################################
-# Syntax Coloring Map For ESP-BLE-HID
+# Syntax Coloring Map For SQUIDHID
 #######################################
 # Class
 #######################################
 
-BLEHID   	KEYWORD1
+SQUIDHID   	KEYWORD1
 
 #######################################
 # Types
