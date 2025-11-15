@@ -7,9 +7,9 @@
 #define DIGITIZER_H
 
 #include "HIDTypes.h"
-#include "NimBLECharacteristic.h"
 #include <stdint.h>
-#include "../Event/Types.h"
+#include "../../drivers/Event/Types.h"
+#include "../../drivers/Interface/Interface.h"
 
 #define DIGITIZER_ID  0x05
 
@@ -73,9 +73,9 @@ const uint8_t DIGITIZER_FLAG_TIP_SWITCH   = 0x02;  // Bit 1
 const uint8_t DIGITIZER_FLAG_INVERT       = 0x04;  // Bit 2 (eraser)
 const uint8_t DIGITIZER_FLAG_BARREL_SW    = 0x08;  // Bit 3
 
-class BLEDIGI {
+class SQUIDTABLET {
 private:
-    NimBLECharacteristic* inputDigitizer;
+    SquidCharacteristic*  inputDigitizer;
     DigitizerReport       _digitizerReport;
     uint32_t              _delay_ms;
     bool                  _useAbsolute;
@@ -87,9 +87,9 @@ private:
     void _detectModeFromAppearance(uint16_t appearance);
     
 public:
-    BLEDIGI();
+    SQUIDTABLET();
     
-    void begin(NimBLECharacteristic* digitizerChar, uint32_t delay_ms = 7);
+    void begin(SquidCharacteristic* digitizerChar, uint32_t delay_ms = 7);
     bool isConnected();
     
     // Digitizer methods
