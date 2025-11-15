@@ -7,9 +7,9 @@
 #define NKRO_H
 
 #include "HIDTypes.h"
-#include "NimBLECharacteristic.h"
 #include <stdint.h>
-#include "../Event/Types.h"
+#include "../../drivers/Event/Types.h"
+#include "../../drivers/Interface/Interface.h"
 
 #define NKRO_KEY_COUNT 252 // Surprise! "N" in "N-Key Rollover" stands for "252" in my implementation.
 
@@ -400,9 +400,9 @@ MK(ModKey, KC_RGUI, KEY_RIGHT_GUI);
 MK(ModKey, KC_RCMD, KEY_RIGHT_GUI);
 MK(ModKey, KC_RWIN, KEY_RIGHT_GUI);
 
-class BLENKRO {
+class SQUIDNKRO {
 private:
-  NimBLECharacteristic* inputNKRO;
+  SquidCharacteristic*  inputNKRO;
   KeyReportNKRO         _keyReportNKRO;
   bool                  _useNKRO = true; // Default to NKRO
   uint32_t              _delay_ms = 7;  
@@ -411,9 +411,9 @@ private:
   uint8_t               charToKeyCode(char c, bool *needShift);
   void                  updateNKROBitmask(NKROKey k, bool pressed);
 public:
-  BLENKRO();
+  SQUIDNKRO();
     
-  void    begin(NimBLECharacteristic* nkroChar, uint32_t delay_ms = 7);
+  void    begin(SquidCharacteristic* nkroChar, uint32_t delay_ms = 7);
   bool    isConnected();
 
   size_t  press(NKROKey k);           // I went with uint8_t for normal keycodes
