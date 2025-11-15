@@ -6,14 +6,12 @@
  * Boards like the ESP32-C3 Super Mini, which this example was originally tested on, make this especially useful!
  */
 
-#include <BLEHID.h>
+#include <SQUIDHID.h>
 
-BLEHID jig("MiniMed 780G", "Medtronic", 100); // Setting name, manufacturer, battery level
+SQUIDHID jig("MiniMed 780G", "Medtronic", 100); // Setting name, manufacturer, battery level
 
 void setup() {
   jig.setAppearance(INSULIN_PUMP);
-  // You can uncomment this line to intentionally prevent smartphones from being able to pair with the ESP32 at all
-  //jig.setPIN("913379"); // Setting a PIN to connect, commented out by default for compatibility on mobile
   jig.begin();
 }
 
