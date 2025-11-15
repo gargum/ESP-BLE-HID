@@ -4,38 +4,40 @@
  */
 
 #include "Gamepad.h"
-#include "NimBLEDevice.h"
-#include "../Log/Log.h"
+#include "../../drivers/Log/Log.h"
 
-static const char* GAMEPAD_TAG = "BLEGAMEPAD";
+static const char* GAMEPAD_TAG = "SQUIDGAMEPAD";
 
-BLEGAMEPAD::BLEGAMEPAD() 
+SQUIDGAMEPAD::SQUIDGAMEPAD() 
     : inputGamepad(nullptr), _delay_ms(7) {
     memset(&_gamepadReport, 0, sizeof(_gamepadReport));
     _gamepadReport.hat = static_cast<int8_t>(HAT_CE);
     
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Gamepad instance created");
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Gamepad instance created");
 }
 
-void BLEGAMEPAD::begin(NimBLECharacteristic* gamepadChar, uint32_t delay_ms) {
+void SQUIDGAMEPAD::begin(SquidCharacteristic* gamepadChar, uint32_t delay_ms) {
     inputGamepad = gamepadChar;
     _delay_ms = delay_ms;
     memset(&_gamepadReport, 0, sizeof(_gamepadReport));
     _gamepadReport.hat = static_cast<int8_t>(HAT_CE);
     
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Gamepad subsystem initialized with delay: %lu ms", delay_ms);
-    BLE_LOG_INFO(GAMEPAD_TAG, "Gamepad service ready");
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Gamepad subsystem initialized with delay: %lu ms", delay_ms);
+    SQUID_LOG_INFO(GAMEPAD_TAG, "Gamepad service ready");
 }
 
-bool BLEGAMEPAD::isConnected() {
-    bool connected = (inputGamepad && NimBLEDevice::getServer() && NimBLEDevice::getServer()->getConnectedCount() > 0);
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Connection check: %s", connected ? "connected" : "disconnected");
+bool SQUIDGAMEPAD::isConnected() {
+    // We need to check if the characteristic and underlying BLE stack are connected
+    // Since we don't have direct access to SquidDevice, we'll check if the characteristic exists
+    // and assume connection state is managed by the parent SQUIDHID class
+    bool connected = (inputGamepad != nullptr);
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Connection check: %s", connected ? "characteristic available" : "no characteristic");
     return connected;
 }
 
-size_t BLEGAMEPAD::press(GamepadButton button) {
+size_t SQUIDGAMEPAD::press(GamepadButton button) {
     int8_t buttonValue = static_cast<int8_t>(button);
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Gamepad button press: %d", buttonValue);
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Gamepad button press: %d", buttonValue);
     
     if (buttonValue >= 1 && buttonValue <= 64) {
         uint8_t field = (buttonValue - 1) / 32;
@@ -43,7 +45,7 @@ size_t BLEGAMEPAD::press(GamepadButton button) {
         uint32_t previousButtons = _gamepadReport.buttons[field];
         _gamepadReport.buttons[field] |= (1UL << bit);
         
-        BLE_LOG_DEBUG(GAMEPAD_TAG, "Regular button press - Field: %u, Bit: %u, Before: 0x%08lX, After: 0x%08lX", 
+        SQUID_LOG_DEBUG(GAMEPAD_TAG, "Regular button press - Field: %u, Bit: %u, Before: 0x%08lX, After: 0x%08lX", 
                      field, bit, previousButtons, _gamepadReport.buttons[field]);
     } else if (buttonValue >= 65 && buttonValue <= 68) {
         uint8_t currentHat = _gamepadReport.hat;
@@ -51,21 +53,21 @@ size_t BLEGAMEPAD::press(GamepadButton button) {
         
         _gamepadReport.hat = static_cast<int8_t>(hatPress[directionIndex][currentHat]);
         
-        BLE_LOG_DEBUG(GAMEPAD_TAG, "DPad button press - Direction: %u, Before: 0x%02X, After: 0x%02X", 
+        SQUID_LOG_DEBUG(GAMEPAD_TAG, "DPad button press - Direction: %u, Before: 0x%02X, After: 0x%02X", 
                      directionIndex, currentHat, _gamepadReport.hat);
     } else {
-        BLE_LOG_WARN(GAMEPAD_TAG, "Invalid button press attempt: %d", buttonValue);
+        SQUID_LOG_WARN(GAMEPAD_TAG, "Invalid button press attempt: %d", buttonValue);
         return 0;
     }
     
     sendGamepadReport();
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Gamepad button press completed: %d", buttonValue);
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Gamepad button press completed: %d", buttonValue);
     return 1;
 }
 
-size_t BLEGAMEPAD::release(GamepadButton button) {
+size_t SQUIDGAMEPAD::release(GamepadButton button) {
     int8_t buttonValue = static_cast<int8_t>(button);
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Gamepad button release: %d", buttonValue);
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Gamepad button release: %d", buttonValue);
     
     if (buttonValue >= 1 && buttonValue <= 64) {
         uint8_t field = (buttonValue - 1) / 32;
@@ -73,7 +75,7 @@ size_t BLEGAMEPAD::release(GamepadButton button) {
         uint32_t previousButtons = _gamepadReport.buttons[field];
         _gamepadReport.buttons[field] &= ~(1UL << bit);
         
-        BLE_LOG_DEBUG(GAMEPAD_TAG, "Regular button release - Field: %u, Bit: %u, Before: 0x%08lX, After: 0x%08lX", 
+        SQUID_LOG_DEBUG(GAMEPAD_TAG, "Regular button release - Field: %u, Bit: %u, Before: 0x%08lX, After: 0x%08lX", 
                      field, bit, previousButtons, _gamepadReport.buttons[field]);
     } else if (buttonValue >= 65 && buttonValue <= 68) {
         uint8_t currentHat = _gamepadReport.hat;
@@ -81,20 +83,20 @@ size_t BLEGAMEPAD::release(GamepadButton button) {
         
         _gamepadReport.hat = static_cast<int8_t>(hatRelease[directionIndex][currentHat]);
         
-        BLE_LOG_DEBUG(GAMEPAD_TAG, "DPad button release - Direction: %u, Before: 0x%02X, After: 0x%02X", 
+        SQUID_LOG_DEBUG(GAMEPAD_TAG, "DPad button release - Direction: %u, Before: 0x%02X, After: 0x%02X", 
                      directionIndex, currentHat, _gamepadReport.hat);
     } else {
-        BLE_LOG_WARN(GAMEPAD_TAG, "Invalid button release attempt: %d", buttonValue);
+        SQUID_LOG_WARN(GAMEPAD_TAG, "Invalid button release attempt: %d", buttonValue);
         return 0;
     }
     
     sendGamepadReport();
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Gamepad button release completed: %d", buttonValue);
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Gamepad button release completed: %d", buttonValue);
     return 1;
 }
 
-void BLEGAMEPAD::releaseAll() {
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Releasing all gamepad buttons - Buttons[0]: 0x%08lX, Buttons[1]: 0x%08lX, Hat: 0x%02X", 
+void SQUIDGAMEPAD::releaseAll() {
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Releasing all gamepad buttons - Buttons[0]: 0x%08lX, Buttons[1]: 0x%08lX, Hat: 0x%02X", 
                  _gamepadReport.buttons[0], _gamepadReport.buttons[1], _gamepadReport.hat);
     
     _gamepadReport.buttons[0] = 0;
@@ -102,10 +104,10 @@ void BLEGAMEPAD::releaseAll() {
     _gamepadReport.hat = static_cast<int8_t>(HAT_CE);
     
     sendGamepadReport();
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "All gamepad buttons released");
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "All gamepad buttons released");
 }
 
-bool BLEGAMEPAD::gamepadIsPressed(GamepadButton button) {
+bool SQUIDGAMEPAD::gamepadIsPressed(GamepadButton button) {
     int8_t buttonValue = static_cast<int8_t>(button);
     bool pressed = false;
     
@@ -139,52 +141,52 @@ bool BLEGAMEPAD::gamepadIsPressed(GamepadButton button) {
                 break;
         }
     } else {
-        BLE_LOG_WARN(GAMEPAD_TAG, "Invalid button check attempt: %d", buttonValue);
+        SQUID_LOG_WARN(GAMEPAD_TAG, "Invalid button check attempt: %d", buttonValue);
         return false;
     }
     
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Button pressed check - Button: %d, Pressed: %s", 
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Button pressed check - Button: %d, Pressed: %s", 
                  buttonValue, pressed ? "true" : "false");
     return pressed;
 } 
 
-void BLEGAMEPAD::gamepadSetAxis(GamepadAnalogue axis, int16_t value) {
+void SQUIDGAMEPAD::gamepadSetAxis(GamepadAnalogue axis, int16_t value) {
     int8_t axisIndex = static_cast<int8_t>(axis);
     if (axisIndex < GAMEPAD_ANALOGUE_COUNT) {
         int16_t previousValue = _gamepadReport.analogues[axisIndex];
         _gamepadReport.analogues[axisIndex] = value;
         
-        BLE_LOG_DEBUG(GAMEPAD_TAG, "Axis set - Axis: %d, Value: %d -> %d", 
+        SQUID_LOG_DEBUG(GAMEPAD_TAG, "Axis set - Axis: %d, Value: %d -> %d", 
                      axisIndex, previousValue, value);
         sendGamepadReport();
     } else {
-        BLE_LOG_WARN(GAMEPAD_TAG, "Invalid axis set attempt - Axis: %d, Value: %d", axisIndex, value);
+        SQUID_LOG_WARN(GAMEPAD_TAG, "Invalid axis set attempt - Axis: %d, Value: %d", axisIndex, value);
     }
 }
 
-int16_t BLEGAMEPAD::gamepadGetAxis(GamepadAnalogue axis) {
+int16_t SQUIDGAMEPAD::gamepadGetAxis(GamepadAnalogue axis) {
     int8_t axisIndex = static_cast<int8_t>(axis);
     int16_t value = 0;
     
     if (axisIndex < GAMEPAD_ANALOGUE_COUNT) {
         value = _gamepadReport.analogues[axisIndex];
-        BLE_LOG_DEBUG(GAMEPAD_TAG, "Axis get - Axis: %d, Value: %d", axisIndex, value);
+        SQUID_LOG_DEBUG(GAMEPAD_TAG, "Axis get - Axis: %d, Value: %d", axisIndex, value);
     } else {
-        BLE_LOG_WARN(GAMEPAD_TAG, "Invalid axis get attempt: %d", axisIndex);
+        SQUID_LOG_WARN(GAMEPAD_TAG, "Invalid axis get attempt: %d", axisIndex);
     }
     
     return value;
 }
 
-void BLEGAMEPAD::gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]) {
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Setting all analogue axes");
+void SQUIDGAMEPAD::gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]) {
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Setting all analogue axes");
     memcpy(_gamepadReport.analogues, values, sizeof(_gamepadReport.analogues));
     sendGamepadReport();
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "All analogue axes set successfully");
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "All analogue axes set successfully");
 }
 
-void BLEGAMEPAD::gamepadSetLeftStick(int16_t x, int16_t y) {
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Setting left stick - X: %d -> %d, Y: %d -> %d", 
+void SQUIDGAMEPAD::gamepadSetLeftStick(int16_t x, int16_t y) {
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Setting left stick - X: %d -> %d, Y: %d -> %d", 
                  _gamepadReport.analogues[static_cast<int8_t>(GA_LX)], x, 
                  _gamepadReport.analogues[static_cast<int8_t>(GA_LY)], y);
     
@@ -193,8 +195,8 @@ void BLEGAMEPAD::gamepadSetLeftStick(int16_t x, int16_t y) {
     sendGamepadReport();
 }
 
-void BLEGAMEPAD::gamepadSetRightStick(int16_t x, int16_t y) {
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Setting right stick - X: %d -> %d, Y: %d -> %d", 
+void SQUIDGAMEPAD::gamepadSetRightStick(int16_t x, int16_t y) {
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Setting right stick - X: %d -> %d, Y: %d -> %d", 
                  _gamepadReport.analogues[static_cast<int8_t>(GA_RX)], x, 
                  _gamepadReport.analogues[static_cast<int8_t>(GA_RY)], y);
     
@@ -203,8 +205,8 @@ void BLEGAMEPAD::gamepadSetRightStick(int16_t x, int16_t y) {
     sendGamepadReport();
 }
 
-void BLEGAMEPAD::gamepadSetTriggers(int16_t left, int16_t right) {
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Setting triggers - Left: %d -> %d, Right: %d -> %d", 
+void SQUIDGAMEPAD::gamepadSetTriggers(int16_t left, int16_t right) {
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Setting triggers - Left: %d -> %d, Right: %d -> %d", 
                  _gamepadReport.analogues[static_cast<int8_t>(GA_LT)], left, 
                  _gamepadReport.analogues[static_cast<int8_t>(GA_RT)], right);
     
@@ -213,23 +215,23 @@ void BLEGAMEPAD::gamepadSetTriggers(int16_t left, int16_t right) {
     sendGamepadReport();
 }
 
-void BLEGAMEPAD::gamepadGetLeftStick(int16_t &x, int16_t &y) {
+void SQUIDGAMEPAD::gamepadGetLeftStick(int16_t &x, int16_t &y) {
     x = gamepadGetAxis(GA_LX);
     y = gamepadGetAxis(GA_LY);
     
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Getting left stick - X: %d, Y: %d", x, y);
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Getting left stick - X: %d, Y: %d", x, y);
 }
 
-void BLEGAMEPAD::gamepadGetRightStick(int16_t &x, int16_t &y) {
+void SQUIDGAMEPAD::gamepadGetRightStick(int16_t &x, int16_t &y) {
     x = gamepadGetAxis(GA_RX);
     y = gamepadGetAxis(GA_RY);
     
-    BLE_LOG_DEBUG(GAMEPAD_TAG, "Getting right stick - X: %d, Y: %d", x, y);
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Getting right stick - X: %d, Y: %d", x, y);
 }
 
-void BLEGAMEPAD::sendGamepadReport() {
+void SQUIDGAMEPAD::sendGamepadReport() {
     if (!isConnected() || !inputGamepad) {
-        BLE_LOG_DEBUG(GAMEPAD_TAG, "Cannot send gamepad report - %s%s", 
+        SQUID_LOG_DEBUG(GAMEPAD_TAG, "Cannot send gamepad report - %s%s", 
                      !isConnected() ? "not connected" : "", 
                      !inputGamepad ? "no input characteristic" : "");
         return;
@@ -238,7 +240,7 @@ void BLEGAMEPAD::sendGamepadReport() {
     inputGamepad->setValue((uint8_t*)&_gamepadReport, sizeof(_gamepadReport));
     
     if (inputGamepad->notify()) {
-        BLE_LOG_DEBUG(GAMEPAD_TAG, "Gamepad report sent successfully - "
+        SQUID_LOG_DEBUG(GAMEPAD_TAG, "Gamepad report sent successfully - "
                      "Buttons[0]: 0x%08lX, Buttons[1]: 0x%08lX, Hat: 0x%02X, "
                      "LX: %d, LY: %d, RX: %d, RY: %d, LT: %d, RT: %d",
                      _gamepadReport.buttons[0], _gamepadReport.buttons[1], _gamepadReport.hat,
@@ -246,7 +248,7 @@ void BLEGAMEPAD::sendGamepadReport() {
                      _gamepadReport.analogues[static_cast<int8_t>(GA_RX)], _gamepadReport.analogues[static_cast<int8_t>(GA_RY)],
                      _gamepadReport.analogues[static_cast<int8_t>(GA_LT)], _gamepadReport.analogues[static_cast<int8_t>(GA_RT)]);
     } else {
-        BLE_LOG_WARN(GAMEPAD_TAG, "Failed to send gamepad report notification");
+        SQUID_LOG_WARN(GAMEPAD_TAG, "Failed to send gamepad report notification");
     }
     
     delay(_delay_ms);
