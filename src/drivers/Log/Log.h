@@ -14,10 +14,10 @@
 
 // Platform detection - Only ESP/nRF for now
 #if defined(ARDUINO_ARCH_ESP32)
-  #define BLEHID_PLATFORM_ESP32
+  #define SQUIDHID_PLATFORM_ESP32
   #include "esp_log.h"
 #elif defined(ARDUINO_ARCH_NRF52) || defined(NRF52_SERIES)
-  #define BLEHID_PLATFORM_NRF52
+  #define SQUIDHID_PLATFORM_NRF52
   #include <nrf_log.h>
   #include <nrf_log_ctrl.h>
   #include <nrf_log_default_backends.h>
@@ -47,7 +47,7 @@ struct LogEntry {
 };
 
 // Async Logger class - ALWAYS uses queue across all platforms
-class BLELOGS {
+class SQUIDLOGS {
 private:
     std::queue<LogEntry> logQueue;
     bool initialized = false;
@@ -56,12 +56,12 @@ private:
     std::function<void(const LogEntry&)> outputHandler;
     
 public:
-    static BLELOGS& getInstance() {
-        static BLELOGS instance;
+    static SQUIDLOGS& getInstance() {
+        static SQUIDLOGS instance;
         return instance;
     }
     
-    BLELOGS() = default;
+    SQUIDLOGS() = default;
     
     void initialize(std::function<void(const LogEntry&)> handler = nullptr);
     void log(LogLevel level, const std::string& tag, const std::string& message);
@@ -78,16 +78,16 @@ public:
     bool isQueueEmpty() const { return logQueue.empty(); }
     
     // Platform-specific control methods (kept for backward compatibility)
-    #if defined(BLEHID_PLATFORM_ESP32)
+    #if defined(SQUIDHID_PLATFORM_ESP32)
     void setESP32LogLevel(esp_log_level_t level);
-    #elif defined(BLEHID_PLATFORM_NRF52)
+    #elif defined(SQUIDHID_PLATFORM_NRF52)
     void setNRF52LogLevel(nrf_log_severity_t severity);
     #endif
 };
 
-inline void _bleLogHelper(LogLevel level, const std::string& tag, const char* format, ...) {
+inline void _squidLogHelper(LogLevel level, const std::string& tag, const char* format, ...) {
     // Check if this log level should be processed
-    if (static_cast<int>(level) > static_cast<int>(BLELOGS::getInstance().getLogLevel())) {
+    if (static_cast<int>(level) > static_cast<int>(SQUIDLOGS::getInstance().getLogLevel())) {
         return;
     }
     
@@ -97,36 +97,36 @@ inline void _bleLogHelper(LogLevel level, const std::string& tag, const char* fo
     vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
     
-    BLELOGS::getInstance().log(level, tag, buffer);
+    SQUIDLOGS::getInstance().log(level, tag, buffer);
 }
 
 // Convenience macros for logging
-#define BLE_LOG_VERBOSE(tag, format, ...) \
-    _bleLogHelper(LogLevel::VERBOSE, tag, format, ##__VA_ARGS__)
+#define SQUID_LOG_VERBOSE(tag, format, ...) \
+    _squidLogHelper(LogLevel::VERBOSE, tag, format, ##__VA_ARGS__)
 
-#define BLE_LOG_DEBUG(tag, format, ...) \
-    _bleLogHelper(LogLevel::DEBUG, tag, format, ##__VA_ARGS__)
+#define SQUID_LOG_DEBUG(tag, format, ...) \
+    _squidLogHelper(LogLevel::DEBUG, tag, format, ##__VA_ARGS__)
 
-#define BLE_LOG_INFO(tag, format, ...) \
-    _bleLogHelper(LogLevel::INFO, tag, format, ##__VA_ARGS__)
+#define SQUID_LOG_INFO(tag, format, ...) \
+    _squidLogHelper(LogLevel::INFO, tag, format, ##__VA_ARGS__)
 
-#define BLE_LOG_WARN(tag, format, ...) \
-    _bleLogHelper(LogLevel::WARNING, tag, format, ##__VA_ARGS__)
+#define SQUID_LOG_WARN(tag, format, ...) \
+    _squidLogHelper(LogLevel::WARNING, tag, format, ##__VA_ARGS__)
 
-#define BLE_LOG_ERROR(tag, format, ...) \
-    _bleLogHelper(LogLevel::ERROR, tag, format, ##__VA_ARGS__)
+#define SQUID_LOG_ERROR(tag, format, ...) \
+    _squidLogHelper(LogLevel::ERROR, tag, format, ##__VA_ARGS__)
 
 // Process queue macro (ALWAYS needed now)
-#define BLE_LOG_PROCESS() BLELOGS::getInstance().processQueue()
+#define SQUID_LOG_PROCESS() SQUIDLOGS::getInstance().processQueue()
 
 // Force flush all logs (blocks until complete)
-#define BLE_LOG_FLUSH() BLELOGS::getInstance().flush()
+#define SQUID_LOG_FLUSH() SQUIDLOGS::getInstance().flush()
 
 // Check if log queue is empty
-#define BLE_LOG_QUEUE_EMPTY() BLELOGS::getInstance().isQueueEmpty()
+#define SQUID_LOG_QUEUE_EMPTY() SQUIDLOGS::getInstance().isQueueEmpty()
 
 // Unified log level control - NEW SIMPLE INTERFACE
-#define BLE_LOG_SET_LEVEL(level) BLELOGS::getInstance().setLogLevel(level)
+#define SQUID_LOG_SET_LEVEL(level) SQUIDLOGS::getInstance().setLogLevel(level)
 
 #define LOGGER_NONE    LogLevel::NONE
 #define LOGGER_INFO    LogLevel::INFO
@@ -136,10 +136,10 @@ inline void _bleLogHelper(LogLevel level, const std::string& tag, const char* fo
 #define LOGGER_VERBOSE LogLevel::VERBOSE
 
 // Backward compatibility macros
-#if defined(BLEHID_PLATFORM_ESP32)
-  #define BLE_LOG_SET_PLATFORM_LEVEL(level) BLELOGS::getInstance().setESP32LogLevel(level)
-#elif defined(BLEHID_PLATFORM_NRF52)
-  #define BLE_LOG_SET_PLATFORM_LEVEL(level) BLELOGS::getInstance().setNRF52LogLevel(level)
+#if defined(SQUIDHID_PLATFORM_ESP32)
+  #define SQUID_LOG_SET_PLATFORM_LEVEL(level) SQUIDLOGS::getInstance().setESP32LogLevel(level)
+#elif defined(SQUIDHID_PLATFORM_NRF52)
+  #define SQUID_LOG_SET_PLATFORM_LEVEL(level) SQUIDLOGS::getInstance().setNRF52LogLevel(level)
 #endif
 
 #endif
