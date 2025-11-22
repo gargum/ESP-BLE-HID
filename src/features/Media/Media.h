@@ -6,12 +6,19 @@
 #ifndef MEDIA_H
 #define MEDIA_H
 
-#include "HIDTypes.h"
 #include <stdint.h>
+#include "HIDTypes.h"
+#include "NimBLEDevice.h"
+#include "NimBLECharacteristic.h"
+#include "../../drivers/Log/Log.h"
 #include "../../drivers/Event/Types.h"
-#include "../../drivers/Interface/Interface.h"
+#include "../../drivers/Transport/Transport.h"
 
 #define MEDIA_KEYS_ID 0x03
+
+typedef struct {
+    uint16_t usage;
+} MediaReport;
 
 static const uint8_t _mediakeyReportDescriptor[] = {
   // ------------------------------------------------- Media Keys
@@ -87,17 +94,20 @@ MK(MediaKey, KC_WREF, KEY_MEDIA_WWW_REFRESH);
 
 class SQUIDMEDIA {
 private:
-    SquidCharacteristic* inputMediaKeys;
-    MediaKey _currentMediaKey;
-    uint32_t _delay_ms;
+    Transport*            transport; 
+    MediaReport           _mediaReport;
+    MediaKey              _currentMediaKey;
+    uint32_t              _delay_ms;
     
 public:
     SQUIDMEDIA();
     
-    void begin(SquidCharacteristic* mediaChar, uint32_t delay_ms = 7);
+    void begin(Transport* transport, uint32_t delay_ms = 7);
     bool isConnected();
+    void onConnect();
+    void onDisconnect();
     
-    // Media key methods - simplified interface
+    // Media key methods
     size_t   press(MediaKey mediaKey);
     size_t   release(MediaKey mediaKey);
     size_t   write(MediaKey mediaKey);
