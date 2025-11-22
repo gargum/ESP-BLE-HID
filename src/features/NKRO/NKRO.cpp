@@ -4,29 +4,31 @@
  */
 
 #include "NKRO.h"
-#include "../../drivers/Log/Log.h"
 
 static const char* NKRO_TAG = "SQUIDNKRO";
 
 SQUIDNKRO::SQUIDNKRO() 
-    : inputNKRO(nullptr), _useNKRO(true) {
-    memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
+    : transport(nullptr), _useNKRO(true) {
+    memset(&_nkroReport, 0, sizeof(_nkroReport));
 }
 
-void SQUIDNKRO::begin(SquidCharacteristic* nkroChar, uint32_t delay_ms) {
-    inputNKRO = nkroChar;
+void SQUIDNKRO::begin(Transport* trans, uint32_t delay_ms) {
+    transport = trans;
     _delay_ms = delay_ms;
-    memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
-    SQUID_LOG_DEBUG(NKRO_TAG, "NKRO subsystem initialized with delay: %lu ms", delay_ms);
+    memset(&_nkroReport, 0, sizeof(_nkroReport));
+    SQUID_LOG_DEBUG(NKRO_TAG, "NKRO subsystem initialized with transport");
 }
 
 bool SQUIDNKRO::isConnected() {
-    // We need to check if the characteristic and underlying BLE stack are connected
-    // Since we don't have direct access to SquidDevice, we'll check if the characteristic exists
-    // and assume connection state is managed by the parent SQUIDHID class
-    bool connected = (inputNKRO != nullptr);
-    SQUID_LOG_DEBUG(NKRO_TAG, "Connection check: %s", connected ? "characteristic available" : "no characteristic");
-    return connected;
+    return transport ? transport->isConnected() : false;
+}
+
+void SQUIDNKRO::onConnect() {
+    SQUID_LOG_DEBUG(NKRO_TAG, "NKRO connected");
+}
+
+void SQUIDNKRO::onDisconnect() {
+    SQUID_LOG_DEBUG(NKRO_TAG, "NKRO disconnected");
 }
 
 size_t SQUIDNKRO::press(NKROKey k) {
@@ -62,7 +64,7 @@ size_t SQUIDNKRO::press(ModKey modifier) {
     return 0; // Invalid modifier
   }
   
-  _keyReportNKRO.modifiers |= hidModifier;
+  _nkroReport.modifiers |= hidModifier;
   SQUID_LOG_DEBUG(NKRO_TAG, "Modifier pressed: 0x%02X", hidModifier);
   sendNKROReport();
   return 1;
@@ -96,14 +98,14 @@ size_t SQUIDNKRO::release(ModKey modifier) {
     return 0; // Invalid modifier
   }
   
-  _keyReportNKRO.modifiers &= ~hidModifier;
+  _nkroReport.modifiers &= ~hidModifier;
   SQUID_LOG_DEBUG(NKRO_TAG, "Modifier released: 0x%02X", hidModifier);
   sendNKROReport();
   return 1;
 }
 
 void SQUIDNKRO::releaseAll() {
-    memset(&_keyReportNKRO, 0, sizeof(_keyReportNKRO));
+    memset(&_nkroReport, 0, sizeof(_nkroReport));
     SQUID_LOG_DEBUG(NKRO_TAG, "All keys released");
     sendNKROReport();
 }
@@ -158,7 +160,7 @@ uint8_t SQUIDNKRO::countPressedKeys() {
   // Only count non-modifier keys in the main key area
   // This ensures modifiers don't count toward the 6-key limit
   for (int i = 0; i < (NKRO_KEY_COUNT / 8); i++) {
-    uint8_t byte = _keyReportNKRO.keys_bitmask[i];
+    uint8_t byte = _nkroReport.keys_bitmask[i];
     count += __builtin_popcount(byte);
   }
   SQUID_LOG_DEBUG(NKRO_TAG, "Pressed keys count: %u", count);
@@ -174,9 +176,9 @@ void SQUIDNKRO::updateNKROBitmask(NKROKey k, bool pressed) {
     uint8_t bitOffset = keyValue % 8;
     
     if (pressed) {
-      _keyReportNKRO.keys_bitmask[bitmaskIndex] |= (1 << bitOffset);
+      _nkroReport.keys_bitmask[bitmaskIndex] |= (1 << bitOffset);
     } else {
-      _keyReportNKRO.keys_bitmask[bitmaskIndex] &= ~(1 << bitOffset);
+      _nkroReport.keys_bitmask[bitmaskIndex] &= ~(1 << bitOffset);
     }
     
     SQUID_LOG_DEBUG(NKRO_TAG, "Bitmask updated - Key: 0x%02X, Index: %u, Bit: %u, Action: %s", 
@@ -188,13 +190,13 @@ void SQUIDNKRO::updateNKROBitmask(NKROKey k, bool pressed) {
 
 void SQUIDNKRO::setModifiers(ModKey modifiers) {
     // Convert to underlying type for the report
-    _keyReportNKRO.modifiers = static_cast<uint8_t>(modifiers >> 8);
-    SQUID_LOG_DEBUG(NKRO_TAG, "Modifiers set to: 0x%02X", _keyReportNKRO.modifiers);
+    _nkroReport.modifiers = static_cast<uint8_t>(modifiers >> 8);
+    SQUID_LOG_DEBUG(NKRO_TAG, "Modifiers set to: 0x%02X", _nkroReport.modifiers);
     sendNKROReport();
 }
 
 uint8_t SQUIDNKRO::getModifiers() {
-    uint8_t modifiers = _keyReportNKRO.modifiers;
+    uint8_t modifiers = _nkroReport.modifiers;
     SQUID_LOG_DEBUG(NKRO_TAG, "Modifiers retrieved: 0x%02X", modifiers);
     return modifiers;
 }
@@ -260,45 +262,41 @@ uint8_t SQUIDNKRO::charToKeyCode(char c, bool *needShift) {
 }
 
 void SQUIDNKRO::sendNKROReport() {
-    if (isConnected() && inputNKRO) {
-        // If in NKRO mode, send the extended report (ID 2)
-        if (_useNKRO) {
-            inputNKRO->setValue((uint8_t*)&_keyReportNKRO, sizeof(KeyReportNKRO));
-            SQUID_LOG_DEBUG(NKRO_TAG, "NKRO report sent - Modifiers: 0x%02X, Keys pressed: %u", 
-                         _keyReportNKRO.modifiers, countPressedKeys());
-        } else {
-            // 6KRO mode - extract first 6 pressed keys and send boot report
-            uint8_t bootReport[8];
-            bootReport[0] = _keyReportNKRO.modifiers;
-            bootReport[1] = 0; // reserved
-            
-            // Find up to 6 pressed keys
-            int keyIndex = 2;
-            for (int i = 0; i < NKRO_KEY_COUNT && keyIndex < 8; i++) {
-                if ((_keyReportNKRO.keys_bitmask[i/8] >> (i%8)) & 1) {
-                    bootReport[keyIndex++] = i;
-                }
-            }
-            
-            // Fill remaining with 0
-            while (keyIndex < 8) {
-                bootReport[keyIndex++] = 0;
-            }
-            
-            inputNKRO->setValue(bootReport, 8);
-            SQUID_LOG_DEBUG(NKRO_TAG, "6KRO report sent - Modifiers: 0x%02X, Keys: [%u, %u, %u, %u, %u, %u]", 
-                         bootReport[0], bootReport[2], bootReport[3], bootReport[4], 
-                         bootReport[5], bootReport[6], bootReport[7]);
-        }
-        
-        if (inputNKRO->notify()) {
-            SQUID_LOG_DEBUG(NKRO_TAG, "Report notification sent successfully");
-        } else {
-            SQUID_LOG_WARN(NKRO_TAG, "Failed to send report notification");
-        }
-        
-        delay(_delay_ms);
-    } else {
-        SQUID_LOG_DEBUG(NKRO_TAG, "Cannot send report - not connected or no input characteristic");
+    if (!isConnected() || !transport) {
+        SQUID_LOG_DEBUG(NKRO_TAG, "Cannot send keyboard report - not connected or no transport");
+        return;
     }
+    
+    if (_useNKRO) {
+        bool result = transport->sendReport(NKRO_ID, (uint8_t*)&_nkroReport, sizeof(NKROReport));
+        if (!result) {
+          SQUID_LOG_ERROR(NKRO_TAG, "Failed to send NKRO report via transport");
+        } else {
+          SQUID_LOG_DEBUG(NKRO_TAG, "NKRO report sent successfully");
+      }
+    } else {
+        // 6KRO conversion
+        uint8_t bootReport[8];
+        bootReport[0] = _nkroReport.modifiers;
+        bootReport[1] = 0;
+        
+        int keyIndex = 2;
+        for (int i = 0; i < NKRO_KEY_COUNT && keyIndex < 8; i++) {
+            if ((_nkroReport.keys_bitmask[i/8] >> (i%8)) & 1) {
+                bootReport[keyIndex++] = i;
+            }
+        }
+        while (keyIndex < 8) {
+            bootReport[keyIndex++] = 0;
+        }
+        
+        bool result = transport->sendReport(NKRO_ID, bootReport, 8);
+        if (!result) {
+          SQUID_LOG_ERROR(NKRO_TAG, "Failed to send 6KRO report via transport");
+        } else {
+          SQUID_LOG_DEBUG(NKRO_TAG, "6KRO report sent successfully");
+      }
+    }
+    
+    delay(_delay_ms);
 }
