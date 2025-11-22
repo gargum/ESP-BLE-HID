@@ -4,19 +4,18 @@
  */
 
 #include "Digitizer.h"
-#include "../../drivers/Log/Log.h"
 
 static const char* DIGI_TAG = "SQUIDTABLET";
 
 SQUIDTABLET::SQUIDTABLET() 
-    : inputDigitizer(nullptr), _delay_ms(7), _useAbsolute(false), 
+    : transport(nullptr), _delay_ms(7), _useAbsolute(false), 
       _autoMode(true), _digitizerConfigured(false), 
       _screenWidth(1920), _screenHeight(1080) {
     memset(&_digitizerReport, 0, sizeof(_digitizerReport));
 }
 
-void SQUIDTABLET::begin(SquidCharacteristic* digitizerChar, uint32_t delay_ms) {
-    inputDigitizer = digitizerChar;
+void SQUIDTABLET::begin(Transport* trans, uint32_t delay_ms) {
+    transport = trans;
     _delay_ms = delay_ms;
     _useAbsolute = false;
     _autoMode = true;
@@ -30,12 +29,15 @@ void SQUIDTABLET::begin(SquidCharacteristic* digitizerChar, uint32_t delay_ms) {
 }
 
 bool SQUIDTABLET::isConnected() {
-    // We need to check if the characteristic and underlying BLE stack are connected
-    // Since we don't have direct access to SquidDevice, we'll check if the characteristic exists
-    // and assume connection state is managed by the parent SQUIDHID class
-    bool connected = (inputDigitizer != nullptr);
-    SQUID_LOG_DEBUG(DIGI_TAG, "Connection check: %s", connected ? "characteristic available" : "no characteristic");
-    return connected;
+    return transport ? transport->isConnected() : false;
+}
+
+void SQUIDTABLET::onConnect() {
+    SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer connected");
+}
+
+void SQUIDTABLET::onDisconnect() {
+    SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer disconnected");
 }
 
 void SQUIDTABLET::_detectModeFromAppearance(uint16_t appearance) {
@@ -112,7 +114,7 @@ void SQUIDTABLET::moveTo(uint16_t x, uint16_t y, uint8_t pressure, DigitizerKey 
         SQUID_LOG_DEBUG(DIGI_TAG, "Auto-switched to absolute mode for coordinate movement");
     }
     
-    if (isConnected() && inputDigitizer && _useAbsolute) {
+    if (isConnected() && transport && _useAbsolute) {
         // Scale to HID descriptor's 0-32767 range
         uint16_t scaledX = (x * 32767ULL) / _screenWidth;
         uint16_t scaledY = (y * 32767ULL) / _screenHeight;
@@ -137,7 +139,7 @@ void SQUIDTABLET::moveTo(uint16_t x, uint16_t y, uint8_t pressure, DigitizerKey 
     } else {
         SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer movement ignored - %s%s%s", 
                      !isConnected() ? "not connected" : "",
-                     !inputDigitizer ? "no input characteristic" : "",
+                     !transport ? "no input characteristic" : "",
                      !_useAbsolute ? "not in absolute mode" : "");
     }
 }
@@ -155,28 +157,6 @@ void SQUIDTABLET::updateStroke(uint16_t x, uint16_t y, uint16_t pressure) {
 void SQUIDTABLET::endStroke(uint16_t x, uint16_t y) {
     SQUID_LOG_DEBUG(DIGI_TAG, "Ending stroke at X:%u, Y:%u", x, y);
     moveTo(x, y, 0, DigitizerKey{0});
-}
-
-void SQUIDTABLET::sendDigitizerReport() {
-    if (isConnected() && inputDigitizer && _useAbsolute) {
-        inputDigitizer->setValue((uint8_t*)&_digitizerReport, sizeof(_digitizerReport));
-        
-        if (inputDigitizer->notify()) {
-            SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer report sent successfully - "
-                         "X: %u, Y: %u, Pressure: %u, Buttons: 0x%02X, Flags: 0x%02X",
-                         _digitizerReport.x, _digitizerReport.y, _digitizerReport.pressure,
-                         _digitizerReport.buttons, _digitizerReport.flags);
-        } else {
-            SQUID_LOG_WARN(DIGI_TAG, "Failed to send digitizer report notification");
-        }
-        
-        delay(_delay_ms);
-    } else {
-        SQUID_LOG_DEBUG(DIGI_TAG, "Cannot send digitizer report - %s%s%s", 
-                     !isConnected() ? "not connected" : "",
-                     !inputDigitizer ? "no input characteristic" : "",
-                     !_useAbsolute ? "not in absolute mode" : "");
-    }
 }
 
 bool SQUIDTABLET::isAbsoluteMode() {
@@ -216,4 +196,20 @@ void SQUIDTABLET::setAppearance(uint16_t appearance) {
     
     SQUID_LOG_INFO(DIGI_TAG, "Appearance set to 0x%04X, mode: %s", 
                  appearance, _useAbsolute ? "absolute" : "relative");
+}
+
+void SQUIDTABLET::sendDigitizerReport() {
+    if (!isConnected() || !transport) {
+        SQUID_LOG_DEBUG(DIGI_TAG, "Cannot send digitizer report - not connected or no transport");
+        return;
+    }
+    
+    bool result = transport->sendReport(DIGITIZER_ID, (uint8_t*)&_digitizerReport, sizeof(_digitizerReport));
+    if (!result) {
+        SQUID_LOG_ERROR(DIGI_TAG, "Failed to send digitizer report via transport");
+    } else {
+        SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer report sent successfully");
+    }
+    
+    delay(_delay_ms);
 }
