@@ -6,10 +6,13 @@
 #ifndef NKRO_H
 #define NKRO_H
 
-#include "HIDTypes.h"
 #include <stdint.h>
+#include "HIDTypes.h"
+#include "NimBLEDevice.h"
+#include "NimBLECharacteristic.h"
+#include "../../drivers/Log/Log.h"
 #include "../../drivers/Event/Types.h"
-#include "../../drivers/Interface/Interface.h"
+#include "../../drivers/Transport/Transport.h"
 
 #define NKRO_KEY_COUNT 252 // Surprise! "N" in "N-Key Rollover" stands for "252" in my implementation.
 
@@ -22,7 +25,7 @@ typedef struct {
   uint8_t modifiers;
   uint8_t reserved;
   uint8_t keys_bitmask[(NKRO_KEY_COUNT + 7) / 8];
-} KeyReportNKRO;
+} NKROReport;
 
 static const uint8_t _nkroReportDescriptor[] = {
   // NKRO Extended Report (6KRO is emulated)
@@ -402,22 +405,24 @@ MK(ModKey, KC_RWIN, KEY_RIGHT_GUI);
 
 class SQUIDNKRO {
 private:
-  SquidCharacteristic*  inputNKRO;
-  KeyReportNKRO         _keyReportNKRO;
-  bool                  _useNKRO = true; // Default to NKRO
-  uint32_t              _delay_ms = 7;  
+  Transport*   transport;
+  NKROReport   _nkroReport;
+  bool         _useNKRO = true; // Default to NKRO
+  uint32_t     _delay_ms = 7;  
     
-  uint8_t               countPressedKeys();
-  uint8_t               charToKeyCode(char c, bool *needShift);
-  void                  updateNKROBitmask(NKROKey k, bool pressed);
+  uint8_t      countPressedKeys();
+  uint8_t      charToKeyCode(char c, bool *needShift);
+  void         updateNKROBitmask(NKROKey k, bool pressed);
 public:
   SQUIDNKRO();
     
-  void    begin(SquidCharacteristic* nkroChar, uint32_t delay_ms = 7);
+  void    begin(Transport* transport, uint32_t delay_ms = 7);
   bool    isConnected();
+  void    onConnect();
+  void    onDisconnect();
 
-  size_t  press(NKROKey k);           // I went with uint8_t for normal keycodes
-  size_t  press(ModKey modifier);    // I chose int16_t for modifiers
+  size_t  press(NKROKey k);
+  size_t  press(ModKey modifier);
   size_t  release(NKROKey k);
   size_t  release(ModKey modifier);
   void    releaseAll();
