@@ -6,10 +6,13 @@
 #ifndef MOUSE_H
 #define MOUSE_H
 
-#include "HIDTypes.h"
 #include <stdint.h>
+#include "HIDTypes.h"
+#include "NimBLEDevice.h"
+#include "NimBLECharacteristic.h"
+#include "../../drivers/Log/Log.h"
 #include "../../drivers/Event/Types.h"
-#include "../../drivers/Interface/Interface.h"
+#include "../../drivers/Transport/Transport.h"
 
 #define MOUSE_ID      0x04
 
@@ -64,16 +67,18 @@ MK(MouseKey, MO_BTN5, MOUSE_FORWARD);
 
 class SQUIDMOUSE {
 private:
-    SquidCharacteristic* inputMouse;
-    MouseReport          _mouseReport;
-    MouseKey             _mouseKeys;
-    uint32_t             _delay_ms;
+    Transport*            transport; 
+    MouseReport           _mouseReport;
+    MouseKey              _mouseKeys;
+    uint32_t              _delay_ms;
     
 public:
     SQUIDMOUSE();
     
-    void begin(SquidCharacteristic* mouseChar, uint32_t delay_ms = 7);
+    void begin(Transport* transport, uint32_t delay_ms = 7);
     bool isConnected();
+    void onConnect();
+    void onDisconnect();
     
     // Mouse methods
     size_t press(MouseKey b = MO_BTN1);
