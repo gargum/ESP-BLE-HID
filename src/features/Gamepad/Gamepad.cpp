@@ -4,20 +4,19 @@
  */
 
 #include "Gamepad.h"
-#include "../../drivers/Log/Log.h"
 
 static const char* GAMEPAD_TAG = "SQUIDGAMEPAD";
 
 SQUIDGAMEPAD::SQUIDGAMEPAD() 
-    : inputGamepad(nullptr), _delay_ms(7) {
+    : transport(nullptr), _delay_ms(7) {
     memset(&_gamepadReport, 0, sizeof(_gamepadReport));
     _gamepadReport.hat = static_cast<int8_t>(HAT_CE);
     
     SQUID_LOG_DEBUG(GAMEPAD_TAG, "Gamepad instance created");
 }
 
-void SQUIDGAMEPAD::begin(SquidCharacteristic* gamepadChar, uint32_t delay_ms) {
-    inputGamepad = gamepadChar;
+void SQUIDGAMEPAD::begin(Transport* trans, uint32_t delay_ms) {
+    transport = trans;
     _delay_ms = delay_ms;
     memset(&_gamepadReport, 0, sizeof(_gamepadReport));
     _gamepadReport.hat = static_cast<int8_t>(HAT_CE);
@@ -26,13 +25,17 @@ void SQUIDGAMEPAD::begin(SquidCharacteristic* gamepadChar, uint32_t delay_ms) {
     SQUID_LOG_INFO(GAMEPAD_TAG, "Gamepad service ready");
 }
 
+
 bool SQUIDGAMEPAD::isConnected() {
-    // We need to check if the characteristic and underlying BLE stack are connected
-    // Since we don't have direct access to SquidDevice, we'll check if the characteristic exists
-    // and assume connection state is managed by the parent SQUIDHID class
-    bool connected = (inputGamepad != nullptr);
-    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Connection check: %s", connected ? "characteristic available" : "no characteristic");
-    return connected;
+    return transport ? transport->isConnected() : false;
+}
+
+void SQUIDGAMEPAD::onConnect() {
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Gamepad connected");
+}
+
+void SQUIDGAMEPAD::onDisconnect() {
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Gamepad disconnected");
 }
 
 size_t SQUIDGAMEPAD::press(GamepadButton button) {
@@ -230,25 +233,16 @@ void SQUIDGAMEPAD::gamepadGetRightStick(int16_t &x, int16_t &y) {
 }
 
 void SQUIDGAMEPAD::sendGamepadReport() {
-    if (!isConnected() || !inputGamepad) {
-        SQUID_LOG_DEBUG(GAMEPAD_TAG, "Cannot send gamepad report - %s%s", 
-                     !isConnected() ? "not connected" : "", 
-                     !inputGamepad ? "no input characteristic" : "");
+    if (!isConnected() || !transport) {
+        SQUID_LOG_DEBUG(GAMEPAD_TAG, "Cannot send gamepad report - not connected or no transport");
         return;
     }
     
-    inputGamepad->setValue((uint8_t*)&_gamepadReport, sizeof(_gamepadReport));
-    
-    if (inputGamepad->notify()) {
-        SQUID_LOG_DEBUG(GAMEPAD_TAG, "Gamepad report sent successfully - "
-                     "Buttons[0]: 0x%08lX, Buttons[1]: 0x%08lX, Hat: 0x%02X, "
-                     "LX: %d, LY: %d, RX: %d, RY: %d, LT: %d, RT: %d",
-                     _gamepadReport.buttons[0], _gamepadReport.buttons[1], _gamepadReport.hat,
-                     _gamepadReport.analogues[static_cast<int8_t>(GA_LX)], _gamepadReport.analogues[static_cast<int8_t>(GA_LY)],
-                     _gamepadReport.analogues[static_cast<int8_t>(GA_RX)], _gamepadReport.analogues[static_cast<int8_t>(GA_RY)],
-                     _gamepadReport.analogues[static_cast<int8_t>(GA_LT)], _gamepadReport.analogues[static_cast<int8_t>(GA_RT)]);
+    bool result = transport->sendReport(GAMEPAD_ID, (uint8_t*)&_gamepadReport, sizeof(_gamepadReport));
+    if (!result) {
+        SQUID_LOG_ERROR(GAMEPAD_TAG, "Failed to send gamepad report via transport");
     } else {
-        SQUID_LOG_WARN(GAMEPAD_TAG, "Failed to send gamepad report notification");
+        SQUID_LOG_DEBUG(GAMEPAD_TAG, "Gamepad report sent successfully");
     }
     
     delay(_delay_ms);
