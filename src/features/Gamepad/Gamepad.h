@@ -6,15 +6,18 @@
 #ifndef GAMEPAD_H
 #define GAMEPAD_H
 
-#include "HIDTypes.h"
 #include <stdint.h>
+#include "HIDTypes.h"
+#include "NimBLEDevice.h"
+#include "NimBLECharacteristic.h"
+#include "../../drivers/Log/Log.h"
 #include "../../drivers/Event/Types.h"
-#include "../../drivers/Interface/Interface.h"
+#include "../../drivers/Transport/Transport.h"
 
 #define GAMEPAD_BUTTON_COUNT 64
 #define GAMEPAD_ANALOGUE_COUNT 6
 
-#define GAMEPAD_ID    0x07
+#define GAMEPAD_ID    0x06
 
 typedef struct {
   uint32_t buttons[2];
@@ -281,15 +284,17 @@ constexpr GamepadHat hatRelease[4][9] = {
 
 class SQUIDGAMEPAD {
 private:
-    SquidCharacteristic* inputGamepad;
-    GamepadReport _gamepadReport;
-    uint32_t _delay_ms;
+    Transport*            transport; 
+    GamepadReport         _gamepadReport;
+    uint32_t              _delay_ms;
 
 public:
     SQUIDGAMEPAD();
     
-    void begin(SquidCharacteristic* gamepadChar, uint32_t delay_ms = 7);
+    void begin(Transport* transport, uint32_t delay_ms = 7);
     bool isConnected();
+    void onConnect();
+    void onDisconnect();
     
     // Gamepad methods
     size_t  press(GamepadButton button);
