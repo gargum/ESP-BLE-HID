@@ -1,10 +1,12 @@
-# SQUIDHID
+# SquidHID
 
-This NimBLE-based library allows you to make the ESP32 act as a Bluetooth Keyboard, Mouse, Gamepad, or other [HID device](https://en.wikipedia.org/wiki/Human_interface_device).
+This library allows you to make the ESP32 act as a Keyboard, Mouse, Gamepad, or other [HID device](https://en.wikipedia.org/wiki/Human_interface_device).
 
-SQUIDHID is intended to serve as an ESP32-based alternative to tools like QMK and ZMK with added support for advanced features.
+SquidHID is intended to serve as an ESP32-based alternative to tools like QMK and ZMK with added support for advanced features.
 
 All development/testing is performed on boards *without* USB host mode, like the ESP32-C3 Super Mini.
+
+Currently, NimBLE, USB, and PS/2 are supported, but more is planned for the future!
 
 ## Features
 
@@ -15,8 +17,10 @@ All development/testing is performed on boards *without* USB host mode, like the
 | Gamepad emulation                   | *64 buttons + 1 D-pad, 2 analogue sticks, 2 analogue triggers*            | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                             |
 | Digitizer emulation                 | *Pressure sensitivity + tip-switch, barrel, & eraser support*             | *Programmable brushstroke macro support with variable pressure all throughout*                                       |
 | Stenotype emulation                 | *GeminiPR keys and reports are fully supported*                           | *No settings to worry about. Mix-and-match stenotype keys with all other input methods to your heart's content!*     |
+| Keymaps and Matrices                | *Allows pin pairs and single pins to co-exist in the same matrix*         | *Optimized for and tested on Japanese full duplex key matrices using a combination of internal and external pull-ups*|
+| USB, BLE, and PS/2 support          | *Switch between protocols with a one-line change to the config.h file*    | *Automatically detects which protocols exist on your MCU and includes associated features and functions accordingly* |
 | Set the PID, VID, and version       | *Set the name, manufacturer, and the battery level*                       | *Set what type of device the ESP32 advertises itself as. Choose anything from keyboard to keyring to insulin pump!*  |
-| ESP32s with BLE are all supported   | *Compatible with boards that have no HID capabilities whatsoever*         | *Optimized for the ESP32s with the worst specs. If your ESP32 has BLE, it **will** work with this library!*          |
+| ESP32s in general are all supported | *Compatible even with boards that have no HID capabilities whatsoever*    | *Optimized for the ESP32s with the worst specs. Your board **will** work with this library!*                         |
 
 ## Compatibility
 
@@ -30,25 +34,22 @@ All development/testing is performed on boards *without* USB host mode, like the
 
 ## Features Currently in Development
 
-- [ ] Matrix support - Developing the system for defining key matrices and encoder pins
-- [ ] Keymap support - Developing the system to create keymaps corresponding to a user-defined matrix
 - [ ] Split communication - Figuring out BLE mesh wireless support for the full 32,767 board maximum
-- [ ] Documentation - Writing the docs for SQUIDHID
+- [ ] Documentation - Writing the docs for SquidHID
 - [ ] Migrating from Arduino IDE/PlatformIO to Standalone - I enjoy making life harder for myself unneccesarily
 - [ ] nRF support - Developing an actually easy/user-friendly system for flashing Nordic chips with my firmware
-- [ ] PS/2 support - Developing the system for PS/2 to BLE so people can use older hardware wirelessly
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
 - Download the .ZIP file of this repo
 - In the Arduino IDE go to "Sketch" -> "Include Library" -> "Add .ZIP Library..." and select the file you just downloaded.
-- You can now go to "File" -> "Examples" -> "SQUIDHID" and select any of the examples to get started.
+- You can now go to "File" -> "Examples" -> "SquidHID" and select any of the examples to get started.
 
 ## Example
 
 ``` C++
 /**
- * This example exists to demonstrate the basic functions of SQUIDHID
+ * This example exists to demonstrate the basic functions of SquidHID
  *
  * Please feel free to use this example as a reference or template!
  */
@@ -60,17 +61,17 @@ SQUIDHID esp("ESP32-TEST", "gargum", 100);   // Here, we set the name to "ESP32-
 
 void setup() {
   esp.setAppearance(CYCLING_COMPUTER);          // You can set the device to advertise itself as a wide array of different things!
-  esp.begin();                                  // Here, we start up our ESP32 running SQUIDHID
+  esp.begin();                                  // Here, we start up our ESP32 running SquidHID
 }
 
 void loop() {
-  esp.update();            // SQUIDHID requires you to call the 'update()' function in sketches. This is used to control things like the scanning interval.
+  esp.update();            // SquidHID requires you to call the 'update()' function in sketches. This is used to control things like the scanning interval.
 
-  esp.press(KC_SLSH);      // SQUIDHID allows you to press down individual keys using the 'press' function!
+  esp.press(KC_SLSH);      // SquidHID allows you to press down individual keys using the 'press' function!
   delay(2000);
   esp.press(KC_RSFT);      // NKRO is enabled by default, meaning you can just keep pushing down buttons without letting anything go!
   delay(2000);
-  esp.press(KC_VOLD);      // Any keyboard button in SQUIDHID should be compatible with the 'press' function.
+  esp.press(KC_VOLD);      // Any keyboard button in SquidHID should be compatible with the 'press' function.
   delay(2000);
   esp.release(KC_RSFT);    // Using the 'release' function, you can let go of individual keys you've previously 'pressed'.
   delay(2000);
@@ -78,7 +79,7 @@ void loop() {
   delay(2000);
   esp.write(KC_SLSH);      // You can also simply output any keyboard key one time in one command using 'write'.
   delay(2000);             // Please note that 'write' is NOT compatible with gamepad or mouse inputs at this time.
-  esp.print("You can print text strings using SQUIDHID as well!");
+  esp.print("You can print text strings using SquidHID as well!");
   delay(2000);
 
   esp.press(MOUSE_RIGHT);  // The press function allows supports mouse buttons. 
@@ -124,7 +125,7 @@ A complete list of all available keycodes and commands is included in the `keywo
 
 To illustrate what this library has to offer, below is a table including the current complete list of the available **media** keycodes alongside the available **appearance codes**. **Media** keycodes are self-explanatory, however **appearance codes** require more elaboration.
 
-SQUIDHID uses **appearance codes** to determine what type of device the ESP32 advertises itself as to hosts. This corresponds to the icon next to the name of the device visible when scanning for Bluetooth devices to pair to, alongside the accompanying text explaining what the device does that is visible to the user on some operating systems. Every appearance code is tested and working.
+SquidHID uses **appearance codes** to determine what type of device the ESP32 advertises itself as to hosts. This corresponds to the icon next to the name of the device visible when scanning for Bluetooth devices to pair to, alongside the accompanying text explaining what the device does that is visible to the user on some operating systems. Every appearance code is tested and working.
 
 | FULL MEDIA KEYCODE                 | MEDIA KEYCODE ALIAS       | | APPEARANCE CODE - REGULAR  | APPEARANCE CODE - UNUSUAL |
 | ---------------------------------- | ------------------------- |-| -------------------------- | ------------------------- |
@@ -162,7 +163,7 @@ SQUIDHID uses **appearance codes** to determine what type of device the ESP32 ad
 Features and settings that existed in the original project this repo is a fork of are still available:
 You don't have to declare `SQUIDHID squidboard;` before using `squidboard.setName("NAME")` and `squidboard.setBatteryLevel(100)`! 
 You can instead change `SQUIDHID squidboard;` to `SQUIDHID squidboard("NAME", "MANUFACTURER", 100);`. (Names longer than 15 characters will be truncated.)
-By default the battery level will be set to 100%, the device name will be `ESP32 Keyboard` and the manufacturer will be `Espressif`.  
+By default the battery level will be set to 100%, the device name will be `SquidHID` and the manufacturer will be `SquidHID`.  
 
 There is also a `setDelay` method to set a delay between each key event. E.g. `squidboard.setDelay(10)` (10 milliseconds). The default is `8`. The `setDelay` feature is to maximize compatibility between any devices created using this library, and any underpowered hardware or legacy applications one may wish to use.
 
