@@ -1,15 +1,25 @@
 /**
  * @file Types.h
- * @brief Strong type definitions for different event categories
+ * @brief Consolidated type definitions, matrix, and keymap implementations
  */
 
-#pragma once
+#ifndef TYPES_H
+#define TYPES_H
+
 #include <cstdint>
+#include <vector>
+#include <functional>
+#include <initializer_list>
+#include "../Log/Log.h"
+
+// ============================================================================
+// Strong Type Definitions
+// ============================================================================
 
 // Base key type for template parameterization
 struct KeyTag {};
 
-// Barton-Nackman strong type aliasing, because I think it looks really pretty
+// Barton-Nackman strong type aliasing
 struct ModKeyTag          : KeyTag {};
 struct MediaKeyTag        : KeyTag {};
 struct NKROKeyTag         : KeyTag {};
@@ -46,7 +56,7 @@ public:
     constexpr KeyType operator/(const KeyType& other) const { return KeyType(value / other.value); }
 };
 
-// Specific key types
+// Specific key types - these are the actual definitions
 using ModKey          = KeyType<ModKeyTag>;
 using MediaKey        = KeyType<MediaKeyTag>;
 using NKROKey         = KeyType<NKROKeyTag>;
@@ -101,28 +111,231 @@ constexpr DigitizerKey operator"" _digitizer(unsigned long long value) {
 #define MK(type, short_name, enum_value) \
     constexpr type short_name = type{static_cast<int32_t>(GET_ENUM_TYPE_FROM_KEY_TYPE(type)::enum_value)}
 
-// Basic declaration: P(Type, name) 
-// Expands to: std::unique_ptr<Type> name
-#define P(Type, name) std::unique_ptr<Type> name
+// ============================================================================
+// Matrix Definitions
+// ============================================================================
 
-// Assignment declaration: P_VAL(Type, name) 
-// Expands to: std::unique_ptr<Type> name = value
-#define P_VAL(Type, name, value) std::unique_ptr<Type> name = value
+// Matrix pin pair definition
+struct MatrixPinPair {
+    int from_pin;
+    int to_pin;
+    bool is_ground; // true if to_pin is GND
+    
+    MatrixPinPair(int from, int to = -1) 
+        : from_pin(from), to_pin(to), is_ground(to == -1) {}
+    
+    // Constructor for initializer list {from, to}
+    MatrixPinPair(std::initializer_list<int> pins) {
+        auto it = pins.begin();
+        from_pin = *it++;
+        if (it != pins.end()) {
+            to_pin = *it;
+            is_ground = false;
+        } else {
+            to_pin = -1;
+            is_ground = true;
+        }
+    }
+};
 
-// Basic declaration: P_S(Type, name) 
-// Expands to: std::shared_ptr<Type> name
-#define P_S(Type, name) std::shared_ptr<Type> name
+// Type alias for matrix
+using squid_matrix = std::vector<std::vector<MatrixPinPair>>;
 
-// Assignment declaration: P_SVAL(Type, name) 
-// Expands to: std::shared_ptr<Type> name = value
-#define P_SVAL(Type, name, value) std::shared_ptr<Type> name = value
+// Matrix scan result
+struct MatrixScanResult {
+    size_t row;
+    size_t col;
+    bool pressed;
+    
+    MatrixScanResult(size_t r, size_t c, bool p) 
+        : row(r), col(c), pressed(p) {}
+};
 
-// Assignment declaration (for local variables only): P_AUTO(name, value)
-// Usage: P_AUTO(ble, thing->function())
-// Expands to: auto ble = thing->function()
-#define P_AUTO(name, value) auto name = value
+// ============================================================================
+// Keymap Definitions
+// ============================================================================
 
-// Interface method (pure virtual): P_INTERFACE(Type, name, ...)
-// Usage: P_INTERFACE(SquidInterface, createSquid, int size) = 0
-// Expands to: virtual std::unique_ptr<SquidInterface> createSquid(int size) = 0
-#define P_INTERFACE(Type, name, ...) virtual std::unique_ptr<Type> name(__VA_ARGS__) = 0
+// Union of all possible key types for the keymap
+union KeymapValue {
+    NKROKey         nkro_key;
+    ModKey          mod_key;
+    MediaKey        media_key;
+    StenoKey        steno_key;
+    GamepadButton   gamepad_button;
+    MouseKey        mouse_key;
+    
+    KeymapValue() : nkro_key(NKROKey{0}) {}
+    KeymapValue(NKROKey k) : nkro_key(k) {}
+    KeymapValue(ModKey k) : mod_key(k) {}
+    KeymapValue(MediaKey k) : media_key(k) {}
+    KeymapValue(StenoKey k) : steno_key(k) {}
+    KeymapValue(GamepadButton k) : gamepad_button(k) {}
+    KeymapValue(MouseKey k) : mouse_key(k) {}
+};
+
+// Key type identifier
+enum class KeypressType {
+    NKRO_KEY,
+    MOD_KEY,
+    MEDIA_KEY,
+    STENO_KEY,
+    GAMEPAD_BUTTON,
+    MOUSE_KEY
+};
+
+// Keymap entry
+struct KeymapEntry {
+    KeypressType type;
+    KeymapValue key;
+    
+    // Constructors for each key type
+    KeymapEntry(NKROKey k) : type(KeypressType::NKRO_KEY), key(k) {}
+    KeymapEntry(ModKey k) : type(KeypressType::MOD_KEY), key(k) {}
+    KeymapEntry(MediaKey k) : type(KeypressType::MEDIA_KEY), key(k) {}
+    KeymapEntry(StenoKey k) : type(KeypressType::STENO_KEY), key(k) {}
+    KeymapEntry(GamepadButton k) : type(KeypressType::GAMEPAD_BUTTON), key(k) {}
+    KeymapEntry(MouseKey k) : type(KeypressType::MOUSE_KEY), key(k) {}
+    
+    // Default constructor
+    KeymapEntry() : type(KeypressType::NKRO_KEY), key(NKROKey{0}) {}
+};
+
+// User-friendly type alias for keymap
+class squid_map : public std::vector<std::vector<KeymapEntry>> {
+public:
+    // Default constructor
+    squid_map() = default;
+    
+    // Constructor from nested initializer list (for multi-row keymaps)
+    squid_map(std::initializer_list<std::initializer_list<KeymapEntry>> layers) {
+        for (const auto& layer : layers) {
+            push_back(std::vector<KeymapEntry>(layer));
+        }
+    }
+    
+    // Constructor from flat initializer list (for single-row keymaps)
+    squid_map(std::initializer_list<KeymapEntry> keys) {
+        push_back(std::vector<KeymapEntry>(keys));
+    }
+};
+
+// ============================================================================
+// Matrix Class Implementation
+// ============================================================================
+
+class SQUIDMATRIX {
+private:
+    squid_matrix _matrix;
+    std::vector<std::vector<bool>> _current_state;
+    std::vector<std::vector<bool>> _previous_state;
+    std::function<void(size_t, size_t, bool)> _key_event_callback;
+    
+    // Smart scanning members
+    std::vector<int> _unique_from_pins;
+    std::vector<int> _unique_to_pins;
+    std::unordered_map<int, bool> _pin_needs_pullup; // Cache for pin pull-up requirements
+    
+    // Scanning state
+    size_t _current_scan_col;
+    bool _scan_initialized;
+    
+    void initializePins();
+    void scanMatrix();
+    void extractUniquePins();
+    
+    // New smart detection methods
+    bool detectPinNeedsPullup(int pin);
+    void detectAllPinPullupRequirements();
+    bool getOptimalPinMode(int pin);
+    
+    // Scanning methods
+    void scanWithTimeDivision();
+    void scanDirectGND();
+    
+public:
+    SQUIDMATRIX();
+    
+    void begin(const squid_matrix& matrix, 
+               std::function<void(size_t, size_t, bool)> key_event_callback = nullptr);
+    
+    void update();
+    bool isPressed(size_t row, size_t col) const;
+    size_t getRowCount() const;
+    size_t getColCount() const;
+    void printMatrixState();
+    
+    // Debug methods for pull-up detection
+    void printPinPullupInfo();
+};
+
+// ============================================================================
+// Keymap Class Implementation
+// ============================================================================
+
+class SQUIDKEYMAP {
+private:
+    squid_map _keymap;
+    std::function<void(const KeymapEntry&)> _press_callback;
+    std::function<void(const KeymapEntry&)> _release_callback;
+    
+public:
+    SQUIDKEYMAP();
+    
+    // Initialize with keymap definition
+    void begin(const squid_map& keymap,
+               std::function<void(const KeymapEntry&)> press_callback = nullptr,
+               std::function<void(const KeymapEntry&)> release_callback = nullptr);
+    
+    // Handle key events by matrix position
+    void handleKeyEvent(size_t row, size_t col, bool pressed);
+    
+    // Get key at position
+    KeymapEntry getKeyAt(size_t row, size_t col) const;
+    
+    // Get keymap dimensions
+    size_t getLayerCount() const;
+    size_t getKeyCount(size_t layer) const;
+};
+
+// ============================================================================
+// Helper Functions for Clean Syntax
+// ============================================================================
+
+// Helper function to create matrix from initializer list
+inline squid_matrix make_matrix(std::initializer_list<std::initializer_list<int>> rows) {
+    squid_matrix matrix;
+    for (const auto& row : rows) {
+        std::vector<MatrixPinPair> row_pins;
+        for (const auto& pin_pair : row) {
+            std::vector<int> pins(pin_pair);
+            if (pins.size() == 1) {
+                row_pins.emplace_back(pins[0]); // Single pin (to GND)
+            } else if (pins.size() == 2) {
+                row_pins.emplace_back(pins[0], pins[1]); // Two pins
+            }
+            // Ignore invalid sizes
+        }
+        matrix.push_back(row_pins);
+    }
+    return matrix;
+}
+
+// Helper function to create keymap from initializer list
+inline squid_map make_keymap(std::initializer_list<KeymapEntry> keys) {
+    squid_map keymap;
+    std::vector<KeymapEntry> row(keys);
+    keymap.push_back(row);
+    return keymap;
+}
+
+// Helper function for multi-row keymaps
+inline squid_map make_keymap(std::initializer_list<std::initializer_list<KeymapEntry>> layers) {
+    squid_map keymap;
+    for (const auto& layer : layers) {
+        std::vector<KeymapEntry> layer_keys(layer);
+        keymap.push_back(layer_keys);
+    }
+    return keymap;
+}
+
+#endif // TYPES_H
