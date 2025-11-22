@@ -3,25 +3,30 @@
  * @brief Main header file
  */
 
-#if defined(CONFIG_BT_ENABLED)
-#elif defined(ARDUINO_ARCH_ESP32)
-  #define CONFIG_BT_ENABLED 
-#elif defined(ARDUINO_ARCH_NRF52) || defined(NRF52_SERIES)
-  #define CONFIG_BT_ENABLED
-#endif
-#if defined(CONFIG_BT_ENABLED)
-#define NIMBLE_CFG_TRANSPORT_HCI_UART 0
-#define NIMBLE_CFG_TRANSPORT_HCI_IPC 0
+#define TRANSPORT BLE
 
-#include "drivers/Interface/Interface.h"
-#include "drivers/Interface/NimBLE/NimBLE.h"
+#ifndef SQUIDHID_H
+#define SQUIDHID_H
 
 #include "Print.h"
 
 #include "config.h"
-#include "features/Appearance.h"
 #include "drivers/Log/Log.h" 
+#include "drivers/Appearance.h"
 #include "drivers/Event/Types.h"
+#include "drivers/Transport/Transport.h"
+
+#if TRANSPORT == USB
+  #include "drivers/Transport/USB/USBTransport.h"
+#endif
+
+#if TRANSPORT == PS2
+  #include "drivers/Transport/PS2/PS2Transport.h"
+#endif
+
+#if TRANSPORT == BLE
+  #include "drivers/Transport/BLE/BLETransport.h"
+#endif
 
 #if KEYBOARD_ENABLE
   #include "features/NKRO/NKRO.h"
@@ -31,8 +36,8 @@
   #include "features/Media/Media.h"
 #endif
 
-#if GEMINIPR_ENABLE
-  #include "features/Steno/GeminiPR.h"
+#if STENO_ENABLE
+  #include "features/Steno/Steno.h"
 #endif
 
 #if GAMEPAD_ENABLE
@@ -47,93 +52,80 @@
   #include "features/Digitizer/Digitizer.h"
 #endif
 
-#define BLE_KEYBOARD_VERSION "0.3.4"
-#define BLE_KEYBOARD_VERSION_MAJOR 0
-#define BLE_KEYBOARD_VERSION_MINOR 3
-#define BLE_KEYBOARD_VERSION_REVISION 4
+#define SQUIDHID_VERSION "0.7.4"
+#define SQUIDHID_VERSION_MAJOR 0
+#define SQUIDHID_VERSION_MINOR 7
+#define SQUIDHID_VERSION_REVISION 4
 
 // Scanning/Polling interval
 #define SCAN_INTERVAL 10
 
 class SQUIDHID : public Print
-    , public SquidServerCallbacks
-    , public SquidCharacteristicCallbacks
+    , public TransportCallbacks
 {
 private:
-  P_SVAL(SquidInterface, ble, nullptr); 
-  P_VAL(SquidHIDDevice,  hid, nullptr);
-  P_VAL(SquidAdvertising,advertising, nullptr); 
-  SquidServer*           pServer = nullptr;
-  uint16_t               appearance = HID_KEYBOARD;
-  std::string            deviceName;
-  std::string            deviceManufacturer;
-  uint8_t                batteryLevel;
+  std::unique_ptr<Transport>  transport;
+  uint16_t                    appearance = KEYBOARD;
+  std::string                 deviceName;
+  std::string                 deviceManufacturer;
+  uint8_t                     batteryLevel;
   
-  uint16_t vid     =     0x046D; // I picked random numbers here and it worked fine,
-  uint16_t pid     =     0xC52B; // idk if these actually matter at all for anything
-  uint16_t version =     0x0310;
+  uint16_t vid             =  0x046D; // I picked random numbers here and it worked fine,
+  uint16_t pid             =  0xC52B; // idk if these actually matter at all for anything
+  uint16_t version         =  0x0310;
   
-  bool initialized =     false;
-  friend void            pollConnection(void * arg);
-  uint8_t                last_connected_count = 0;   // previous poll result
-  uint32_t               lastPollTime = 0;
-  static const uint32_t  POLL_INTERVAL = 1000;       // 1 second in milliseconds
-
-
-  SquidCharacteristic*   outputKeyboard = nullptr;
-  uint32_t               _delay_ms = 7; 
+  uint8_t                     last_connected_count = 0;   // previous poll result
+  uint32_t                    lastPollTime = 0;
+  static const uint32_t       POLL_INTERVAL = 1000;       // 1 second in milliseconds
+  uint32_t                    _delay_ms = 7; 
+  
+  SQUIDMATRIX                 matrix;
+  SQUIDKEYMAP                 keymap;
   
   #if KEYBOARD_ENABLE
-    SQUIDNKRO              nkro;
-    SquidCharacteristic*   inputNKRO = nullptr;
+    SQUIDNKRO                 nkro;
   #endif
   
   #if MEDIA_ENABLE
-    SQUIDMEDIA             media;
-    SquidCharacteristic*   inputMediaKeys = nullptr;
+    SQUIDMEDIA                media;
   #endif
   
   #if MOUSE_ENABLE
-    SQUIDMOUSE             mouse;
-    SquidCharacteristic*   inputMouse = nullptr;
+    SQUIDMOUSE                mouse;
   #endif
   
   #if DIGITIZER_ENABLE
-    SQUIDTABLET            digitizer;
-    SquidCharacteristic*   inputDigitizer = nullptr;
+    SQUIDTABLET              digitizer;
   #endif
   
-  #if GEMINIPR_ENABLE
-    SQUIDSTENO             steno;
-    // SPP UUIDs
-    static const char*     SERIAL_SERVICE_UUID;
-    static const char*     SERIAL_CHARACTERISTIC_UUID_TX;
-    static const char*     SERIAL_CHARACTERISTIC_UUID_RX;
-    P(SquidService,        serialService);
-    P(SquidCharacteristic, serialInput);
-    P(SquidCharacteristic, serialOutput);
+  #if STENO_ENABLE
+    SQUIDSTENO steno;
   #endif
   
   #if GAMEPAD_ENABLE
-    SQUIDGAMEPAD           gamepad;
-    SquidCharacteristic*   inputGamepad = nullptr;
+    SQUIDGAMEPAD               gamepad;
   #endif
   
-  // Advertisement data pointers
-  P(SquidAdvertisementData, advData);
-  P(SquidAdvertisementData, scanData);
-  
 public:
-  SQUIDHID(std::string deviceName            = "ESP32 Keyboard", 
-         std::string deviceManufacturer    = "Espressif", 
-         uint8_t batteryLevel              = 100,
-         SquidFactory::Implementation impl = IMPL);
+  SQUIDHID(std::string deviceName = "SquidHID", 
+           std::string deviceManufacturer = "SquidHID", 
+           uint8_t batteryLevel = 100,
+           TransportType type = TransportType::BLE);
   
   ~SQUIDHID();
   
+  void onConnect() override;
+  void onDisconnect() override;
+  void onDataReceived(const uint8_t* data, size_t length) override;
+  
+  void begin(const squid_matrix& matrix, const squid_map& keymap);
   void begin(void);
   void update(void);
   void end(void);
+
+  // Transport management
+  void setTransport(std::unique_ptr<Transport> newTransport);
+  Transport* getTransport() { return transport.get(); }
 
   void setAppearance(uint16_t newAppearance);
   
@@ -142,6 +134,7 @@ public:
   
   // BLE helper functions
   bool isConnected(void);
+  void pollConnection(void);
   void setBatteryLevel(uint8_t level);
   void setName(std::string deviceName);  
   void setManufacturer(std::string deviceManufacturer);
@@ -152,9 +145,15 @@ public:
   void setProductId(uint16_t pid);
   void setVersion(uint16_t version);
   
+  // Matrix and Keymap methods
+  void    setupMatrix(const squid_matrix& matrix);
+  void    setupKeymap(const squid_map& keymap);
+  void    updateMatrix();
+  bool    isKeyPressed(size_t row, size_t col);
+  
   #if KEYBOARD_ENABLE
-    size_t  press(NKROKey k);           // I went with uint8_t for normal keycodes
-    size_t  press(ModKey modifier);    // I chose int16_t for modifiers
+    size_t  press(NKROKey k);
+    size_t  press(ModKey modifier);
     size_t  release(NKROKey k);
     size_t  release(ModKey modifier);
     size_t  write(uint8_t c);
@@ -196,15 +195,11 @@ public:
     void sendDigitizerReport();
   #endif
   
-  #if GEMINIPR_ENABLE
-    size_t  press(StenoKey stenoKey);    // . . . And int32_t is for the steno keys
+  #if STENO_ENABLE
+    size_t  press(StenoKey stenoKey);
     size_t  release(StenoKey stenoKey);
-    void    geminiStroke(const StenoKey* keys, size_t count);
-    uint8_t stenoCharToKey(char c);
-    void    sendGeminiPRReport();
-    // SPP Methods
-    void    sendSerialData(const uint8_t* data, size_t length);
-    bool    isSerialConnected();
+    void    stenoStroke(const StenoKey* keys, size_t count);
+    void    sendStenoReport();
   #endif
   
   #if GAMEPAD_ENABLE
@@ -222,8 +217,8 @@ public:
     void     sendGamepadReport();
   #endif
   
-    void     setLogLevel(LogLevel level);
     LogLevel getLogLevel() const;
+    void     setLogLevel(LogLevel level);
     void     initialize(std::function<void(const LogEntry&)> handler = nullptr);
     void     log(LogLevel level, const std::string& tag, const std::string& message);
     void     processQueue();
@@ -239,12 +234,7 @@ public:
     #elif defined(SQUIDHID_PLATFORM_NRF52)
     void setNRF52LogLevel(nrf_log_severity_t severity);
     #endif
-  
-protected:
-  virtual void onStarted(SquidServer *pServer) { };
-  virtual void onConnect(SquidServer *pServer);
-  virtual void onDisconnect(SquidServer *pServer);
-  virtual void onWrite(SquidCharacteristic *me);
+
 };
 
-#endif // CONFIG_BT_ENABLED
+#endif
