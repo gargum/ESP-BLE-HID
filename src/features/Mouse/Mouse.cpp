@@ -4,17 +4,16 @@
  */
 
 #include "Mouse.h"
-#include "../../drivers/Log/Log.h"
 
 static const char* MOUSE_TAG = "SQUIDMOUSE";
 
 SQUIDMOUSE::SQUIDMOUSE() 
-    : inputMouse(nullptr), _mouseKeys(MouseKey{0}), _delay_ms(7) {
+    : transport(nullptr), _mouseKeys(MouseKey{0}), _delay_ms(7) {
     memset(&_mouseReport, 0, sizeof(_mouseReport));
 }
 
-void SQUIDMOUSE::begin(SquidCharacteristic* mouseChar, uint32_t delay_ms) {
-    inputMouse = mouseChar;
+void SQUIDMOUSE::begin(Transport* trans, uint32_t delay_ms) {
+    transport = trans;
     _delay_ms = delay_ms;
     _mouseKeys = MouseKey{0};
     memset(&_mouseReport, 0, sizeof(_mouseReport));
@@ -24,12 +23,15 @@ void SQUIDMOUSE::begin(SquidCharacteristic* mouseChar, uint32_t delay_ms) {
 }
 
 bool SQUIDMOUSE::isConnected() {
-    // We need to check if the characteristic and underlying BLE stack are connected
-    // Since we don't have direct access to SquidDevice, we'll check if the characteristic exists
-    // and assume connection state is managed by the parent SQUIDHID class
-    bool connected = (inputMouse != nullptr);
-    SQUID_LOG_DEBUG(MOUSE_TAG, "Connection check: %s", connected ? "characteristic available" : "no characteristic");
-    return connected;
+    return transport ? transport->isConnected() : false;
+}
+
+void SQUIDMOUSE::onConnect() {
+    SQUID_LOG_DEBUG(MOUSE_TAG, "Mouse connected");
+}
+
+void SQUIDMOUSE::onDisconnect() {
+    SQUID_LOG_DEBUG(MOUSE_TAG, "Mouse disconnected");
 }
 
 size_t SQUIDMOUSE::press(MouseKey b) {
@@ -80,7 +82,7 @@ void SQUIDMOUSE::click(MouseKey b) {
 }
 
 void SQUIDMOUSE::move(signed char x, signed char y, signed char wheel, signed char hWheel) {
-    if (isConnected() && inputMouse) {
+    if (isConnected() && transport) {
         _mouseReport.buttons = static_cast<uint8_t>(_mouseKeys);  // Convert to underlying type
         
         // Set relative fields
@@ -109,21 +111,17 @@ bool SQUIDMOUSE::mouseIsPressed(MouseKey b) {
 }
 
 void SQUIDMOUSE::sendMouseReport() {
-    if (isConnected() && inputMouse) {
-        inputMouse->setValue((uint8_t*)&_mouseReport, sizeof(_mouseReport));
-        
-        if (inputMouse->notify()) {
-            SQUID_LOG_DEBUG(MOUSE_TAG, "Mouse report sent successfully - "
-                         "Buttons: 0x%02X, X: %d, Y: %d, Wheel: %d, HWheel: %d",
-                         _mouseReport.buttons, _mouseReport.relX, _mouseReport.relY, 
-                         _mouseReport.wheel, _mouseReport.hWheel);
-        } else {
-            SQUID_LOG_WARN(MOUSE_TAG, "Failed to send mouse report notification");
-        }
-        
-        delay(_delay_ms);
-    } else {
-        SQUID_LOG_DEBUG(MOUSE_TAG, "Cannot send mouse report - %s", 
-                     !isConnected() ? "not connected" : "no input characteristic");
+    if (!isConnected() || !transport) {
+        SQUID_LOG_DEBUG(MOUSE_TAG, "Cannot send mouse report - not connected or no transport");
+        return;
     }
+    
+    bool result = transport->sendReport(MOUSE_ID, (uint8_t*)&_mouseReport, sizeof(_mouseReport));
+    if (!result) {
+        SQUID_LOG_ERROR(MOUSE_TAG, "Failed to send mouse report via transport");
+    } else {
+        SQUID_LOG_DEBUG(MOUSE_TAG, "Mouse report sent successfully");
+    }
+    
+    delay(_delay_ms);
 }
