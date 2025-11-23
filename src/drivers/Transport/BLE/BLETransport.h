@@ -58,7 +58,6 @@ private:
     NimBLEHIDDevice*      hidDevice;
     NimBLEAdvertising*    advertising;
     
-    NimBLECharacteristic* inputKeyboard;
     NimBLECharacteristic* inputNKRO;
     NimBLECharacteristic* inputMediaKeys;
     NimBLECharacteristic* inputMouse;
