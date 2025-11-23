@@ -27,9 +27,7 @@ static const uint8_t _basicReportDescriptor[] = {
   END_COLLECTION(0),
 };
 
-const size_t       descriptorSize = 0
-
-  +  sizeof(_basicReportDescriptor)  
+const size_t       descriptorSize = sizeof(_basicReportDescriptor) 
   
 #if KEYBOARD_ENABLE
   +  sizeof(_nkroReportDescriptor)  
@@ -450,12 +448,12 @@ void SQUIDHID::setProductId(uint16_t pid) { this->pid = pid; }
 void SQUIDHID::setVersion(uint16_t version) { this->version = version; }
 
 void SQUIDHID::setupMatrix(const squid_matrix& matrix) {
-    auto key_event_callback = [this](size_t row, size_t col, bool pressed) {
-        this->keymap.handleKeyEvent(row, col, pressed);
+    auto key_event_callback = [this](size_t switch_index, bool pressed) {
+        this->keymap.handleKeyEvent(switch_index, pressed);
     };
     
     this->matrix.begin(matrix, key_event_callback);
-    SQUID_LOG_INFO(LOG_TAG, "Keyboard matrix configured");
+    SQUID_LOG_INFO(LOG_TAG, "Keyboard matrix configured with %zu switches", matrix.size());
 }
 
 void SQUIDHID::setupKeymap(const squid_map& keymap) {
@@ -533,8 +531,8 @@ void SQUIDHID::updateMatrix() {
     this->matrix.update();
 }
 
-bool SQUIDHID::isKeyPressed(size_t row, size_t col) {
-    return this->matrix.isPressed(row, col);
+bool SQUIDHID::isKeyPressed(size_t switch_index) {
+    return this->matrix.isPressed(switch_index);
 }
 
 //
