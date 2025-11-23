@@ -1,3 +1,8 @@
+/**
+ * @file SQUIDHID.h
+ * @brief Main header file for the full library
+ */
+
 #ifndef SQUIDHID_H
 #define SQUIDHID_H
 
