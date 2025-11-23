@@ -13,7 +13,7 @@ BLETransport::BLETransport()
       batteryLevel(100), appearance(KEYBOARD),
       initialized(false), connected(false),
       reportMap(nullptr), reportMapLength(0),
-      inputKeyboard(nullptr), inputNKRO(nullptr), inputMediaKeys(nullptr),
+      inputNKRO(nullptr), inputMediaKeys(nullptr),
       inputMouse(nullptr), inputDigitizer(nullptr), inputGamepad(nullptr),
       inputSteno(nullptr), outputKeyboard(nullptr) {
 }
@@ -139,7 +139,6 @@ void BLETransport::createHIDService() {
     // Create input reports for each HID device type
     SQUID_LOG_DEBUG(TRANSPORT_TAG, "Creating HID input reports...");
     
-    inputKeyboard = hidDevice->getInputReport(0x01);  // Basic keyboard
     inputNKRO = hidDevice->getInputReport(0x02);      // NKRO keyboard  
     inputMediaKeys = hidDevice->getInputReport(0x03); // Media keys
     inputMouse = hidDevice->getInputReport(0x04);     // Mouse
@@ -156,13 +155,6 @@ void BLETransport::createHIDService() {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Keyboard Output characteristic created");
     } else {
         SQUID_LOG_ERROR(TRANSPORT_TAG, "Keyboard Output characteristic creation failed!");
-    }
-    
-    if (inputKeyboard) {
-        inputKeyboard->setCallbacks(this);
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Keyboard Input characteristic created");
-    } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Keyboard Input characteristic creation failed!");
     }
     
     if (inputNKRO) {
@@ -223,7 +215,6 @@ void BLETransport::createHIDService() {
 
 void BLETransport::verifyCharacteristicHandles() {
     std::vector<std::pair<NimBLECharacteristic*, const char*>> characteristics = {
-        {inputKeyboard, "Keyboard Input"},
         {inputNKRO, "NKRO Input"},
         {inputMediaKeys, "Media Keys Input"},
         {inputMouse, "Mouse Input"},
@@ -264,7 +255,6 @@ void BLETransport::debugCharacteristics() {
     SQUID_LOG_INFO(TRANSPORT_TAG, "HID Service: %s", hidDevice && hidDevice->getHidService() ? "VALID" : "NULL");
     
     std::vector<std::pair<NimBLECharacteristic*, const char*>> characteristics = {
-        {inputKeyboard, "Keyboard Input"},
         {inputNKRO, "NKRO Input"},
         {inputMediaKeys, "Media Keys Input"},
         {inputMouse, "Mouse Input"},
@@ -304,7 +294,6 @@ bool BLETransport::sendReport(uint8_t reportId, const uint8_t* data, size_t leng
     
     // Map report IDs to characteristics
     switch (reportId) {
-        case 0x01: characteristic = inputKeyboard; charName = "Keyboard"; break;
         case 0x02: characteristic = inputNKRO; charName = "NKRO"; break;
         case 0x03: characteristic = inputMediaKeys; charName = "Media Keys"; break;
         case 0x04: characteristic = inputMouse; charName = "Mouse"; break;
@@ -462,9 +451,6 @@ void BLETransport::onConnect(NimBLEServer* pServer) {
     if (inputNKRO && inputNKRO->getHandle() != 0) {
         inputNKRO->notify();
     }
-    if (inputKeyboard && inputKeyboard->getHandle() != 0) {
-        inputKeyboard->notify();
-    }
     #endif
     
     #if MEDIA_ENABLE
@@ -534,9 +520,7 @@ void BLETransport::onSubscribe(NimBLEServer* pServer, ble_gap_conn_desc* desc, u
     SQUID_LOG_INFO(TRANSPORT_TAG, "Subscribe event - attr_handle: %d", attr_handle);
     
     // Check which characteristic was subscribed by comparing handles
-    if (inputKeyboard && inputKeyboard->getHandle() == attr_handle) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Keyboard report subscribed");
-    } else if (inputNKRO && inputNKRO->getHandle() == attr_handle) {
+    if (inputNKRO && inputNKRO->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "NKRO report subscribed");
     } else if (inputMediaKeys && inputMediaKeys->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Media keys report subscribed");
