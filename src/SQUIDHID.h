@@ -1,10 +1,3 @@
-/**
- * @file SQUIDHID.h
- * @brief Main header file
- */
-
-#define TRANSPORT BLE
-
 #ifndef SQUIDHID_H
 #define SQUIDHID_H
 
@@ -58,7 +51,7 @@
 #define SQUIDHID_VERSION_REVISION 4
 
 // Scanning/Polling interval
-#define SCAN_INTERVAL 10
+#define SCAN_INTERVAL 1
 
 class SQUIDHID : public Print
     , public TransportCallbacks
@@ -76,8 +69,8 @@ private:
   
   uint8_t                     last_connected_count = 0;   // previous poll result
   uint32_t                    lastPollTime = 0;
-  static const uint32_t       POLL_INTERVAL = 1000;       // 1 second in milliseconds
-  uint32_t                    _delay_ms = 7; 
+  static const uint32_t       POLL_INTERVAL = 200;       //  unit here is milliseconds
+  uint32_t                    _delay_ms = 5; 
   
   SQUIDMATRIX                 matrix;
   SQUIDKEYMAP                 keymap;
@@ -149,7 +142,7 @@ public:
   void    setupMatrix(const squid_matrix& matrix);
   void    setupKeymap(const squid_map& keymap);
   void    updateMatrix();
-  bool    isKeyPressed(size_t row, size_t col);
+  bool    isKeyPressed(size_t switch_index);
   
   #if KEYBOARD_ENABLE
     size_t  press(NKROKey k);
