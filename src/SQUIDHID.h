@@ -50,6 +50,14 @@
   #include "features/Digitizer/Digitizer.h"
 #endif
 
+#if LED_ENABLE
+  #include "drivers/LED/NeoPixel.h"
+#endif
+
+#if OLED_ENABLE
+  #include "drivers/OLED/OLED.h"
+#endif
+
 #define SQUIDHID_VERSION "0.7.4"
 #define SQUIDHID_VERSION_MAJOR 0
 #define SQUIDHID_VERSION_MINOR 7
@@ -57,16 +65,15 @@
 
 // Scanning/Polling interval
 #define SCAN_INTERVAL 1
+#define POLL_INTERVAL 200
+#define LED_INTERVAL  50
+#define OLED_INTERVAL 100
 
 class SQUIDHID : public Print
     , public TransportCallbacks
 {
 private:
   std::unique_ptr<Transport>  transport;
-  uint16_t                    appearance = KEYBOARD;
-  std::string                 deviceName;
-  std::string                 deviceManufacturer;
-  uint8_t                     batteryLevel;
   
   uint16_t vid             =  0x046D; // I picked random numbers here and it worked fine,
   uint16_t pid             =  0xC52B; // idk if these actually matter at all for anything
@@ -74,7 +81,6 @@ private:
   
   uint8_t                     last_connected_count = 0;   // previous poll result
   uint32_t                    lastPollTime = 0;
-  static const uint32_t       POLL_INTERVAL = 200;       //  unit here is milliseconds
   uint32_t                    _delay_ms = 5; 
   
   SQUIDMATRIX                 matrix;
@@ -104,6 +110,20 @@ private:
     SQUIDGAMEPAD               gamepad;
   #endif
   
+  #if LED_ENABLE
+    uint16_t     ledPin;
+    uint16_t     ledCount;
+    neoPixelType ledType;
+    uint32_t     ledOverrideEndTime;
+    bool         ledOverrideActive;
+    uint32_t     ledOverrideColor;
+  #endif
+  
+  #if OLED_ENABLE
+    OLED*        oledDisplay;
+    bool         oledInitialized;
+  #endif
+  
 public:
   SQUIDHID(std::string deviceName = "SquidHID", 
            std::string deviceManufacturer = "SquidHID", 
@@ -111,6 +131,11 @@ public:
            TransportType type = TransportType::BLE);
   
   ~SQUIDHID();
+  
+  uint16_t                    appearance = KEYBOARD;
+  std::string                 deviceName;
+  std::string                 deviceManufacturer;
+  uint8_t                     batteryLevel;
   
   void onConnect() override;
   void onDisconnect() override;
@@ -194,27 +219,64 @@ public:
   #endif
   
   #if STENO_ENABLE
-    size_t  press(StenoKey stenoKey);
-    size_t  release(StenoKey stenoKey);
-    void    stenoStroke(const StenoKey* keys, size_t count);
-    void    sendStenoReport();
+    size_t    press(StenoKey stenoKey);
+    size_t    release(StenoKey stenoKey);
+    void      stenoStroke(const StenoKey* keys, size_t count);
+    void      sendStenoReport();
   #endif
   
   #if GAMEPAD_ENABLE
-    size_t   press(GamepadButton button);
-    size_t   release(GamepadButton button);
-    bool     gamepadIsPressed(GamepadButton button);
-    void     gamepadSetLeftStick(int16_t x, int16_t y);
-    void     gamepadSetRightStick(int16_t x, int16_t y);
-    void     gamepadSetTriggers(int16_t left, int16_t right);
-    void     gamepadGetLeftStick(int16_t &x, int16_t &y);
-    void     gamepadGetRightStick(int16_t &x, int16_t &y);
-    void     gamepadSetAxis(GamepadAnalogue axis, int16_t value);
-    int16_t  gamepadGetAxis(GamepadAnalogue axis);
-    void     gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]);
-    void     sendGamepadReport();
+    size_t    press(GamepadButton button);
+    size_t    release(GamepadButton button);
+    bool      gamepadIsPressed(GamepadButton button);
+    void      gamepadSetLeftStick(int16_t x, int16_t y);
+    void      gamepadSetRightStick(int16_t x, int16_t y);
+    void      gamepadSetTriggers(int16_t left, int16_t right);
+    void      gamepadGetLeftStick(int16_t &x, int16_t &y);
+    void      gamepadGetRightStick(int16_t &x, int16_t &y);
+    void      gamepadSetAxis(GamepadAnalogue axis, int16_t value);
+    int16_t   gamepadGetAxis(GamepadAnalogue axis);
+    void      gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]);
+    void      sendGamepadReport();
+  #endif     
+             
+  #if LED_ENABLE
+    NeoPixel* leds;
+    void      initializeLEDs(uint16_t count, int16_t pin = 6, neoPixelType type = NEO_GRB);
+    void      setLEDColor(uint16_t index, uint32_t color);
+    void      setLEDColor(uint16_t index, uint8_t r, uint8_t g, uint8_t b);
+    void      fillLEDs(uint8_t r, uint8_t g, uint8_t b);
+    void      fillLEDsRGB(uint8_t r, uint8_t g, uint8_t b, uint16_t first = 0, uint16_t count = 0); // Different name
+    void      clearLEDs();
+    void      showLEDs();
+    void      setLEDBrightness(uint8_t brightness);
+    void      rainbowLEDs(uint16_t first_hue = 0, int8_t reps = 1, uint8_t saturation = 255, uint8_t brightness = 255, bool gammify = true);
+    bool      ledsCanShow();
+    void      updateLEDs();
   #endif
-  
+
+  #if OLED_ENABLE
+    void initializeOLED(uint8_t sda_pin, uint8_t scl_pin, OLED::tDisplayCtrl displayCtrl = OLED::CTRL_SSD1306, uint8_t i2c_address = 0x3C);
+    OLED* getOLED() { return oledDisplay; }
+    bool isOLEDInitialized() { return oledInitialized; }
+    
+    void oledClear(OLED::tColor color = OLED::BLACK);
+    void oledDisplayUpdate();
+    void oledSetPower(bool enable);
+    void oledSetCursor(uint_fast8_t x, uint_fast8_t y);
+    void oledDrawString(uint_fast8_t x, uint_fast8_t y, const char* s, OLED::tFontScaling scaling = OLED::NORMAL_SIZE, OLED::tColor color = OLED::WHITE);
+    void oledDrawString_P(uint_fast8_t x, uint_fast8_t y, const char* s, OLED::tFontScaling scaling = OLED::NORMAL_SIZE, OLED::tColor color = OLED::WHITE);
+    size_t oledPrintf(uint_fast8_t x, uint_fast8_t y, const char *format, ...);
+    size_t oledPrintf(const char *format, ...);
+    void oledSetTTYMode(bool enabled);
+    void oledDrawBitmap(uint_fast8_t x, uint_fast8_t y, uint_fast8_t width, uint_fast8_t height, const uint8_t* data, OLED::tColor color = OLED::WHITE);
+    void oledDrawBitmap_P(uint_fast8_t x, uint_fast8_t y, uint_fast8_t width, uint_fast8_t height, const uint8_t* data, OLED::tColor color = OLED::WHITE);
+    void oledShowSquidLogo(OLED::tColor color = OLED::WHITE);
+    void oledShowConnectionStatus(bool connected);
+    void oledShowBatteryLevel(uint8_t level);
+    void oledShowLayerInfo(uint8_t layer);
+  #endif
+
     LogLevel getLogLevel() const;
     void     setLogLevel(LogLevel level);
     void     initialize(std::function<void(const LogEntry&)> handler = nullptr);
