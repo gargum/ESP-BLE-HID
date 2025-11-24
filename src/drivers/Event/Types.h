@@ -111,6 +111,10 @@ constexpr DigitizerKey operator"" _digitizer(unsigned long long value) {
 #define MK(type, short_name, enum_value) \
     constexpr type short_name = type{static_cast<int32_t>(GET_ENUM_TYPE_FROM_KEY_TYPE(type)::enum_value)}
 
+#define PACKED __attribute__((packed))
+
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 // ============================================================================
 // Matrix Definitions
 // ============================================================================
