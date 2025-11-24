@@ -119,7 +119,18 @@ SQUIDHID::SQUIDHID(std::string deviceName, std::string deviceManufacturer,
     , batteryLevel(batteryLevel) 
     , matrix()
     , keymap()
+    #if LED_ENABLE
+    , leds(nullptr)
+    , ledPin(6)
+    , ledCount(0)
+    , ledType(NEO_GRB)
+    #endif
+    #if OLED_ENABLE
+    , oledDisplay(nullptr)
+    , oledInitialized(false)
+    #endif
     , lastPollTime(0) 
+
 {
     // Create appropriate transport based on type
     switch (type) {
@@ -156,6 +167,20 @@ SQUIDHID::SQUIDHID(std::string deviceName, std::string deviceManufacturer,
 
 
 SQUIDHID::~SQUIDHID() {
+    #if LED_ENABLE
+    if (leds) {
+        delete leds;
+        leds = nullptr;
+    }
+    #endif
+    
+    #if OLED_ENABLE
+    if (oledDisplay) {
+        delete oledDisplay;
+        oledDisplay = nullptr;
+    }
+    #endif
+    
     if (_activeSQUIDHIDInstance == this) {
         _activeSQUIDHIDInstance = nullptr;
     }
@@ -180,6 +205,45 @@ void SQUIDHID::begin(void) {
     
     SQUID_LOG_INFO(LOG_TAG, "Starting SQUIDHID with transport...");
     
+    // Initialize LEDs if configured
+    #if LED_ENABLE
+    if (ledCount > 0 && leds) {
+        if (leds->begin()) {
+            SQUID_LOG_INFO(LOG_TAG, "LEDs initialized on pin %d with %d LEDs", ledPin, ledCount);
+            // Turn off all LEDs initially
+            leds->clear();
+            leds->show();
+        } else {
+            SQUID_LOG_ERROR(LOG_TAG, "Failed to initialize LEDs");
+        }
+    }
+    #endif
+    
+    // Initialize OLED if configured and pins are set
+    #if OLED_ENABLE
+    if (!oledDisplay) {
+        // Auto-initialize OLED with pins from config.h
+        initializeOLED(SDA_PIN, SCL_PIN);
+        SQUID_LOG_INFO(LOG_TAG, "Auto-initialized OLED with SDA:%d, SCL:%d", SDA_PIN, SCL_PIN);
+    }
+    
+    if (oledDisplay && !oledInitialized) {
+        oledDisplay->begin();
+        oledInitialized = true;
+        oledDisplay->clear(OLED::BLACK);
+        oledDisplay->display();
+        
+        // Show startup screen
+        oledShowSquidLogo();
+        oledDisplay->display();
+        delay(1000); // Show logo for 1 second
+        
+        oledClear();
+        
+        SQUID_LOG_INFO(LOG_TAG, "OLED display initialized");
+    }
+    #endif
+    
     // Set HID report map before initializing transport
     SQUID_LOG_DEBUG(LOG_TAG, "Setting HID report map...");
     transport->setReportMap((uint8_t *)_hidReportDescriptor, sizeof(_hidReportDescriptor));
@@ -202,26 +266,32 @@ void SQUIDHID::begin(void) {
     SQUID_LOG_DEBUG(LOG_TAG, "Initializing feature modules...");
     #if KEYBOARD_ENABLE
     nkro.begin(transport.get(), _delay_ms);
+    SQUID_LOG_DEBUG(LOG_TAG, "NKRO keyboard support enabled");
     #endif
     
     #if MEDIA_ENABLE
     media.begin(transport.get(), _delay_ms);
+    SQUID_LOG_DEBUG(LOG_TAG, "Media key support enabled");
     #endif
     
     #if MOUSE_ENABLE
     mouse.begin(transport.get(), _delay_ms);
+    SQUID_LOG_DEBUG(LOG_TAG, "Mouse support enabled");
     #endif
     
     #if DIGITIZER_ENABLE
     digitizer.begin(transport.get(), _delay_ms);
+    SQUID_LOG_DEBUG(LOG_TAG, "Digitizer support enabled");
     #endif
     
     #if GAMEPAD_ENABLE
     gamepad.begin(transport.get(), _delay_ms);
+    SQUID_LOG_DEBUG(LOG_TAG, "Gamepad support enabled");
     #endif
     
     #if STENO_ENABLE
     steno.begin(transport.get(), _delay_ms);
+    SQUID_LOG_DEBUG(LOG_TAG, "PloverHID support enabled");
     #endif
     
     lastPollTime = millis();
@@ -233,6 +303,8 @@ void SQUIDHID::update() {
     static uint32_t lastUpdateTime        = 0;
     static uint32_t lastPollTime          = 0;
     static uint32_t lastLogProcessTime    = 0;
+    static uint32_t lastLEDTime           = 0;
+    static uint32_t lastOLEDTime          = 0;
     uint32_t currentTime                  = millis();
     
     if (currentTime - lastLogProcessTime >= 10) {
@@ -263,6 +335,23 @@ void SQUIDHID::update() {
         lastPollTime = currentTime;
         pollConnection();
     }
+    
+    #if LED_ENABLE
+    if (currentTime - lastLEDTime >= LED_INTERVAL) {
+        lastLEDTime = currentTime;
+        if (leds && leds->canShow()) {
+        leds->show();
+        }
+    }
+    #endif
+    
+    #if OLED_ENABLE
+    // Update OLED less frequently to avoid flickering
+    if (currentTime - lastOLEDTime >= 100) { // Update every 100ms
+        lastOLEDTime = currentTime;
+        // Could add periodic status updates here if needed
+    }
+    #endif
 }
 
 void SQUIDHID::end(void) {
@@ -298,6 +387,7 @@ void SQUIDHID::onConnect() {
     #if STENO_ENABLE
     steno.onConnect();
     #endif
+    
 }
 
 bool SQUIDHID::isConnected(void) {
@@ -349,6 +439,7 @@ void SQUIDHID::onDisconnect() {
     #if STENO_ENABLE
     steno.onDisconnect();
     #endif
+
 }
 
 size_t SQUIDHID::write(const uint8_t *buf, size_t len) {
@@ -665,6 +756,254 @@ int16_t SQUIDHID::gamepadGetAxis(GamepadAnalogue axis) { return gamepad.gamepadG
 void SQUIDHID::gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]) { gamepad.gamepadSetAllAxes(values); }
 
 void SQUIDHID::sendGamepadReport() { gamepad.sendGamepadReport(); }
+#endif
+
+//
+// ----------------------------------------- LED Block (NeoPixel)
+//
+
+#if LED_ENABLE
+void SQUIDHID::initializeLEDs(uint16_t count, int16_t pin, neoPixelType type) {
+    if (leds) {
+        delete leds;
+    }
+    
+    ledCount = count;
+    ledPin = pin;
+    ledType = type;
+    
+    leds = new NeoPixel(count, pin, type);
+    
+    SQUID_LOG_INFO(LOG_TAG, "LED driver initialized for %d LEDs on pin %d", count, pin);
+}
+
+void SQUIDHID::setLEDColor(uint16_t index, uint32_t color) {
+    if (leds && index < ledCount) {
+        leds->setPixelColor(index, color);
+    }
+}
+
+void SQUIDHID::setLEDColor(uint16_t index, uint8_t r, uint8_t g, uint8_t b) {
+    if (leds && index < ledCount) {
+        leds->setPixelColor(index, leds->Color(r, g, b));
+    }
+}
+
+void SQUIDHID::fillLEDs(uint8_t r, uint8_t g, uint8_t b) {
+    if (leds) {
+        uint32_t color = leds->Color(r, g, b);
+        leds->fill(color);
+    }
+}
+
+void SQUIDHID::fillLEDsRGB(uint8_t r, uint8_t g, uint8_t b, uint16_t first, uint16_t count) {
+    if (leds) {
+        uint32_t color = leds->Color(r, g, b);
+        leds->fill(color, first, count);
+    }
+}
+
+void SQUIDHID::clearLEDs() {
+    if (leds) {
+        leds->clear();
+    }
+}
+
+void SQUIDHID::showLEDs() {
+    if (leds && leds->canShow()) {
+        leds->show();
+    }
+}
+
+void SQUIDHID::setLEDBrightness(uint8_t brightness) {
+    if (leds) {
+        leds->setBrightness(brightness);
+    }
+}
+
+void SQUIDHID::rainbowLEDs(uint16_t first_hue, int8_t reps, uint8_t saturation, uint8_t brightness, bool gammify) {
+    if (leds) {
+        leds->rainbow(first_hue, reps, saturation, brightness, gammify);
+    }
+}
+
+bool SQUIDHID::ledsCanShow() {
+    return leds ? leds->canShow() : false;
+}
+#endif
+
+//
+// ----------------------------------------- OLED Block
+//
+
+#if OLED_ENABLE
+void SQUIDHID::initializeOLED(uint8_t sda_pin, uint8_t scl_pin, OLED::tDisplayCtrl displayCtrl, uint8_t i2c_address) {
+    if (oledDisplay) {
+        delete oledDisplay;
+    }
+    
+    oledDisplay = new OLED(sda_pin, scl_pin, displayCtrl, i2c_address);
+    oledInitialized = false;
+    
+    SQUID_LOG_INFO(LOG_TAG, "OLED driver initialized on SDA:%d SCL:%d", sda_pin, scl_pin);
+}
+
+void SQUIDHID::oledClear(OLED::tColor color) {
+    if (oledDisplay && oledInitialized) {
+        oledDisplay->clear(color);
+    }
+}
+
+void SQUIDHID::oledDisplayUpdate() {
+    if (oledDisplay && oledInitialized) {
+        oledDisplay->display();
+    }
+}
+
+void SQUIDHID::oledSetPower(bool enable) {
+    if (oledDisplay && oledInitialized) {
+        oledDisplay->set_power(enable);
+    }
+}
+
+void SQUIDHID::oledSetCursor(uint_fast8_t x, uint_fast8_t y) {
+    if (oledDisplay && oledInitialized) {
+        oledDisplay->setCursor(x, y);
+    }
+}
+
+void SQUIDHID::oledDrawString(uint_fast8_t x, uint_fast8_t y, const char* s, OLED::tFontScaling scaling, OLED::tColor color) {
+    if (oledDisplay && oledInitialized) {
+        oledDisplay->draw_string(x, y, s, scaling, color);
+    }
+}
+
+void SQUIDHID::oledDrawString_P(uint_fast8_t x, uint_fast8_t y, const char* s, OLED::tFontScaling scaling, OLED::tColor color) {
+    if (oledDisplay && oledInitialized) {
+        oledDisplay->draw_string_P(x, y, s, scaling, color);
+    }
+}
+
+size_t SQUIDHID::oledPrintf(uint_fast8_t x, uint_fast8_t y, const char *format, ...) {
+    if (!oledDisplay || !oledInitialized) return 0;
+    
+    va_list arg;
+    va_start(arg, format);
+    char temp[64];
+    char* buffer = temp;
+    size_t len = vsnprintf(temp, sizeof(temp), format, arg);
+    va_end(arg);
+    if (len > sizeof(temp) - 1) {
+        buffer = new char[len + 1];
+        if (!buffer) return 0;
+        va_start(arg, format);
+        vsnprintf(buffer, len + 1, format, arg);
+        va_end(arg);
+    }
+    
+    oledDisplay->setCursor(x, y);
+    len = oledDisplay->write((const uint8_t*) buffer, len);
+    
+    if (buffer != temp) delete[] buffer;
+    return len;
+}
+
+size_t SQUIDHID::oledPrintf(const char *format, ...) {
+    if (!oledDisplay || !oledInitialized) return 0;
+    
+    va_list arg;
+    va_start(arg, format);
+    char temp[64];
+    char* buffer = temp;
+    size_t len = vsnprintf(temp, sizeof(temp), format, arg);
+    va_end(arg);
+    if (len > sizeof(temp) - 1) {
+        buffer = new char[len + 1];
+        if (!buffer) return 0;
+        va_start(arg, format);
+        vsnprintf(buffer, len + 1, format, arg);
+        va_end(arg);
+    }
+    
+    len = oledDisplay->write((const uint8_t*) buffer, len);
+    
+    if (buffer != temp) delete[] buffer;
+    return len;
+}
+
+void SQUIDHID::oledSetTTYMode(bool enabled) {
+    if (oledDisplay && oledInitialized) {
+        oledDisplay->setTTYMode(enabled);
+    }
+}
+
+void SQUIDHID::oledDrawBitmap(uint_fast8_t x, uint_fast8_t y, uint_fast8_t width, uint_fast8_t height, const uint8_t* data, OLED::tColor color) {
+    if (oledDisplay && oledInitialized) {
+        oledDisplay->draw_bitmap(x, y, width, height, data, color);
+    }
+}
+
+void SQUIDHID::oledDrawBitmap_P(uint_fast8_t x, uint_fast8_t y, uint_fast8_t width, uint_fast8_t height, const uint8_t* data, OLED::tColor color) {
+    if (oledDisplay && oledInitialized) {
+        oledDisplay->draw_bitmap_P(x, y, width, height, data, color);
+    }
+}
+
+void SQUIDHID::oledShowSquidLogo(OLED::tColor color) {
+    if (!oledDisplay || !oledInitialized) return;
+    
+    // Clear display
+    oledDisplay->clear(OLED::BLACK);
+    
+    // Center the 64x64 squid logo on a 128x64 display
+    // Calculate x position to center: (128 - 64) / 2 = 32
+    // y position: 0 (top of screen)
+    oledDisplay->draw_bitmap_P(32, 0, 64, 64, simple_squid, color);
+    
+    // Add text below the logo
+    oledDisplay->draw_string(40, 56, "SquidHID", OLED::NORMAL_SIZE, color);
+}
+
+void SQUIDHID::oledShowConnectionStatus(bool connected) {
+    if (!oledDisplay || !oledInitialized) return;
+    
+    oledDisplay->clear(OLED::BLACK);
+    
+    if (connected) {
+        oledDisplay->draw_string(20, 0, "Connected", OLED::NORMAL_SIZE, OLED::WHITE);
+        oledDisplay->draw_string(10, 16, deviceName.c_str(), OLED::NORMAL_SIZE, OLED::WHITE);
+    } else {
+        oledDisplay->draw_string(15, 0, "Disconnected", OLED::NORMAL_SIZE, OLED::WHITE);
+        oledDisplay->draw_string(10, 16, "Advertising...", OLED::NORMAL_SIZE, OLED::WHITE);
+    }
+    
+    // Show battery level
+    char battStr[20];
+    snprintf(battStr, sizeof(battStr), "Battery: %d%%", batteryLevel);
+    oledDisplay->draw_string(10, 32, battStr, OLED::NORMAL_SIZE, OLED::WHITE);
+    
+    oledDisplay->display();
+}
+
+void SQUIDHID::oledShowBatteryLevel(uint8_t level) {
+    if (!oledDisplay || !oledInitialized) return;
+    
+    char battStr[20];
+    snprintf(battStr, sizeof(battStr), "Battery: %d%%", level);
+    
+    oledDisplay->draw_string(10, 32, battStr, OLED::NORMAL_SIZE, OLED::WHITE);
+    oledDisplay->display();
+}
+
+void SQUIDHID::oledShowLayerInfo(uint8_t layer) {
+    if (!oledDisplay || !oledInitialized) return;
+    
+    char layerStr[20];
+    snprintf(layerStr, sizeof(layerStr), "Layer: %d", layer);
+    
+    oledDisplay->draw_string(10, 48, layerStr, OLED::NORMAL_SIZE, OLED::WHITE);
+    oledDisplay->display();
+}
 #endif
 
 //
