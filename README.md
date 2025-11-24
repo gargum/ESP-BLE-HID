@@ -1,26 +1,28 @@
 # SquidHID
 
-This library allows you to make the ESP32 act as a Keyboard, Mouse, Gamepad, or other [HID device](https://en.wikipedia.org/wiki/Human_interface_device).
+SquidHID allows you to make an ESP32 microcontroller act as a Keyboard, Mouse, Gamepad, or other [HID device](https://en.wikipedia.org/wiki/Human_interface_device).
 
-SquidHID is intended to serve as an ESP32-based alternative to tools like QMK and ZMK with added support for advanced features.
+The purpose of SquidHID is to make it as easy as possible to write firmware for complex devices. When your designs implement various features that are simply not supported by pre-existing tools like QMK or ZMK, SquidHID is here to help!
 
-All development/testing is performed on boards *without* USB host mode, like the ESP32-C3 Super Mini.
+Currently, all non-USB related development/testing done using boards *without* USB host mode, like the ESP32-C3 Super Mini. In the long term however, support is planned for all ESP32 variants alongside every microcontroller ever used in a Xiao Seeed variant.
 
-Currently, NimBLE, USB, and PS/2 are supported, but more is planned for the future!
+NimBLE, USB, and PS/2 are the available transport methods supported by SquidHID at this time, but the plan is to extend this as much as possible!
 
 ## Features
 
-| CORE FEATURES                       | EXTENDED FUNCTIONS                                                        | QOL & ADVANCED FUNCTIONS                                                                                             |
-| ----------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------                                                      |
-| Keyboard emulation                  | *NKRO + 6KRO with full support for modifiers & media keys*                | *Send full text strings, press/release keys, and send full keystrokes*                                               |
-| Mouse emulation                     | *Absolute & Relative pointers you can hotswap between*                    | *Automatic context-aware switching between both pointer modes + full Android & iOS compatibility*                    |
-| Gamepad emulation                   | *64 buttons + 1 D-pad, 2 analogue sticks, 2 analogue triggers*            | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                             |
-| Digitizer emulation                 | *Pressure sensitivity + tip-switch, barrel, & eraser support*             | *Programmable brushstroke macro support with variable pressure all throughout*                                       |
-| Stenotype emulation                 | *PloverHID keys and reports are fully supported*                          | *No settings to worry about. Mix-and-match stenotype keys with all other input methods to your heart's content!*     |
-| Keymaps and Matrices                | *Allows pin pairs and single pins to co-exist in the same matrix*         | *Optimized for and tested on Japanese full duplex key matrices using a combination of internal and external pull-ups*|
-| USB, BLE, and PS/2 support          | *Switch between protocols with a one-line change to the config.h file*    | *Automatically detects which protocols exist on your MCU and includes associated features and functions accordingly* |
-| Set the PID, VID, and version       | *Set the name, manufacturer, and the battery level*                       | *Set what type of device the ESP32 advertises itself as. Choose anything from keyboard to keyring to insulin pump!*  |
-| ESP32s in general are all supported | *Compatible even with boards that have no HID capabilities whatsoever*    | *Optimized for the ESP32s with the worst specs. Your board **will** work with this library!*                         |
+| CORE FEATURES                       | EXTENDED FUNCTIONS                                                                  | QOL & ADVANCED FUNCTIONS                                                                                                   |
+| ----------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------                                                            |
+| Keyboard emulation                  | *NKRO + 6KRO with full support for modifiers & media keys*                          | *Send full text strings, press/release keys, and send full keystrokes*                                                     |
+| Mouse emulation                     | *Absolute & Relative pointers you can hotswap between*                              | *Automatic context-aware switching between both pointer modes + full Android & iOS compatibility*                          |
+| Gamepad emulation                   | *64 buttons + 1 D-pad, 2 analogue sticks, 2 analogue triggers*                      | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                                   |
+| Digitizer emulation                 | *Pressure sensitivity + tip-switch, barrel, & eraser support*                       | *Programmable brushstroke macro support with variable pressure all throughout*                                             |
+| Stenotype emulation                 | *PloverHID keys and reports are fully supported*                                    | *No settings to worry about. Mix-and-match stenotype keys with all other input methods to your heart's content!*           |
+| Keymaps and Matrices                | *Allows pin pairs and single pins to co-exist in the same matrix*                   | *Optimized for and tested on Japanese full duplex key matrices using a combination of internal and external pull-ups*      |
+| WS2812B RGB LED / NeoPixel support  | *Includes 21 pre-configured colour options and a range of helper functions*         | *Designed from the ground up to make defining and controlling your LEDs as easy and intuitive as possible for beginners*   |
+| OLED support (128x64 only for now)  | *Supports text strings, primitive shapes, even bitmaps and changing single pixels!* | *QMK Logo Editor's "RAW" bitmaps are supported! Simply copy the `static const unsigned char PROGMEM raw_logo[]` bitmap definition, then rename to `static const uint8_t PROGMEM new_name[]`* to use in your sketches! |
+| USB, BLE, and PS/2 support          | *Switch between protocols with a one-line change to the config.h file*              | *Automatically detects which protocols exist on your MCU and includes associated features and functions accordingly*       |
+| Set the PID, VID, and version       | *Set the name, manufacturer, and the battery level*                                 | *Set what type of device the ESP32 advertises itself as. Choose anything from keyboard to keyring to insulin pump!*        |
+| ESP32s in general are all supported | *Compatible even with boards that have no HID capabilities whatsoever*              | *Optimized for the ESP32s with the worst specs. Your board **will** work with this library!*                               |
 
 ## Compatibility
 
@@ -37,7 +39,8 @@ Currently, NimBLE, USB, and PS/2 are supported, but more is planned for the futu
 - [ ] Split communication - Figuring out BLE mesh wireless support for the full 32,767 board maximum
 - [ ] Documentation - Writing the docs for SquidHID
 - [ ] Migrating from Arduino IDE/PlatformIO to Standalone - I enjoy making life harder for myself unneccesarily
-- [ ] nRF support - Developing an actually easy/user-friendly system for flashing Nordic chips with my firmware
+- [ ] Hardware Abstraction Layer - Need to get the HAL system setup so I can add support for 10+ different platforms en masse
+- [ ] Keymap advanced functions - Layers, Tap Dance, Combos, Dynamic Macros, Leaders, Alt-Mod, Mouse keys, Digitizer keys, and Joystick keys all still need to be added
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
