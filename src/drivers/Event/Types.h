@@ -119,6 +119,8 @@ constexpr DigitizerKey operator"" _digitizer(unsigned long long value) {
 // Matrix Definitions
 // ============================================================================
 
+class SQUIDHID;
+
 // Matrix pin pair definition
 struct MatrixPinPair {
     int from_pin;
@@ -347,7 +349,8 @@ inline LayerKeymapEntry TRANS() {
     return LayerKeymapEntry(LayerActionType::TRANSPARENT, 0); 
 }
 
-// Helper for creating layer definitions
+// Helper for creating keymap and matrix definitions
+#define MATRIX(pin_entries) squid_matrix pin_entries
 #define LAYER(key_entries) std::vector<LayerKeymapEntry> key_entries
 #define KEYMAP(layer_entries) std::vector<std::vector<LayerKeymapEntry>> layer_entries
 
@@ -367,7 +370,12 @@ private:
     squid_matrix _matrix;
     std::vector<bool> _current_state; 
     std::vector<bool> _previous_state; 
-    std::function<void(size_t, bool)> _key_event_callback; 
+    std::function<void(size_t, bool)> _key_event_callback;
+    
+    // GPIO function pointers for the matrix scanning
+    std::function<void(uint8_t, uint8_t)> _pinModeFunc;
+    std::function<void(uint8_t, uint8_t)> _digitalWriteFunc;
+    std::function<uint8_t(uint8_t)> _digitalReadFunc;
     
     // Smart scanning members
     std::vector<int> _unique_from_pins;
@@ -382,10 +390,15 @@ private:
     void scanMatrix();
     void extractUniquePins();
     
-    // New smart detection methods
+    // Smart pinmode detection methods
     bool detectPinNeedsPullup(int pin);
     void detectAllPinPullupRequirements();
     bool getOptimalPinMode(int pin);
+    
+    // Unified GPIO helper methods
+    void unifiedPinMode(uint8_t pin, uint8_t mode);
+    void unifiedDigitalWrite(uint8_t pin, uint8_t value);
+    uint8_t unifiedDigitalRead(uint8_t pin);
     
     // Scanning methods
     void scanWithTimeDivision();
@@ -394,7 +407,11 @@ private:
 public:
     SQUIDMATRIX();
     
-    void begin(const squid_matrix& matrix, std::function<void(size_t, bool)> key_event_callback = nullptr);
+    void begin(const squid_matrix& matrix, 
+               std::function<void(size_t, bool)> key_event_callback = nullptr,
+               std::function<void(uint8_t, uint8_t)> pinModeFunc = nullptr,
+               std::function<void(uint8_t, uint8_t)> digitalWriteFunc = nullptr,
+               std::function<uint8_t(uint8_t)> digitalReadFunc = nullptr);
     
     void update();
     bool isPressed(size_t switch_index) const;
@@ -410,35 +427,6 @@ public:
 
 class SQUIDKEYMAP {
 private:
-    squid_map _keymap;
-    std::function<void(const KeymapEntry&)> _press_callback;
-    std::function<void(const KeymapEntry&)> _release_callback;
-    
-public:
-    SQUIDKEYMAP();
-    
-    // Initialize with keymap definition
-    void begin(const squid_map& keymap,
-               std::function<void(const KeymapEntry&)> press_callback = nullptr,
-               std::function<void(const KeymapEntry&)> release_callback = nullptr);
-    
-    // Handle key events by matrix position
-    void handleKeyEvent(size_t switch_index, bool pressed);
-    
-    // Get key at position
-    KeymapEntry getKeyAt(size_t switch_index) const;
-    
-    // Get keymap size
-    size_t getKeyCount() const;
-};
-
-// ============================================================================
-// Layer Class Implementation
-// ============================================================================
-
-// Enhanced keymap class with layer support
-class SquidLayerKeymap {
-private:
     std::vector<std::vector<LayerKeymapEntry>> _layers;
     LayerState _layer_state;
     
@@ -447,7 +435,7 @@ private:
     std::function<void(uint8_t)> _layer_change_callback;
     
 public:
-    SquidLayerKeymap();
+    SQUIDKEYMAP();
     
     void begin(const std::vector<std::vector<LayerKeymapEntry>>& layers,
                std::function<void(const KeymapEntry&)> press_callback = nullptr,
