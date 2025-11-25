@@ -17,7 +17,8 @@ NimBLE, USB, and PS/2 are the available transport methods supported by SquidHID 
 | Gamepad emulation                   | *64 buttons + 1 D-pad, 2 analogue sticks, 2 analogue triggers*                      | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                                   |
 | Digitizer emulation                 | *Pressure sensitivity + tip-switch, barrel, & eraser support*                       | *Programmable brushstroke macro support with variable pressure all throughout*                                             |
 | Stenotype emulation                 | *PloverHID keys and reports are fully supported*                                    | *No settings to worry about. Mix-and-match stenotype keys with all other input methods to your heart's content!*           |
-| Keymaps and Matrices                | *Allows pin pairs and single pins to co-exist in the same matrix*                   | *Optimized for and tested on Japanese full duplex key matrices using a combination of internal and external pull-ups*      |
+| Key Matrices                        | *Allows pin pairs and single pins to co-exist in the same matrix*                   | *Optimized for and tested on Japanese full duplex key matrices using a combination of internal and external pull-ups*      |
+| Keymaps with Layering               | *Currently allows keymaps with up to 32 layers to be defined in sketches*           | *Syntax is designed to be easy to read, write, modify, and understand*                                                     |
 | WS2812B RGB LED / NeoPixel support  | *Includes 21 pre-configured colour options and a range of helper functions*         | *Designed from the ground up to make defining and controlling your LEDs as easy and intuitive as possible for beginners*   |
 | OLED support (128x64 only for now)  | *Supports text strings, primitive shapes, even bitmaps and changing single pixels!* | *QMK Logo Editor's "RAW" bitmaps are supported! Simply copy the `static const unsigned char PROGMEM raw_logo[]` bitmap definition, then rename to `static const uint8_t PROGMEM new_name[]`* to use in your sketches! |
 | USB, BLE, and PS/2 support          | *Switch between protocols with a one-line change to the config.h file*              | *Automatically detects which protocols exist on your MCU and includes associated features and functions accordingly*       |
@@ -40,7 +41,7 @@ NimBLE, USB, and PS/2 are the available transport methods supported by SquidHID 
 - [ ] Documentation - Writing the docs for SquidHID
 - [ ] Migrating from Arduino IDE/PlatformIO to Standalone - I enjoy making life harder for myself unneccesarily
 - [ ] Hardware Abstraction Layer - Need to get the HAL system setup so I can add support for 10+ different platforms en masse
-- [ ] Keymap advanced functions - Layers, Tap Dance, Combos, Dynamic Macros, Leaders, Alt-Mod, Mouse keys, Digitizer keys, and Joystick keys all still need to be added
+- [ ] Keymap advanced functions - Tap Dance, Combos, Dynamic Macros, Leaders, Alt-Mod, Mouse keys, Digitizer keys, and Joystick keys all still need to be added
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
