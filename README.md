@@ -135,7 +135,7 @@ Below is an example sketch that defines the firmware for a 2x4 macropad that emp
 ``` C++
 #include <SQUIDHID.h>
 
-SQUIDHID tentacle("SquidHID"); // To start off, simple create and name your board.
+SQUIDHID tentacle("SquidHID"); // To start off, simply create and name your board.
 
 // This matrix example includes both onboard MCU pins, and MCP23XXX pins.
 // The matrix also includes keys that employ a direct wiring, and pin pairs.
