@@ -23,52 +23,27 @@ void SQUIDSTENO::begin(Transport* trans, uint32_t delay_ms) {
     memset(&_stenoReport, 0, sizeof(_stenoReport));
     _stenoReport.reportId = STENO_ID;
     
-    SQUID_LOG_INFO(STENO_TAG, "Plover HID stenotype initialized");
+    SQUID_LOG_INFO(STENO_TAG, "Plover HID stenotype initialized with 64-key layout");
 }
 
 void SQUIDSTENO::updateStenoKey(StenoKey stenoKey, bool pressed) {
     uint8_t keyValue = static_cast<uint8_t>(stenoKey);
     
-    if (keyValue < 32) {  // Only 32 bits in our report
+    if (keyValue < 64) {  // 64 bits in our report
         uint8_t byteIndex = keyValue / 8;
         uint8_t bitMask = 1 << (keyValue % 8);
         
-        switch (byteIndex) {
-            case 0:
-                if (pressed) {
-                    _stenoReport.keys0 |= bitMask;
-                } else {
-                    _stenoReport.keys0 &= ~bitMask;
-                }
-                break;
-            case 1:
-                if (pressed) {
-                    _stenoReport.keys1 |= bitMask;
-                } else {
-                    _stenoReport.keys1 &= ~bitMask;
-                }
-                break;
-            case 2:
-                if (pressed) {
-                    _stenoReport.keys2 |= bitMask;
-                } else {
-                    _stenoReport.keys2 &= ~bitMask;
-                }
-                break;
-            case 3:
-                if (pressed) {
-                    _stenoReport.keys3 |= bitMask;
-                } else {
-                    _stenoReport.keys3 &= ~bitMask;
-                }
-                break;
+        if (pressed) {
+            _stenoReport.keys[byteIndex] |= bitMask;
+        } else {
+            _stenoReport.keys[byteIndex] &= ~bitMask;
         }
         
         SQUID_LOG_DEBUG(STENO_TAG, "Key %s - Key: %d, Byte%d: 0x%02X", 
                        pressed ? "press" : "release", keyValue, byteIndex,
-                       byteIndex == 0 ? _stenoReport.keys0 :
-                       byteIndex == 1 ? _stenoReport.keys1 :
-                       byteIndex == 2 ? _stenoReport.keys2 : _stenoReport.keys3);
+                       _stenoReport.keys[byteIndex]);
+    } else {
+        SQUID_LOG_WARN(STENO_TAG, "Invalid steno key index: %d", keyValue);
     }
 }
 
@@ -89,10 +64,7 @@ size_t SQUIDSTENO::release(StenoKey stenoKey) {
 void SQUIDSTENO::releaseAll() {
     SQUID_LOG_DEBUG(STENO_TAG, "Releasing all stenotype keys");
     
-    _stenoReport.keys0 = 0;
-    _stenoReport.keys1 = 0;
-    _stenoReport.keys2 = 0;
-    _stenoReport.keys3 = 0;
+    memset(_stenoReport.keys, 0, sizeof(_stenoReport.keys));
     sendStenoReport();
     
     SQUID_LOG_DEBUG(STENO_TAG, "All stenotype keys released");
@@ -103,7 +75,7 @@ void SQUIDSTENO::stenoStroke(const StenoKey* keys, size_t count) {
     
     releaseAll();
     for (size_t i = 0; i < count; i++) {
-        press(keys[i]);
+        updateStenoKey(keys[i], true);
     }
     sendStenoReport();
     
@@ -116,13 +88,18 @@ void SQUIDSTENO::sendStenoReport() {
         return;
     }
     
-    SQUID_LOG_DEBUG(STENO_TAG, "Sending Plover HID report: %02X %02X %02X %02X",
-                 _stenoReport.keys0, _stenoReport.keys1, 
-                 _stenoReport.keys2, _stenoReport.keys3);
+    // Log the report in a readable format
+    char reportStr[64];
+    snprintf(reportStr, sizeof(reportStr), 
+             "Report: %02X %02X %02X %02X %02X %02X %02X %02X",
+             _stenoReport.keys[0], _stenoReport.keys[1], 
+             _stenoReport.keys[2], _stenoReport.keys[3],
+             _stenoReport.keys[4], _stenoReport.keys[5],
+             _stenoReport.keys[6], _stenoReport.keys[7]);
     
-    bool result = transport->sendReport(STENO_ID, 
-                                      (uint8_t*)&_stenoReport, 
-                                      sizeof(StenoReport));
+    SQUID_LOG_DEBUG(STENO_TAG, "Sending Plover HID report: %s", reportStr);
+    
+    bool result = transport->sendReport(STENO_ID, (uint8_t*)&_stenoReport, sizeof(StenoReport));
     
     if (result) {
         SQUID_LOG_DEBUG(STENO_TAG, "Plover HID report sent successfully");
