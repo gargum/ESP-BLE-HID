@@ -166,7 +166,7 @@ LAYER(game) = {
   TRANS,    TRANS,   TRANS,   TRANS     // use new, shortened aliases for ease of use.
 };
 
-KEYMAP(layers) = {                      // Keymaps in SquidHID are simply sets of layers.
+KEYMAP(keymap) = {                      // Keymaps in SquidHID are simply sets of layers.
     base,
     func, 
     game
@@ -174,7 +174,7 @@ KEYMAP(layers) = {                      // Keymaps in SquidHID are simply sets o
 
 void setup() {
   
-  tentacle.begin(matrix, layers);       // After defining your matrix and keymap,
+  tentacle.begin(matrix, keymap);       // After defining your matrix and keymap,
                                         // simply pass it to the begin function.
 }
 
