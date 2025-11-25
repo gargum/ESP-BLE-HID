@@ -49,7 +49,11 @@ NimBLE, USB, and PS/2 are the available transport methods supported by SquidHID 
 - In the Arduino IDE go to "Sketch" -> "Include Library" -> "Add .ZIP Library..." and select the file you just downloaded.
 - You can now go to "File" -> "Examples" -> "SquidHID" and select any of the examples to get started.
 
-## Example
+## Example - Devices without Buttons
+
+SquidHID is a very general-purpose toolkit, so it can be used to create devices consisting solely of a microcontroller, like mouse jigglers or even non-HID devices.
+
+This sketch demonstrates some of these functions and features:
 
 ``` C++
 /**
@@ -119,6 +123,110 @@ void loop() {
   delay(2000);
   
 }
+```
+## Example - Matrices and Keymaps
+
+SquidHID allows users to define button matrices for use in devices like keyboards, computer mice, or gamepads.
+
+The system used for defining matrices and keymaps was designed specifically to facilitate complex matrix configurations.
+
+Below is an example sketch that defines the firmware for a 2x4 macropad that employs a very highly unusual matrix configuration:
+
+``` C++
+#include <SQUIDHID.h>
+
+SQUIDHID tentacle("SquidHID"); // To start off, simple create and name your board.
+
+// This matrix example includes both onboard MCU pins, and MCP23XXX pins.
+// The matrix also includes keys that employ a direct wiring, and pin pairs.
+//
+// SquidHID does not utilize ROW2COL or COL2ROW, but instead the FROM-TO system.
+// Pairs of pins are defined as {FROM, TO}.
+// 
+// A key wired as ROW2COL translates to {ROW, COL}
+// A key wired as COL2ROW translates to {COL, ROW}
+
+MATRIX(matrix) = {
+  {1, 2}, {2, 1}, {A0, 3}, {3, A0},     // SquidHID's system means this matrix is valid.
+  {B7},   {4},    {1, A0}, {2, 3}       // This makes complex matrices easier to define.
+};
+
+LAYER(base) = {
+  KC_A,     KC_B,    KC_C,    KC_D,     // Many QMK keycodes are also valid in SquidHID.
+  MO(1),    KC_BSPC, KC_SPC,  TG(2)     // Layering is also available in SquidHID.
+};
+
+LAYER(func) = {
+  KC_VOLD,  KC_MPRV, KC_MNXT, KC_VOLU,  // Media keys are also included in SquidHID.
+  TRANS,    TRANS,   TRANS,   TRANS     // Transparent keys also exist in SquidHID.
+};
+
+LAYER(game) = {
+  GB_UP,    GB_LE,   GB_RI,   GB_DO,    // Some keys like gamepad buttons and steno keys
+  TRANS,    TRANS,   TRANS,   TRANS     // use new, shortened aliases for ease of use.
+};
+
+KEYMAP(layers) = {                      // Keymaps in SquidHID are simply sets of layers.
+    base,
+    func, 
+    game
+};
+
+void setup() {
+  
+  tentacle.begin(matrix, layers);       // After defining your matrix and keymap,
+                                        // simply pass it to the begin function.
+}
+
+void loop() {
+  
+  tentacle.update();                    // Now you can call the update function to
+                                        // check for/process any updates.
+}
+```
+
+Alongside your user sketch, there is a config.h file that is used for function toggles and pin definitions:
+
+``` C++
+/**
+ * @file config.h
+ * @brief User function toggles for conditional compilation and feature-setting
+ */
+
+#define TRANSPORT        BLE        // Currently, the available transport methods for connecting to hosts are BLE, USB, and PS/2
+
+#define KEYBOARD_ENABLE  true       // Enabling the Keyboard feature allows you to include keyboard buttons in your sketches
+#define MEDIA_ENABLE     true       // Enabling the Media feature allows you to include media keys in your sketches
+#define STENO_ENABLE     true       // Enabling the Steno feature enables the PloverHID feature, allowing you to create a stenotype machine
+#define MOUSE_ENABLE     true       // Enabling the Mouse feature enables the relative pointer feature, allowing you to create a computer mouse or other pointing devicee
+#define DIGITIZER_ENABLE true       // Enabling the Digitizer feature enables the absolute pointer feature, which allows you to create things like Android-compatible drawing tablets with tip and barrel switches
+#define GAMEPAD_ENABLE   true       // Enabling the Gamepad feature enables the gamepad buttons, dual analogue joystick reports, the hat-switch d-pad reporting, and the dual analogue trigger reports
+
+#define LED_ENABLE       true       // SquidHID comes bundled with a NeoPixel driver, allowing you to easily enable, define, and manipulate RGB LEDs
+#define LED_PIN          20         // Simply define which pin is being used as the data pin
+#define LED_COUNT        48         // Then, define how many LEDs are present
+
+#define OLED_ENABLE      true       // SquidHID also includes an I2C OLED driver, enabling you to add simple screens to projects
+#define OLED_HEIGHT      64         
+#define OLED_WIDTH       128
+
+#define MCP_ENABLE       true       // Enabling the MCP feature alongside the I2C and/or the SPI feature will allow MCP23XXX units to be automatically detected and configured for use in sketches
+
+#define UART_ENABLE      true       // SquidHID is intended to support a wide range of protocols, so users may optionally define an RTS and CTS pin for use by the UART driver
+#define TX_PIN           21
+#define RX_PIN           20
+#define RTS_PIN          0
+#define CTS_PIN          1
+
+#define I2C_ENABLE       true       
+#define SDA_PIN          8
+#define SCL_PIN          9
+
+#define SPI_ENABLE       true       
+#define MISO_PIN         5
+#define MOSI_PIN         6
+#define SCK_PIN          4
+#define CS_PIN           7
 ```
 
 ## API docs
