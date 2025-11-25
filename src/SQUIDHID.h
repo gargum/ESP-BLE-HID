@@ -58,6 +58,10 @@
   #include "drivers/OLED/OLED.h"
 #endif
 
+#if MCP_ENABLE
+  #include "drivers/Expander/MCP/MCP23XXX.h"
+#endif
+
 #define SQUIDHID_VERSION "0.7.4"
 #define SQUIDHID_VERSION_MAJOR 0
 #define SQUIDHID_VERSION_MINOR 7
@@ -75,9 +79,6 @@ class SQUIDHID : public Print
 private:
   std::unique_ptr<Transport>  transport;
   
-
-
-  
   uint16_t vid             =  0x046D; // I picked random numbers here and it worked fine,
   uint16_t pid             =  0xC52B; // idk if these actually matter at all for anything
   uint16_t version         =  0x0310;
@@ -87,7 +88,14 @@ private:
   uint32_t                    _delay_ms = 5; 
   
   SQUIDMATRIX                 matrix;
-  SquidLayerKeymap            keymap;
+  SQUIDKEYMAP                 keymap;
+  bool                        isMCPPin(uint8_t pin) const;
+  uint8_t                     toMCPPin(uint8_t pin) const;
+  
+  #if MCP_ENABLE
+  MCP23XXX*                   mcpExpander = nullptr;
+  bool                        mcpInitialized = false;
+  #endif
   
   #if KEYBOARD_ENABLE
     SQUIDNKRO                 nkro;
@@ -134,6 +142,21 @@ public:
            TransportType type = TransportType::BLE);
   
   ~SQUIDHID();
+  
+  void                        pinMode(uint8_t pin, uint8_t mode);
+  void                        digitalWrite(uint8_t pin, uint8_t value);
+  uint8_t                     digitalRead(uint8_t pin);
+  
+  #if MCP_ENABLE
+    #if I2C_ENABLE
+      bool                    initializeMCP_I2C(uint8_t i2c_addr = MCP23XXX_ADDR, TwoWire *wire = &Wire);
+    #endif
+    #if SPI_ENABLE
+      bool                    initializeMCP_SPI(uint8_t cs_pin, SPIClass *theSPI = &SPI, uint8_t hw_addr = 0x00);
+    #endif
+    bool                      isMCPInitialized() const { return mcpInitialized; }
+    MCP23XXX*                 getMCP() { return mcpExpander; }
+  #endif
   
   uint16_t                    appearance = KEYBOARD;
   std::string                 deviceName;
@@ -264,6 +287,7 @@ public:
   #endif
 
   #if OLED_ENABLE
+    #if I2C_ENABLE
     void initializeOLED(uint8_t sda_pin, uint8_t scl_pin, OLED::tDisplayCtrl displayCtrl = OLED::CTRL_SSD1306, uint8_t i2c_address = 0x3C);
     OLED* getOLED() { return oledDisplay; }
     bool isOLEDInitialized() { return oledInitialized; }
@@ -283,6 +307,9 @@ public:
     void oledShowConnectionStatus(bool connected);
     void oledShowBatteryLevel(uint8_t level);
     void oledShowLayerInfo(uint8_t layer);
+    #else
+      #error "You need to turn on I2C to use the I2C OLED driver!"
+    #endif
   #endif
 
     LogLevel getLogLevel() const;
