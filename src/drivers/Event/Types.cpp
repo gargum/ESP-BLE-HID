@@ -13,13 +13,22 @@ static const char* MATRIX_TAG = "SQUIDMATRIX";
 
 SQUIDMATRIX::SQUIDMATRIX() 
     : _key_event_callback(nullptr), 
+      _pinModeFunc(nullptr),
+      _digitalWriteFunc(nullptr),
+      _digitalReadFunc(nullptr),
       _current_active_to_pin(0),
       _scan_initialized(false) {}
 
-void SQUIDMATRIX::begin(const squid_matrix& matrix,
-                       std::function<void(size_t, bool)> key_event_callback) {
+void SQUIDMATRIX::begin(const squid_matrix& matrix, 
+                       std::function<void(size_t, bool)> key_event_callback,
+                       std::function<void(uint8_t, uint8_t)> pinModeFunc,
+                       std::function<void(uint8_t, uint8_t)> digitalWriteFunc,
+                       std::function<uint8_t(uint8_t)> digitalReadFunc) {
     _matrix = matrix;
     _key_event_callback = key_event_callback;
+    _pinModeFunc = pinModeFunc;
+    _digitalWriteFunc = digitalWriteFunc;
+    _digitalReadFunc = digitalReadFunc;
     
     // Initialize state vectors
     _current_state.assign(_matrix.size(), false);
@@ -77,14 +86,41 @@ void SQUIDMATRIX::extractUniquePins() {
                    _unique_from_pins.size(), _unique_to_pins.size());
 }
 
+void SQUIDMATRIX::unifiedPinMode(uint8_t pin, uint8_t mode) {
+    if (_pinModeFunc) {
+        _pinModeFunc(pin, mode);
+    } else {
+        // Fallback to direct Arduino calls
+        ::pinMode(pin, mode);
+    }
+}
+
+void SQUIDMATRIX::unifiedDigitalWrite(uint8_t pin, uint8_t value) {
+    if (_digitalWriteFunc) {
+        _digitalWriteFunc(pin, value);
+    } else {
+        // Fallback to direct Arduino calls
+        ::digitalWrite(pin, value);
+    }
+}
+
+uint8_t SQUIDMATRIX::unifiedDigitalRead(uint8_t pin) {
+    if (_digitalReadFunc) {
+        return _digitalReadFunc(pin);
+    } else {
+        // Fallback to direct Arduino calls
+        return ::digitalRead(pin);
+    }
+}
+
 bool SQUIDMATRIX::detectPinNeedsPullup(int pin) {
     SQUID_LOG_DEBUG(MATRIX_TAG, "Detecting pull-up requirement for pin %d", pin);
     
     // Step 1: Configure pin as INPUT (no pull-up) and read initial state
-    pinMode(pin, INPUT);
+    unifiedPinMode(pin, INPUT);
     delayMicroseconds(25); // Allow signal to stabilize
     
-    int initial_state = digitalRead(pin);
+    int initial_state = unifiedDigitalRead(pin);
     SQUID_LOG_DEBUG(MATRIX_TAG, "Pin %d initial state (INPUT): %d", pin, initial_state);
     
     // Step 2: If pin reads HIGH with no pull-up, it has external pull-up
@@ -94,10 +130,10 @@ bool SQUIDMATRIX::detectPinNeedsPullup(int pin) {
     }
     
     // Step 3: If pin reads LOW, configure as INPUT_PULLUP and check if it goes HIGH
-    pinMode(pin, INPUT_PULLUP);
+    unifiedPinMode(pin, INPUT_PULLUP);
     delayMicroseconds(25); // Allow internal pull-up to activate
     
-    int pullup_state = digitalRead(pin);
+    int pullup_state = unifiedDigitalRead(pin);
     SQUID_LOG_DEBUG(MATRIX_TAG, "Pin %d state (INPUT_PULLUP): %d", pin, pullup_state);
     
     // Step 4: If pin goes HIGH with internal pull-up, it needs internal pull-up
@@ -158,10 +194,10 @@ void SQUIDMATRIX::initializePins() {
         bool needs_pullup = getOptimalPinMode(pin);
         
         if (needs_pullup) {
-            pinMode(pin, INPUT_PULLUP);
+            unifiedPinMode(pin, INPUT_PULLUP);
             SQUID_LOG_DEBUG(MATRIX_TAG, "Configured pin %d as INPUT_PULLUP", pin);
         } else {
-            pinMode(pin, INPUT);
+            unifiedPinMode(pin, INPUT);
             SQUID_LOG_DEBUG(MATRIX_TAG, "Configured pin %d as INPUT (external pull-up)", pin);
         }
     }
@@ -193,9 +229,9 @@ void SQUIDMATRIX::scanMatrix() {
     for (int pin : _unique_from_pins) {
         bool needs_pullup = getOptimalPinMode(pin);
         if (needs_pullup) {
-            pinMode(pin, INPUT_PULLUP);
+            unifiedPinMode(pin, INPUT_PULLUP);
         } else {
-            pinMode(pin, INPUT);
+            unifiedPinMode(pin, INPUT);
         }
     }
     
@@ -213,8 +249,8 @@ void SQUIDMATRIX::scanWithTimeDivision() {
     int current_to_pin = _unique_to_pins[_current_active_to_pin];
     
     // Reduce stabilization delay
-    pinMode(current_to_pin, OUTPUT);
-    digitalWrite(current_to_pin, LOW);
+    unifiedPinMode(current_to_pin, OUTPUT);
+    unifiedDigitalWrite(current_to_pin, LOW);
     delayMicroseconds(3); // Reduced from 10μs
     
     for (size_t switch_idx = 0; switch_idx < _matrix.size(); ++switch_idx) {
@@ -222,7 +258,7 @@ void SQUIDMATRIX::scanWithTimeDivision() {
         if (pin_pair.is_ground || pin_pair.to_pin != current_to_pin) continue;
         
         // Pins should already be in correct state so just read immediately
-        bool pressed = (digitalRead(pin_pair.from_pin) == LOW);
+        bool pressed = (unifiedDigitalRead(pin_pair.from_pin) == LOW);
         
         _current_state[switch_idx] = pressed;
         
@@ -234,7 +270,11 @@ void SQUIDMATRIX::scanWithTimeDivision() {
     
     // Restore TO pin
     bool to_pin_needs_pullup = getOptimalPinMode(current_to_pin);
-    pinMode(current_to_pin, to_pin_needs_pullup ? INPUT_PULLUP : INPUT);
+    if (to_pin_needs_pullup) {
+        unifiedPinMode(current_to_pin, INPUT_PULLUP);
+    } else {
+        unifiedPinMode(current_to_pin, INPUT);
+    }
     
     _current_active_to_pin = (_current_active_to_pin + 1) % _unique_to_pins.size();
 }
@@ -252,15 +292,15 @@ void SQUIDMATRIX::scanDirectGND() {
         // Use pre-detected optimal pin mode
         bool needs_pullup = getOptimalPinMode(pin_pair.from_pin);
         if (needs_pullup) {
-            pinMode(pin_pair.from_pin, INPUT_PULLUP);
+            unifiedPinMode(pin_pair.from_pin, INPUT_PULLUP);
         } else {
-            pinMode(pin_pair.from_pin, INPUT);
+            unifiedPinMode(pin_pair.from_pin, INPUT);
         }
         
         delayMicroseconds(3);
         
         // Read the pin - LOW means pressed in both modes
-        bool pressed = (digitalRead(pin_pair.from_pin) == LOW);
+        bool pressed = (unifiedDigitalRead(pin_pair.from_pin) == LOW);
         
         // Update state
         _current_state[switch_idx] = pressed;
@@ -278,9 +318,9 @@ void SQUIDMATRIX::scanDirectGND() {
         
         // Restore pin to optimal safe state
         if (needs_pullup) {
-            pinMode(pin_pair.from_pin, INPUT_PULLUP);
+            unifiedPinMode(pin_pair.from_pin, INPUT_PULLUP);
         } else {
-            pinMode(pin_pair.from_pin, INPUT);
+            unifiedPinMode(pin_pair.from_pin, INPUT);
         }
     }
 }
@@ -312,61 +352,14 @@ void SQUIDMATRIX::printMatrixState() {
 // Keymap Implementation
 // ============================================================================
 
-static const char* KEYMAP_TAG = "SQUIDKEYMAP";
+static const char* LAYER_KEYMAP_TAG = "SQUIDKEYMAP";
 
 SQUIDKEYMAP::SQUIDKEYMAP() 
-    : _press_callback(nullptr), _release_callback(nullptr) {}
-
-void SQUIDKEYMAP::begin(const squid_map& keymap,
-                       std::function<void(const KeymapEntry&)> press_callback,
-                       std::function<void(const KeymapEntry&)> release_callback) {
-    _keymap = keymap;
-    _press_callback = press_callback;
-    _release_callback = release_callback;
-    
-    SQUID_LOG_INFO(KEYMAP_TAG, "Keymap initialized with %zu keys", keymap.size());
-}
-
-void SQUIDKEYMAP::handleKeyEvent(size_t switch_index, bool pressed) {
-    if (switch_index < _keymap.size()) {
-        const auto& key_entry = _keymap[switch_index];
-        
-        SQUID_LOG_DEBUG(KEYMAP_TAG, "Key event: switch_index=%zu, type=%d, pressed=%s", 
-                     switch_index, static_cast<int>(key_entry.type), pressed ? "true" : "false");
-        
-        if (pressed && _press_callback) {
-            _press_callback(key_entry);
-        } else if (!pressed && _release_callback) {
-            _release_callback(key_entry);
-        }
-    } else {
-        SQUID_LOG_WARN(KEYMAP_TAG, "Invalid key position: switch_index=%zu", switch_index);
-    }
-}
-
-KeymapEntry SQUIDKEYMAP::getKeyAt(size_t switch_index) const {
-    if (switch_index < _keymap.size()) {
-        return _keymap[switch_index];
-    }
-    return KeymapEntry(NKROKey{0}); // Return null key
-}
-
-size_t SQUIDKEYMAP::getKeyCount() const {
-    return _keymap.size();
-}
-
-// ============================================================================
-// Layering Implementation
-// ============================================================================
-
-static const char* LAYER_KEYMAP_TAG = "SQUIDLAYERKEYMAP";
-
-SquidLayerKeymap::SquidLayerKeymap() 
     : _press_callback(nullptr), 
       _release_callback(nullptr),
       _layer_change_callback(nullptr) {}
 
-void SquidLayerKeymap::begin(
+void SQUIDKEYMAP::begin(
     const std::vector<std::vector<LayerKeymapEntry>>& layers,
     std::function<void(const KeymapEntry&)> press_callback,
     std::function<void(const KeymapEntry&)> release_callback,
@@ -386,7 +379,7 @@ void SquidLayerKeymap::begin(
     SQUID_LOG_INFO(LAYER_KEYMAP_TAG, "Layer keymap initialized with %zu layers", _layers.size());
 }
 
-void SquidLayerKeymap::handleKeyEvent(size_t switch_index, bool pressed) {
+void SQUIDKEYMAP::handleKeyEvent(size_t switch_index, bool pressed) {
     if (switch_index >= getKeyCount()) {
         SQUID_LOG_WARN(LAYER_KEYMAP_TAG, "Invalid key position: %zu", switch_index);
         return;
@@ -444,11 +437,11 @@ void SquidLayerKeymap::handleKeyEvent(size_t switch_index, bool pressed) {
     }
 }
 
-void SquidLayerKeymap::update() {
+void SQUIDKEYMAP::update() {
     // This does nothing rn but it exists for Tap Dance implementations later down the line
 }
 
-void SquidLayerKeymap::setDefaultLayer(uint8_t layer) {
+void SQUIDKEYMAP::setDefaultLayer(uint8_t layer) {
     if (layer < _layers.size()) {
         _layer_state.default_layer = layer;
         
@@ -466,7 +459,7 @@ void SquidLayerKeymap::setDefaultLayer(uint8_t layer) {
     }
 }
 
-void SquidLayerKeymap::momentaryLayer(uint8_t layer, bool pressed) {
+void SQUIDKEYMAP::momentaryLayer(uint8_t layer, bool pressed) {
     if (layer >= _layers.size()) return;
     
     auto it = std::find(_layer_state.active_layers.begin(), 
@@ -485,7 +478,7 @@ void SquidLayerKeymap::momentaryLayer(uint8_t layer, bool pressed) {
     }
 }
 
-void SquidLayerKeymap::toggleLayer(uint8_t layer) {
+void SQUIDKEYMAP::toggleLayer(uint8_t layer) {
     if (layer >= _layers.size()) return;
     
     _layer_state.layer_states[layer] = !_layer_state.layer_states[layer];
@@ -508,28 +501,28 @@ void SquidLayerKeymap::toggleLayer(uint8_t layer) {
     }
 }
 
-void SquidLayerKeymap::layerOn(uint8_t layer) {
+void SQUIDKEYMAP::layerOn(uint8_t layer) {
     if (layer < _layers.size() && !_layer_state.layer_states[layer]) {
         toggleLayer(layer);
     }
 }
 
-void SquidLayerKeymap::layerOff(uint8_t layer) {
+void SQUIDKEYMAP::layerOff(uint8_t layer) {
     if (layer < _layers.size() && _layer_state.layer_states[layer]) {
         toggleLayer(layer);
     }
 }
 
-uint8_t SquidLayerKeymap::getActiveLayer() const {
+uint8_t SQUIDKEYMAP::getActiveLayer() const {
     return _layer_state.active_layers.empty() ? 0 : _layer_state.active_layers.back();
 }
 
-bool SquidLayerKeymap::isLayerActive(uint8_t layer) const {
+bool SQUIDKEYMAP::isLayerActive(uint8_t layer) const {
     return std::find(_layer_state.active_layers.begin(), 
                     _layer_state.active_layers.end(), layer) != _layer_state.active_layers.end();
 }
 
-LayerKeymapEntry SquidLayerKeymap::getKeyAt(size_t switch_index) const {
+LayerKeymapEntry SQUIDKEYMAP::getKeyAt(size_t switch_index) const {
     if (switch_index < getKeyCount()) {
         for (int i = _layer_state.active_layers.size() - 1; i >= 0; i--) {
             uint8_t layer = _layer_state.active_layers[i];
@@ -544,7 +537,7 @@ LayerKeymapEntry SquidLayerKeymap::getKeyAt(size_t switch_index) const {
     return LayerKeymapEntry(); // Return transparent if nothing found
 }
 
-KeymapEntry SquidLayerKeymap::getEffectiveKeyAt(size_t switch_index) const {
+KeymapEntry SQUIDKEYMAP::getEffectiveKeyAt(size_t switch_index) const {
     LayerKeymapEntry layer_entry = getKeyAt(switch_index);
     if (layer_entry.action_type == LayerActionType::NORMAL_KEY) {
         return layer_entry.action.key;
@@ -552,11 +545,11 @@ KeymapEntry SquidLayerKeymap::getEffectiveKeyAt(size_t switch_index) const {
     return KeymapEntry(); // Return null key for non-normal actions
 }
 
-size_t SquidLayerKeymap::getLayerCount() const {
+size_t SQUIDKEYMAP::getLayerCount() const {
     return _layers.size();
 }
 
-size_t SquidLayerKeymap::getKeyCount() const {
+size_t SQUIDKEYMAP::getKeyCount() const {
     // Return the maximum key count across all layers
     size_t max_keys = 0;
     for (const auto& layer : _layers) {
