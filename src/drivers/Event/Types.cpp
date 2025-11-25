@@ -21,7 +21,7 @@ void SQUIDMATRIX::begin(const squid_matrix& matrix,
     _matrix = matrix;
     _key_event_callback = key_event_callback;
     
-    // Initialize state vectors (SIMPLIFIED: single row)
+    // Initialize state vectors
     _current_state.assign(_matrix.size(), false);
     _previous_state.assign(_matrix.size(), false);
     
@@ -353,4 +353,216 @@ KeymapEntry SQUIDKEYMAP::getKeyAt(size_t switch_index) const {
 
 size_t SQUIDKEYMAP::getKeyCount() const {
     return _keymap.size();
+}
+
+// ============================================================================
+// Layering Implementation
+// ============================================================================
+
+static const char* LAYER_KEYMAP_TAG = "SQUIDLAYERKEYMAP";
+
+SquidLayerKeymap::SquidLayerKeymap() 
+    : _press_callback(nullptr), 
+      _release_callback(nullptr),
+      _layer_change_callback(nullptr) {}
+
+void SquidLayerKeymap::begin(
+    const std::vector<std::vector<LayerKeymapEntry>>& layers,
+    std::function<void(const KeymapEntry&)> press_callback,
+    std::function<void(const KeymapEntry&)> release_callback,
+    std::function<void(uint8_t)> layer_change_callback) {
+    
+    _layers = layers;
+    _press_callback = press_callback;
+    _release_callback = release_callback;
+    _layer_change_callback = layer_change_callback;
+    
+    // Initialize layer state
+    _layer_state.default_layer = 0;
+    _layer_state.layer_states.assign(_layers.size(), false);
+    _layer_state.layer_states[0] = true; // Default layer active
+    _layer_state.active_layers.push_back(0);
+    
+    SQUID_LOG_INFO(LAYER_KEYMAP_TAG, "Layer keymap initialized with %zu layers", _layers.size());
+}
+
+void SquidLayerKeymap::handleKeyEvent(size_t switch_index, bool pressed) {
+    if (switch_index >= getKeyCount()) {
+        SQUID_LOG_WARN(LAYER_KEYMAP_TAG, "Invalid key position: %zu", switch_index);
+        return;
+    }
+    
+    // Find the highest priority non-transparent key
+    LayerKeymapEntry action;
+    for (int i = _layer_state.active_layers.size() - 1; i >= 0; i--) {
+        uint8_t layer = _layer_state.active_layers[i];
+        if (switch_index < _layers[layer].size()) {
+            action = _layers[layer][switch_index];
+            if (action.action_type != LayerActionType::TRANSPARENT) {
+                break;
+            }
+        }
+    }
+    
+    // Handle the action
+    switch (action.action_type) {
+        case LayerActionType::NORMAL_KEY:
+            if (_press_callback && pressed) {
+                _press_callback(action.action.key);
+            }
+            if (_release_callback && !pressed) {
+                _release_callback(action.action.key);
+            }
+            break;
+            
+        case LayerActionType::LAYER_MOMENTARY:
+            momentaryLayer(action.action.layer_index, pressed);
+            break;
+            
+        case LayerActionType::LAYER_TOGGLE:
+            if (pressed) toggleLayer(action.action.layer_index);
+            break;
+            
+        case LayerActionType::LAYER_ON:
+            if (pressed) layerOn(action.action.layer_index);
+            break;
+            
+        case LayerActionType::LAYER_OFF:
+            if (pressed) layerOff(action.action.layer_index);
+            break;
+            
+        case LayerActionType::LAYER_DEFAULT:
+            if (pressed) setDefaultLayer(action.action.layer_index);
+            break;
+            
+        case LayerActionType::LAYER_MOD:
+            momentaryLayer(action.action.layer_index, pressed);
+            break;
+            
+        case LayerActionType::TRANSPARENT:
+            break;
+    }
+}
+
+void SquidLayerKeymap::update() {
+    // This does nothing rn but it exists for Tap Dance implementations later down the line
+}
+
+void SquidLayerKeymap::setDefaultLayer(uint8_t layer) {
+    if (layer < _layers.size()) {
+        _layer_state.default_layer = layer;
+        
+        // Reset to just the default layer
+        _layer_state.active_layers.clear();
+        _layer_state.active_layers.push_back(layer);
+        _layer_state.layer_states.assign(_layers.size(), false);
+        _layer_state.layer_states[layer] = true;
+        
+        if (_layer_change_callback) {
+            _layer_change_callback(layer);
+        }
+        
+        SQUID_LOG_INFO(LAYER_KEYMAP_TAG, "Default layer set to %d", layer);
+    }
+}
+
+void SquidLayerKeymap::momentaryLayer(uint8_t layer, bool pressed) {
+    if (layer >= _layers.size()) return;
+    
+    auto it = std::find(_layer_state.active_layers.begin(), 
+                       _layer_state.active_layers.end(), layer);
+    
+    if (pressed) {
+        if (it == _layer_state.active_layers.end()) {
+            _layer_state.active_layers.push_back(layer);
+            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Layer %d activated (momentary)", layer);
+        }
+    } else {
+        if (it != _layer_state.active_layers.end()) {
+            _layer_state.active_layers.erase(it);
+            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Layer %d deactivated (momentary)", layer);
+        }
+    }
+}
+
+void SquidLayerKeymap::toggleLayer(uint8_t layer) {
+    if (layer >= _layers.size()) return;
+    
+    _layer_state.layer_states[layer] = !_layer_state.layer_states[layer];
+    
+    // Update active layers list
+    _layer_state.active_layers.clear();
+    _layer_state.active_layers.push_back(_layer_state.default_layer);
+    
+    for (uint8_t i = 0; i < _layer_state.layer_states.size(); i++) {
+        if (_layer_state.layer_states[i] && i != _layer_state.default_layer) {
+            _layer_state.active_layers.push_back(i);
+        }
+    }
+    
+    SQUID_LOG_INFO(LAYER_KEYMAP_TAG, "Layer %d toggled %s", layer, 
+                  _layer_state.layer_states[layer] ? "ON" : "OFF");
+    
+    if (_layer_change_callback) {
+        _layer_change_callback(getActiveLayer());
+    }
+}
+
+void SquidLayerKeymap::layerOn(uint8_t layer) {
+    if (layer < _layers.size() && !_layer_state.layer_states[layer]) {
+        toggleLayer(layer);
+    }
+}
+
+void SquidLayerKeymap::layerOff(uint8_t layer) {
+    if (layer < _layers.size() && _layer_state.layer_states[layer]) {
+        toggleLayer(layer);
+    }
+}
+
+uint8_t SquidLayerKeymap::getActiveLayer() const {
+    return _layer_state.active_layers.empty() ? 0 : _layer_state.active_layers.back();
+}
+
+bool SquidLayerKeymap::isLayerActive(uint8_t layer) const {
+    return std::find(_layer_state.active_layers.begin(), 
+                    _layer_state.active_layers.end(), layer) != _layer_state.active_layers.end();
+}
+
+LayerKeymapEntry SquidLayerKeymap::getKeyAt(size_t switch_index) const {
+    if (switch_index < getKeyCount()) {
+        for (int i = _layer_state.active_layers.size() - 1; i >= 0; i--) {
+            uint8_t layer = _layer_state.active_layers[i];
+            if (switch_index < _layers[layer].size()) {
+                LayerKeymapEntry entry = _layers[layer][switch_index];
+                if (entry.action_type != LayerActionType::TRANSPARENT) {
+                    return entry;
+                }
+            }
+        }
+    }
+    return LayerKeymapEntry(); // Return transparent if nothing found
+}
+
+KeymapEntry SquidLayerKeymap::getEffectiveKeyAt(size_t switch_index) const {
+    LayerKeymapEntry layer_entry = getKeyAt(switch_index);
+    if (layer_entry.action_type == LayerActionType::NORMAL_KEY) {
+        return layer_entry.action.key;
+    }
+    return KeymapEntry(); // Return null key for non-normal actions
+}
+
+size_t SquidLayerKeymap::getLayerCount() const {
+    return _layers.size();
+}
+
+size_t SquidLayerKeymap::getKeyCount() const {
+    // Return the maximum key count across all layers
+    size_t max_keys = 0;
+    for (const auto& layer : _layers) {
+        if (layer.size() > max_keys) {
+            max_keys = layer.size();
+        }
+    }
+    return max_keys;
 }
