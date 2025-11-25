@@ -65,7 +65,7 @@
 
 // Scanning/Polling interval
 #define SCAN_INTERVAL 1
-#define POLL_INTERVAL 200
+#define POLL_INTERVAL 250
 #define LED_INTERVAL  50
 #define OLED_INTERVAL 100
 
@@ -74,6 +74,9 @@ class SQUIDHID : public Print
 {
 private:
   std::unique_ptr<Transport>  transport;
+  
+
+
   
   uint16_t vid             =  0x046D; // I picked random numbers here and it worked fine,
   uint16_t pid             =  0xC52B; // idk if these actually matter at all for anything
@@ -84,7 +87,7 @@ private:
   uint32_t                    _delay_ms = 5; 
   
   SQUIDMATRIX                 matrix;
-  SQUIDKEYMAP                 keymap;
+  SquidLayerKeymap            keymap;
   
   #if KEYBOARD_ENABLE
     SQUIDNKRO                 nkro;
@@ -141,7 +144,7 @@ public:
   void onDisconnect() override;
   void onDataReceived(const uint8_t* data, size_t length) override;
   
-  void begin(const squid_matrix& matrix, const squid_map& keymap);
+  void begin(const squid_matrix& matrix, const std::vector<std::vector<LayerKeymapEntry>>& layers);
   void begin(void);
   void update(void);
   void end(void);
@@ -170,10 +173,15 @@ public:
   
   // Matrix and Keymap methods
   void    setupMatrix(const squid_matrix& matrix);
-  void    setupKeymap(const squid_map& keymap);
+  void    setupKeymap(const std::vector<std::vector<LayerKeymapEntry>>& layers);
   void    updateMatrix();
   bool    isKeyPressed(size_t switch_index);
-  
+  void    setDefaultLayer(uint8_t layer);
+  void    momentaryLayer(uint8_t layer, bool pressed);
+  void    toggleLayer(uint8_t layer);
+  uint8_t getActiveLayer() const;
+  bool    isLayerActive(uint8_t layer) const;
+    
   #if KEYBOARD_ENABLE
     size_t  press(NKROKey k);
     size_t  press(ModKey modifier);
@@ -246,7 +254,7 @@ public:
     void      setLEDColor(uint16_t index, uint32_t color);
     void      setLEDColor(uint16_t index, uint8_t r, uint8_t g, uint8_t b);
     void      fillLEDs(uint8_t r, uint8_t g, uint8_t b);
-    void      fillLEDsRGB(uint8_t r, uint8_t g, uint8_t b, uint16_t first = 0, uint16_t count = 0); // Different name
+    void      fillLEDsRGB(uint8_t r, uint8_t g, uint8_t b, uint16_t first = 0, uint16_t count = 0);
     void      clearLEDs();
     void      showLEDs();
     void      setLEDBrightness(uint8_t brightness);
