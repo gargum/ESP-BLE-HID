@@ -130,26 +130,38 @@ SQUIDHID::SQUIDHID(std::string deviceName, std::string deviceManufacturer,
     , oledInitialized(false)
     #endif
     , lastPollTime(0) 
-
 {
-    // Create appropriate transport based on type
+    // Create appropriate transport based on type and config
     switch (type) {
-      #if TRANSPORT == USB
+        #if TRANSPORT == USB
         case TransportType::USB:
             transport = std::make_unique<USBTransport>();
-      #endif
-    
-      #if TRANSPORT == PS2
+            break;
+        #endif
+        
+        #if TRANSPORT == PS2  
         case TransportType::PS2:
             transport = std::make_unique<PS2Transport>();
-      #endif
-      
-      #if TRANSPORT == BLE
+            break;
+        #endif
+        
+        #if TRANSPORT == BLE
         case TransportType::BLE:
             transport = std::make_unique<BLETransport>();
-      #endif
+            break;
+        #endif
+        
         default:
-            transport = std::make_unique<BLETransport>();
+            // Use the transport type defined in config.h
+            #if TRANSPORT == USB
+                transport = std::make_unique<USBTransport>();
+            #elif TRANSPORT == PS2
+                transport = std::make_unique<PS2Transport>();
+            #elif TRANSPORT == BLE
+                transport = std::make_unique<BLETransport>();
+            #else
+                #error "No valid transport configured"
+            #endif
             break;
     }
     
@@ -162,9 +174,10 @@ SQUIDHID::SQUIDHID(std::string deviceName, std::string deviceManufacturer,
     
     SQUIDLOGS::getInstance().initialize(); 
     _activeSQUIDHIDInstance = this;
-    SQUID_LOG_INFO(LOG_TAG, "SQUIDHID instance created with transport layer");
+    SQUID_LOG_INFO(LOG_TAG, "SQUIDHID instance created with %s transport", 
+                   type == TransportType::USB ? "USB" : 
+                   type == TransportType::BLE ? "BLE" : "PS2");
 }
-
 
 SQUIDHID::~SQUIDHID() {
     #if LED_ENABLE
@@ -186,15 +199,15 @@ SQUIDHID::~SQUIDHID() {
     }
 }
 
-void SQUIDHID::begin(const squid_matrix& matrix, const squid_map& keymap) {
-    // Call the original begin to initialize transport
+void SQUIDHID::begin(const squid_matrix& matrix, const std::vector<std::vector<LayerKeymapEntry>>& layers) {
+    // Initialize transport
     begin();
     
-    // Setup matrix and keymap
+    // Setup matrix and keymap with layers
     setupMatrix(matrix);
-    setupKeymap(keymap);
+    setupKeymap(layers);
     
-    SQUID_LOG_INFO(LOG_TAG, "SQUIDHID started with matrix and keymap");
+    SQUID_LOG_INFO(LOG_TAG, "SQUIDHID started with matrix and layered keymap");
 }
 
 void SQUIDHID::begin(void) {
@@ -346,7 +359,7 @@ void SQUIDHID::update() {
     #endif
     
     #if OLED_ENABLE
-    // Update OLED less frequently to avoid flickering
+    // Update OLED, but not too frequently so as to avoid flickering
     if (currentTime - lastOLEDTime >= 100) { // Update every 100ms
         lastOLEDTime = currentTime;
         // Could add periodic status updates here if needed
@@ -547,7 +560,7 @@ void SQUIDHID::setupMatrix(const squid_matrix& matrix) {
     SQUID_LOG_INFO(LOG_TAG, "Keyboard matrix configured with %zu switches", matrix.size());
 }
 
-void SQUIDHID::setupKeymap(const squid_map& keymap) {
+void SQUIDHID::setupKeymap(const std::vector<std::vector<LayerKeymapEntry>>& layers) {
     auto press_callback = [this](const KeymapEntry& key_entry) {
         switch (key_entry.type) {
             case KeypressType::NKRO_KEY:
@@ -614,16 +627,42 @@ void SQUIDHID::setupKeymap(const squid_map& keymap) {
         }
     };
     
-    this->keymap.begin(keymap, press_callback, release_callback);
-    SQUID_LOG_INFO(LOG_TAG, "Keymap configured");
+    auto layer_change_callback = [this](uint8_t layer) {
+        SQUID_LOG_INFO("LAYER", "Active layer changed to %d", layer);
+        
+        #if OLED_ENABLE
+        this->oledShowLayerInfo(layer);
+        #endif
+    };
+    
+    keymap.begin(layers, press_callback, release_callback, layer_change_callback);
+    
+    SQUID_LOG_INFO(LOG_TAG, "Layered keymap configured with %zu layers", layers.size());
+}
+
+void SQUIDHID::setDefaultLayer(uint8_t layer) {
+    keymap.setDefaultLayer(layer);
+}
+
+void SQUIDHID::momentaryLayer(uint8_t layer, bool pressed) {
+    keymap.momentaryLayer(layer, pressed);
+}
+
+void SQUIDHID::toggleLayer(uint8_t layer) {
+    keymap.toggleLayer(layer);
+}
+
+uint8_t SQUIDHID::getActiveLayer() const {
+    return keymap.getActiveLayer();
+}
+
+bool SQUIDHID::isLayerActive(uint8_t layer) const {
+    return keymap.isLayerActive(layer);
 }
 
 void SQUIDHID::updateMatrix() {
     this->matrix.update();
-}
-
-bool SQUIDHID::isKeyPressed(size_t switch_index) {
-    return this->matrix.isPressed(switch_index);
+    keymap.update();
 }
 
 //
@@ -955,7 +994,7 @@ void SQUIDHID::oledShowSquidLogo(OLED::tColor color) {
     // Clear display
     oledDisplay->clear(OLED::BLACK);
     
-    // Center the 64x64 squid logo on a 128x64 display
+    // Center the 64x64 squid logo on a 128x64 display (I didn't add support for other sizes yet)
     // Calculate x position to center: (128 - 64) / 2 = 32
     // y position: 0 (top of screen)
     oledDisplay->draw_bitmap_P(32, 0, 64, 64, simple_squid, color);
