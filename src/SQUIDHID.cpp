@@ -194,6 +194,13 @@ SQUIDHID::~SQUIDHID() {
     }
     #endif
     
+    #if MCP_ENABLE
+      if (mcpExpander) {
+        delete mcpExpander;
+        mcpExpander = nullptr;
+      }
+    #endif
+    
     if (_activeSQUIDHIDInstance == this) {
         _activeSQUIDHIDInstance = nullptr;
     }
@@ -274,6 +281,19 @@ void SQUIDHID::begin(void) {
         SQUID_LOG_ERROR(LOG_TAG, "Failed to start advertising");
         return;
     }
+    
+    #if MCP_ENABLE
+      // Auto-initialize MCP if enabled in config
+      if (!mcpInitialized) {
+        #if defined(SDA_PIN) && defined(SCL_PIN) && I2C_ENABLE
+          initializeMCP_I2C(); // Use default I2C address
+          SQUID_LOG_INFO(LOG_TAG, "Auto-initialized MCP with SDA:%d, SCL:%d", SDA_PIN, SCL_PIN);
+        #elif defined(CS_PIN) && SPI_ENABLE
+          initializeMCP_SPI(CS_PIN);
+          SQUID_LOG_INFO(LOG_TAG, "Auto-initialized MCP with SPI CS:%d", CS_PIN);
+        #endif
+      }
+    #endif
     
     // Initialize features
     SQUID_LOG_DEBUG(LOG_TAG, "Initializing feature modules...");
@@ -377,6 +397,113 @@ void SQUIDHID::end(void) {
 //
 // ----------------------------------------- Global Function Block
 //
+
+bool SQUIDHID::isMCPPin(uint8_t pin) const {
+  // MCP pins are defined as A0-A7 = 100-107, B0-B7 = 108-115
+  // I'm aliasing that to 0x80-0x8F in hopes that smaller numbers mean it'll run more efficiently
+  return (pin >= 0x80 && pin <= 0x8F);
+}
+
+// This converts the A0-B7 pin definitions to MCP pin number 0-15
+uint8_t SQUIDHID::toMCPPin(uint8_t pin) const {
+  return pin - 0x80;
+}
+
+// Unified pinMode method 
+void SQUIDHID::pinMode(uint8_t pin, uint8_t mode) {
+  if (isMCPPin(pin)) {
+    #if MCP_ENABLE
+    if (mcpInitialized && mcpExpander) {
+      uint8_t mcpPin = toMCPPin(pin);
+      mcpExpander->pinMode(mcpPin, mode);
+    } else {
+      SQUID_LOG_WARN("SQUIDHID", "MCP expander not initialized, cannot set pin mode for MCP pin %d", pin);
+    }
+    #endif
+  } else {
+    // Regular Arduino pin
+    ::pinMode(pin, mode);
+  }
+}
+
+// Unified digitalWrite method
+void SQUIDHID::digitalWrite(uint8_t pin, uint8_t value) {
+  if (isMCPPin(pin)) {
+    #if MCP_ENABLE
+    if (mcpInitialized && mcpExpander) {
+      uint8_t mcpPin = toMCPPin(pin);
+      mcpExpander->digitalWrite(mcpPin, value);
+    } else {
+      SQUID_LOG_WARN("SQUIDHID", "MCP expander not initialized, cannot write to MCP pin %d", pin);
+    }
+    #endif
+  } else {
+    // Regular Arduino pin
+    ::digitalWrite(pin, value);
+  }
+}
+
+// Unified digitalRead method
+uint8_t SQUIDHID::digitalRead(uint8_t pin) {
+  if (isMCPPin(pin)) {
+    #if MCP_ENABLE
+    if (mcpInitialized && mcpExpander) {
+      uint8_t mcpPin = toMCPPin(pin);
+      return mcpExpander->digitalRead(mcpPin);
+    } else {
+      SQUID_LOG_WARN("SQUIDHID", "MCP expander not initialized, cannot read from MCP pin %d", pin);
+      return LOW;
+    }
+    #endif
+  } else {
+    // Regular Arduino pin
+    return ::digitalRead(pin);
+  }
+  return LOW;
+}
+
+#if MCP_ENABLE
+#if I2C_ENABLE
+bool SQUIDHID::initializeMCP_I2C(uint8_t i2c_addr, TwoWire *wire) {
+  if (mcpExpander) {
+    delete mcpExpander;
+  }
+  
+  mcpExpander = new MCP23XXX();
+  mcpInitialized = mcpExpander->begin_I2C(i2c_addr, wire);
+  
+  if (mcpInitialized) {
+    SQUID_LOG_INFO("SQUIDHID", "MCP23XXX expander initialized via I2C at address 0x%02X", i2c_addr);
+  } else {
+    SQUID_LOG_ERROR("SQUIDHID", "Failed to initialize MCP23XXX expander via I2C");
+    delete mcpExpander;
+    mcpExpander = nullptr;
+  }
+  
+  return mcpInitialized;
+}
+#endif
+#if SPI_ENABLE
+bool SQUIDHID::initializeMCP_SPI(uint8_t cs_pin, SPIClass *theSPI, uint8_t hw_addr) {
+  if (mcpExpander) {
+    delete mcpExpander;
+  }
+  
+  mcpExpander = new MCP23XXX();
+  mcpInitialized = mcpExpander->begin_SPI(cs_pin, theSPI, hw_addr);
+  
+  if (mcpInitialized) {
+    SQUID_LOG_INFO("SQUIDHID", "MCP23XXX expander initialized via SPI with CS pin %d", cs_pin);
+  } else {
+    SQUID_LOG_ERROR("SQUIDHID", "Failed to initialize MCP23XXX expander via SPI");
+    delete mcpExpander;
+    mcpExpander = nullptr;
+  }
+  
+  return mcpInitialized;
+}
+#endif
+#endif
 
 void SQUIDHID::onConnect() {
     SQUID_LOG_INFO(LOG_TAG, "Transport connected");
@@ -556,7 +683,20 @@ void SQUIDHID::setupMatrix(const squid_matrix& matrix) {
         this->keymap.handleKeyEvent(switch_index, pressed);
     };
     
-    this->matrix.begin(matrix, key_event_callback);
+    auto pinModeFunc = [this](uint8_t pin, uint8_t mode) {
+        this->pinMode(pin, mode);
+    };
+    
+    auto digitalWriteFunc = [this](uint8_t pin, uint8_t value) {
+        this->digitalWrite(pin, value);
+    };
+    
+    auto digitalReadFunc = [this](uint8_t pin) -> uint8_t {
+        return this->digitalRead(pin);
+    };
+    
+    // The unified GPIO functions are being used for matrix scanning because it makes weirder matrices easier to define
+    this->matrix.begin(matrix, key_event_callback, pinModeFunc, digitalWriteFunc, digitalReadFunc);
     SQUID_LOG_INFO(LOG_TAG, "Keyboard matrix configured with %zu switches", matrix.size());
 }
 
