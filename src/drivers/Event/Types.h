@@ -164,7 +164,10 @@ union KeymapValue {
     MediaKey        media_key;
     StenoKey        steno_key;
     GamepadButton   gamepad_button;
+    GamepadHat      gamepad_hat;
+    GamepadAnalogue gamepad_analogue;
     MouseKey        mouse_key;
+    DigitizerKey    digitizer_key;
     
     KeymapValue() : nkro_key(NKROKey{0}) {}
     KeymapValue(NKROKey k) : nkro_key(k) {}
@@ -172,7 +175,10 @@ union KeymapValue {
     KeymapValue(MediaKey k) : media_key(k) {}
     KeymapValue(StenoKey k) : steno_key(k) {}
     KeymapValue(GamepadButton k) : gamepad_button(k) {}
+    KeymapValue(GamepadHat k) : gamepad_hat(k) {}
+    KeymapValue(GamepadAnalogue k) : gamepad_analogue(k) {}
     KeymapValue(MouseKey k) : mouse_key(k) {}
+    KeymapValue(DigitizerKey k) : digitizer_key(k) {}
 };
 
 // Key type identifier
@@ -182,7 +188,10 @@ enum class KeypressType {
     MEDIA_KEY,
     STENO_KEY,
     GAMEPAD_BUTTON,
-    MOUSE_KEY
+    GAMEPAD_HAT,
+    GAMEPAD_ANALOGUE,
+    MOUSE_KEY,
+    DIGITIZER_KEY
 };
 
 // Keymap entry
@@ -196,7 +205,10 @@ struct KeymapEntry {
     KeymapEntry(MediaKey k) : type(KeypressType::MEDIA_KEY), key(k) {}
     KeymapEntry(StenoKey k) : type(KeypressType::STENO_KEY), key(k) {}
     KeymapEntry(GamepadButton k) : type(KeypressType::GAMEPAD_BUTTON), key(k) {}
+    KeymapEntry(GamepadHat k) : type(KeypressType::GAMEPAD_HAT), key(k) {}
+    KeymapEntry(GamepadAnalogue k) : type(KeypressType::GAMEPAD_ANALOGUE), key(k) {}
     KeymapEntry(MouseKey k) : type(KeypressType::MOUSE_KEY), key(k) {}
+    KeymapEntry(DigitizerKey k) : type(KeypressType::DIGITIZER_KEY), key(k) {}
     
     // Default constructor
     KeymapEntry() : type(KeypressType::NKRO_KEY), key(NKROKey{0}) {}
@@ -213,6 +225,138 @@ public:
         : std::vector<KeymapEntry>(keys) {}
     
 };
+
+// ============================================================================
+// Layer Definitions
+// ============================================================================
+
+// Layer action types
+enum class LayerActionType {
+    NORMAL_KEY,           // Regular keypress
+    LAYER_MOMENTARY,      // Momentary layer switch (while held)
+    LAYER_TOGGLE,         // Toggle layer on/off
+    LAYER_ON,             // Turn layer on
+    LAYER_OFF,            // Turn layer off
+    LAYER_MOD,            // Layer modifier (shift to layer while held)
+    TRANSPARENT,          // Pass through to lower layer
+    LAYER_DEFAULT,        // Switch to default layer
+};
+
+// Simple layer action value - using a struct instead of union
+struct LayerActionValue {
+    KeymapEntry key;                   // For NORMAL_KEY
+    uint8_t layer_index;               // For layer actions
+    
+    // Simple constructor
+    LayerActionValue() : key(), layer_index(0) {}
+};
+
+// Enhanced keymap entry with layer support
+struct LayerKeymapEntry {
+    LayerActionType action_type;
+    LayerActionValue action;
+    
+    // Constructors for different action types
+    LayerKeymapEntry(KeymapEntry k) 
+        : action_type(LayerActionType::NORMAL_KEY) { 
+        action.key = k; 
+    }
+    
+    LayerKeymapEntry(LayerActionType type, uint8_t layer) 
+        : action_type(type) { 
+        action.layer_index = layer; 
+    }
+    
+    // Constructor for regular key codes (implicit conversion from KeymapEntry)
+    LayerKeymapEntry(NKROKey k) 
+        : action_type(LayerActionType::NORMAL_KEY) { 
+        action.key = KeymapEntry(k);
+    }
+    
+    LayerKeymapEntry(ModKey k) 
+        : action_type(LayerActionType::NORMAL_KEY) { 
+        action.key = KeymapEntry(k);
+    }
+    
+    LayerKeymapEntry(MediaKey k) 
+        : action_type(LayerActionType::NORMAL_KEY) { 
+        action.key = KeymapEntry(k);
+    }
+    
+    LayerKeymapEntry(MouseKey k) 
+        : action_type(LayerActionType::NORMAL_KEY) { 
+        action.key = KeymapEntry(k);
+    }
+    
+    LayerKeymapEntry(DigitizerKey k) 
+        : action_type(LayerActionType::NORMAL_KEY) { 
+        action.key = KeymapEntry(k);
+    }
+    
+    LayerKeymapEntry(GamepadButton k) 
+        : action_type(LayerActionType::NORMAL_KEY) { 
+        action.key = KeymapEntry(k);
+    } 
+    
+    LayerKeymapEntry(GamepadHat k) 
+        : action_type(LayerActionType::NORMAL_KEY) { 
+        action.key = KeymapEntry(k);
+    }
+    
+    LayerKeymapEntry(GamepadAnalogue k) 
+        : action_type(LayerActionType::NORMAL_KEY) { 
+        action.key = KeymapEntry(k);
+    }
+    
+    LayerKeymapEntry(StenoKey k) 
+        : action_type(LayerActionType::NORMAL_KEY) { 
+        action.key = KeymapEntry(k);
+    }
+    
+    // Default constructor
+    LayerKeymapEntry() 
+        : action_type(LayerActionType::NORMAL_KEY) {}
+};
+
+// Layer state management
+struct LayerState {
+    uint8_t default_layer;
+    std::vector<uint8_t> active_layers;  // Layer stack (highest priority first)
+    std::vector<bool> layer_states;      // Persistent layer states
+    
+    LayerState() : default_layer(0) {}
+};
+
+inline LayerKeymapEntry MO(uint8_t layer) { 
+    return LayerKeymapEntry(LayerActionType::LAYER_MOMENTARY, layer); 
+}
+
+inline LayerKeymapEntry TG(uint8_t layer) { 
+    return LayerKeymapEntry(LayerActionType::LAYER_TOGGLE, layer); 
+}
+
+inline LayerKeymapEntry TO(uint8_t layer) { 
+    return LayerKeymapEntry(LayerActionType::LAYER_ON, layer); 
+}
+
+inline LayerKeymapEntry DF(uint8_t layer) { 
+    return LayerKeymapEntry(LayerActionType::LAYER_DEFAULT, layer); 
+}
+
+inline LayerKeymapEntry TRANS() { 
+    return LayerKeymapEntry(LayerActionType::TRANSPARENT, 0); 
+}
+
+// Helper for creating layer definitions
+#define LAYER(key_entries) std::vector<LayerKeymapEntry> key_entries
+#define KEYMAP(layer_entries) std::vector<std::vector<LayerKeymapEntry>> layer_entries
+
+// Simplified layer action macros 
+#define MO(layer) LayerKeymapEntry(LayerActionType::LAYER_MOMENTARY, layer)
+#define TG(layer) LayerKeymapEntry(LayerActionType::LAYER_TOGGLE, layer)
+#define TO(layer) LayerKeymapEntry(LayerActionType::LAYER_ON, layer)
+#define DF(layer) LayerKeymapEntry(LayerActionType::LAYER_DEFAULT, layer)
+#define TRANS LayerKeymapEntry(LayerActionType::TRANSPARENT, 0)
 
 // ============================================================================
 // Matrix Class Implementation
@@ -285,6 +429,48 @@ public:
     KeymapEntry getKeyAt(size_t switch_index) const;
     
     // Get keymap size
+    size_t getKeyCount() const;
+};
+
+// ============================================================================
+// Layer Class Implementation
+// ============================================================================
+
+// Enhanced keymap class with layer support
+class SquidLayerKeymap {
+private:
+    std::vector<std::vector<LayerKeymapEntry>> _layers;
+    LayerState _layer_state;
+    
+    std::function<void(const KeymapEntry&)> _press_callback;
+    std::function<void(const KeymapEntry&)> _release_callback;
+    std::function<void(uint8_t)> _layer_change_callback;
+    
+public:
+    SquidLayerKeymap();
+    
+    void begin(const std::vector<std::vector<LayerKeymapEntry>>& layers,
+               std::function<void(const KeymapEntry&)> press_callback = nullptr,
+               std::function<void(const KeymapEntry&)> release_callback = nullptr,
+               std::function<void(uint8_t)> layer_change_callback = nullptr);
+    
+    void handleKeyEvent(size_t switch_index, bool pressed);
+    void update();
+    
+    // Layer management
+    void setDefaultLayer(uint8_t layer);
+    void momentaryLayer(uint8_t layer, bool pressed);
+    void toggleLayer(uint8_t layer);
+    void layerOn(uint8_t layer);
+    void layerOff(uint8_t layer);
+    
+    // State queries
+    uint8_t getActiveLayer() const;
+    bool isLayerActive(uint8_t layer) const;
+    LayerKeymapEntry getKeyAt(size_t switch_index) const;
+    KeymapEntry getEffectiveKeyAt(size_t switch_index) const;
+    
+    size_t getLayerCount() const;
     size_t getKeyCount() const;
 };
 
