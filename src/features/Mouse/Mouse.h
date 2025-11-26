@@ -8,11 +8,9 @@
 
 #include <stdint.h>
 #include "HIDTypes.h"
-#include "NimBLEDevice.h"
-#include "NimBLECharacteristic.h"
-#include "../../drivers/Log/Log.h"
-#include "../../drivers/Event/Types.h"
-#include "../../drivers/Transport/Transport.h"
+#include "../../drivers/Software/Log/Log.h"
+#include "../../drivers/Software/Event/Types.h"
+#include "../../drivers/Software/Transport/Transport.h"
 
 #define MOUSE_ID      0x04
 
