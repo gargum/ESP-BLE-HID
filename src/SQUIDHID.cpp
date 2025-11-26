@@ -242,9 +242,10 @@ void SQUIDHID::begin(void) {
     // Initialize OLED if configured and pins are set
     #if OLED_ENABLE
     if (!oledDisplay) {
-        // Auto-initialize OLED with pins from config.h
-        initializeOLED(SDA_PIN, SCL_PIN);
-        SQUID_LOG_INFO(LOG_TAG, "Auto-initialized OLED with SDA:%d, SCL:%d", SDA_PIN, SCL_PIN);
+    // Auto-initialize OLED with pins and dimensions from config.h
+    initializeOLED(SDA_PIN, SCL_PIN, OLED_WIDTH, OLED_HEIGHT);
+    SQUID_LOG_INFO(LOG_TAG, "Auto-initialized OLED %dx%d with SDA:%d, SCL:%d", 
+                   OLED_WIDTH, OLED_HEIGHT, SDA_PIN, SCL_PIN);
     }
     
     if (oledDisplay && !oledInitialized) {
@@ -1016,15 +1017,26 @@ bool SQUIDHID::ledsCanShow() {
 //
 
 #if OLED_ENABLE
-void SQUIDHID::initializeOLED(uint8_t sda_pin, uint8_t scl_pin, OLED::tDisplayCtrl displayCtrl, uint8_t i2c_address) {
+void SQUIDHID::initializeOLED(uint8_t sda_pin, uint8_t scl_pin, 
+                             uint_fast8_t width, uint_fast8_t height,
+                             OLED::tDisplayCtrl displayCtrl, uint8_t i2c_address) 
+{
     if (oledDisplay) {
         delete oledDisplay;
     }
     
-    oledDisplay = new OLED(sda_pin, scl_pin, displayCtrl, i2c_address);
+    // Use config values if not specified, with 128x64 as default fallback
+    uint_fast8_t displayWidth = (width == 0) ? 
+                               (OLED_WIDTH > 0 ? OLED_WIDTH : 128) : width;
+    uint_fast8_t displayHeight = (height == 0) ? 
+                                (OLED_HEIGHT > 0 ? OLED_HEIGHT : 64) : height;
+    
+    oledDisplay = new OLED(sda_pin, scl_pin, displayWidth, displayHeight, 
+                          displayCtrl, i2c_address);
     oledInitialized = false;
     
-    SQUID_LOG_INFO(LOG_TAG, "OLED driver initialized on SDA:%d SCL:%d", sda_pin, scl_pin);
+    SQUID_LOG_INFO(LOG_TAG, "OLED driver initialized on SDA:%d SCL:%d, Size: %dx%d", 
+                   sda_pin, scl_pin, displayWidth, displayHeight);
 }
 
 void SQUIDHID::oledClear(OLED::tColor color) {
@@ -1131,16 +1143,20 @@ void SQUIDHID::oledDrawBitmap_P(uint_fast8_t x, uint_fast8_t y, uint_fast8_t wid
 void SQUIDHID::oledShowSquidLogo(OLED::tColor color) {
     if (!oledDisplay || !oledInitialized) return;
     
-    // Clear display
     oledDisplay->clear(OLED::BLACK);
     
-    // Center the 64x64 squid logo on a 128x64 display (I didn't add support for other sizes yet)
-    // Calculate x position to center: (128 - 64) / 2 = 32
-    // y position: 0 (top of screen)
-    oledDisplay->draw_bitmap_P(32, 0, 64, 64, simple_squid, color);
+    // "Get" display dimensions (just read them off of the config.h file)
+    uint_fast8_t displayWidth = OLED_WIDTH;
+    uint_fast8_t displayHeight = OLED_HEIGHT;
     
-    // Add text below the logo
-    oledDisplay->draw_string(40, 56, "SquidHID", OLED::NORMAL_SIZE, color);
+    // Center the 64x64 squid logo
+    if (displayWidth >= 64 && displayHeight >= 64) {
+        uint_fast8_t x_pos = (displayWidth - 64) / 2;
+        uint_fast8_t y_pos = (displayHeight - 64) / 2;
+        oledDisplay->draw_bitmap_P(x_pos, y_pos, 64, 64, simple_squid, color);
+    }
+    
+    oledDisplay->display();
 }
 
 void SQUIDHID::oledShowConnectionStatus(bool connected) {
