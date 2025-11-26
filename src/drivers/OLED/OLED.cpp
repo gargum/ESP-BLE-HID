@@ -1,18 +1,28 @@
+/**
+ * @file OLED.cpp
+ * @brief Implementation of the I2C OLED driver
+ */
+
 #include <Arduino.h>
 #include "OLED.h"
 
-OLED::OLED(uint8_t sda_pin, uint8_t scl_pin, tDisplayCtrl displayCtrl, uint8_t i2c_address) :
-sda_pin(sda_pin),
-scl_pin(scl_pin),
-i2c_address(i2c_address),
-displayController(displayCtrl)
+OLED::OLED(uint8_t sda_pin, uint8_t scl_pin, uint_fast8_t width, uint_fast8_t height, 
+           tDisplayCtrl displayCtrl, uint8_t i2c_address) :
+    sda_pin(sda_pin),
+    scl_pin(scl_pin),
+    i2c_address(i2c_address),
+    displayController(displayCtrl),
+    width(width),
+    height(height),
+    pages((height + 7) / 8),  // Pages are automatically calculated based on height
+    bufsize(width * pages)    // Buffer size is automatically calculated based on the pages
 {
     this->buffer = (uint8_t *) malloc(bufsize);
-    X=0;
-    Y=0;
-    ttyMode=OLED_DEFAULT_TTY_MODE;
-    fontInverted=false;
-    usingOffset=false;
+    X = 0;
+    Y = 0;
+    ttyMode = OLED_DEFAULT_TTY_MODE;
+    fontInverted = false;
+    usingOffset = false;
 }
 
 OLED::~OLED()
@@ -220,18 +230,15 @@ void OLED::display()
         i2c_start();
         i2c_send(i2c_address << 1);
         i2c_send(0x00);
-        if (displayController == CTRL_SH1106)
-        {
-            i2c_send(0xB0 + page);
-            i2c_send(0x00);
-            i2c_send(0x10);
-        }
-        else
-        {
+        if (displayController == CTRL_SSD1306) {
             i2c_send(0xB0 + page);
             i2c_send(0x21);
             i2c_send(0x00);
-            i2c_send(127);
+            i2c_send(width - 1);
+        } else {
+            i2c_send(0xB0 + page);
+            i2c_send(0x00);
+            i2c_send(0x10);
         }
         i2c_stop();
 
@@ -242,7 +249,7 @@ void OLED::display()
             i2c_send(0);
             i2c_send(0);
         }
-        for (uint_fast8_t column = 0; column < 128; column++)
+        for (uint_fast8_t column = 0; column < width; column++)
         {
             i2c_send(buffer[index++]);
         }
@@ -253,9 +260,9 @@ void OLED::display()
 
 void OLED::draw_byte(uint_fast8_t x, uint_fast8_t y, uint8_t b, tColor color)
 {
-    if (x >= 128 || y >= 64) return;
+    if (x >= width || y >= height) return;
 
-    uint_fast16_t buffer_index = y / 8 * 128 + x;
+    uint_fast16_t buffer_index = y / 8 * width + x;
 
     if (fontInverted) {
         b^=255;
@@ -271,7 +278,7 @@ void OLED::draw_byte(uint_fast8_t x, uint_fast8_t y, uint8_t b, tColor color)
         {
             uint16_t w = (uint16_t) b << (y % 8);
             if (buffer_index < bufsize) buffer[buffer_index] |= (w & 0xFF);
-            uint16_t buffer_index2 = buffer_index + 128;
+            uint16_t buffer_index2 = buffer_index + width;
             if (buffer_index2 < bufsize) buffer[buffer_index2] |= (w >> 8);
         }
     }
@@ -285,7 +292,7 @@ void OLED::draw_byte(uint_fast8_t x, uint_fast8_t y, uint8_t b, tColor color)
         {
             uint16_t w = (uint16_t) b << (y % 8);
             if (buffer_index < bufsize) buffer[buffer_index] &= ~(w & 0xFF);
-            uint16_t buffer_index2 = buffer_index + 128;
+            uint16_t buffer_index2 = buffer_index + width;
             if (buffer_index2 < bufsize) buffer[buffer_index2] &= ~(w >> 8);
         }
     }
@@ -324,7 +331,7 @@ void OLED::draw_bytes(uint_fast8_t x, uint_fast8_t y, const uint8_t* data, uint_
 
 size_t OLED::draw_character(uint_fast8_t x, uint_fast8_t y, char c, tFontScaling scaling, tColor color)
 {
-    if (x >= 128 || y >= 64 || c < 32) return 0;
+    if (x >= width || y >= height || c < 32) return 0;
 
     switch ((unsigned char) c)
     {
@@ -390,14 +397,14 @@ void OLED::draw_bitmap_P(uint_fast8_t x, uint_fast8_t y, uint_fast8_t bitmap_wid
 
 void OLED::draw_pixel(uint_fast8_t x, uint_fast8_t y, tColor color)
 {
-    if (x >= 128 || y >= 64) return;
+    if (x >= width || y >= height) return;
     if (color == WHITE)
     {
-        buffer[x + (y / 8) * 128] |= (1 << (y & 7));
+        buffer[x + (y / 8) * width] |= (1 << (y & 7));
     }
     else
     {
-        buffer[x + (y / 8) * 128] &= ~(1 << (y & 7));
+        buffer[x + (y / 8) * width] &= ~(1 << (y & 7));
     }
 }
 
@@ -520,10 +527,10 @@ void OLED::scroll_up(uint_fast8_t num_lines, uint_fast8_t delay_ms)
         uint_fast8_t scroll_pages = num_lines / 8;
         for (uint_fast8_t i = 0; i < pages; i++)
         {
-            for (uint_fast8_t x = 0; x < 128; x++)
+            for (uint_fast8_t x = 0; x < width; x++)
             {
-                uint16_t index = i * 128 + x;
-                uint16_t index2 = (i + scroll_pages) * 128 + x;
+                uint16_t index = i * width + x;
+                uint16_t index2 = (i + scroll_pages) * width + x;
                 if (index2 < bufsize) buffer[index] = buffer[index2];
                 else buffer[index] = 0;
             }
@@ -541,12 +548,12 @@ void OLED::scroll_up(uint_fast8_t num_lines, uint_fast8_t delay_ms)
         {
             for (uint_fast8_t j = 0; j < pages; j++)
             {
-                uint16_t index = j*128;
-                uint16_t index2 = index + 128;
-                for (uint_fast8_t x = 0; x < 128; x++)
+                uint16_t index = j*width;
+                uint16_t index2 = index + width;
+                for (uint_fast8_t x = 0; x < width; x++)
                 {
                     uint_fast8_t carry = 0;
-                    if (index2 < bufsize && (buffer[index2] & 1)) carry = 128;
+                    if (index2 < bufsize && (buffer[index2] & 1)) carry = width;
                     buffer[index] = (buffer[index] >> 1) | carry;
                     index++;
                     index2++;
