@@ -288,10 +288,13 @@ public:
 
   #if OLED_ENABLE
     #if I2C_ENABLE
-    void initializeOLED(uint8_t sda_pin, uint8_t scl_pin, OLED::tDisplayCtrl displayCtrl = OLED::CTRL_SSD1306, uint8_t i2c_address = 0x3C);
+    void initializeOLED(uint8_t sda_pin, uint8_t scl_pin, 
+                       uint_fast8_t width = OLED_WIDTH, 
+                       uint_fast8_t height = OLED_HEIGHT,
+                       OLED::tDisplayCtrl displayCtrl = SSD1306, 
+                       uint8_t i2c_address = 0x3C);
     OLED* getOLED() { return oledDisplay; }
     bool isOLEDInitialized() { return oledInitialized; }
-    
     void oledClear(OLED::tColor color = OLED::BLACK);
     void oledDisplayUpdate();
     void oledSetPower(bool enable);
