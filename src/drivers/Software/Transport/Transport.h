@@ -12,7 +12,7 @@
 #include <memory>
 #include <map>
 
-#include "../../config.h"
+#include "../../../config.h"
 
 // Determine default transport type based on config
 #if   TRANSPORT == USB
