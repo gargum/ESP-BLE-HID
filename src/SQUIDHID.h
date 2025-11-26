@@ -9,21 +9,21 @@
 #include "Print.h"
 
 #include "config.h"
-#include "drivers/Log/Log.h" 
+#include "drivers/Software/Log/Log.h" 
 #include "drivers/Appearance.h"
-#include "drivers/Event/Types.h"
-#include "drivers/Transport/Transport.h"
+#include "drivers/Software/Event/Types.h"
+#include "drivers/Software/Transport/Transport.h"
 
 #if TRANSPORT == USB
-  #include "drivers/Transport/USB/USBTransport.h"
+  #include "drivers/Software/Transport/USB/USBTransport.h"
 #endif
 
 #if TRANSPORT == PS2
-  #include "drivers/Transport/PS2/PS2Transport.h"
+  #include "drivers/Software/Transport/PS2/PS2Transport.h"
 #endif
 
 #if TRANSPORT == BLE
-  #include "drivers/Transport/BLE/BLETransport.h"
+  #include "drivers/Software/Transport/BLE/BLETransport.h"
 #endif
 
 #if KEYBOARD_ENABLE
@@ -51,15 +51,15 @@
 #endif
 
 #if LED_ENABLE
-  #include "drivers/LED/NeoPixel.h"
+  #include "drivers/Hardware/LED/NeoPixel.h"
 #endif
 
 #if OLED_ENABLE
-  #include "drivers/OLED/OLED.h"
+  #include "drivers/Hardware/OLED/OLED.h"
 #endif
 
 #if MCP_ENABLE
-  #include "drivers/Expander/MCP/MCP23XXX.h"
+  #include "drivers/Hardware/Expander/MCP/MCP23XXX.h"
 #endif
 
 #define SQUIDHID_VERSION "0.7.4"
