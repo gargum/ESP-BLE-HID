@@ -1,3 +1,8 @@
+/**
+ * @file OLED.h
+ * @brief Header file for the I2C OLED driver
+ */
+
 #ifndef OLED_H
 #define OLED_H
 
@@ -8,6 +13,10 @@
 #define OLED_FONT_HEIGHT 8
 #define OLED_FONT_WIDTH 6
 #define OLED_DEFAULT_TTY_MODE false
+
+#define SSD1306 OLED::CTRL_SSD1306
+#define SH1106  OLED::CTRL_SH1106
+#define SH1107  OLED::CTRL_SH1107
 
 static const uint8_t oled_font6x8 [] PROGMEM = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // sp
@@ -157,9 +166,10 @@ public:
     enum tFillmode { HOLLOW, SOLID };
     enum tFontScaling { NORMAL_SIZE, DOUBLE_SIZE };
     enum tScrollEffect { NO_SCROLLING=0, HORIZONTAL_RIGHT=0x26, HORIZONTAL_LEFT=0x27, DIAGONAL_RIGHT=0x29, DIAGONAL_LEFT=0x2A };
-    enum tDisplayCtrl { CTRL_SSD1306, CTRL_SH1106 };
+    enum tDisplayCtrl { CTRL_SSD1306, CTRL_SH1106, CTRL_SH1107 };
     
-    OLED(uint8_t sda_pin, uint8_t scl_pin, tDisplayCtrl displayCtrl=CTRL_SSD1306, uint8_t i2c_address=0x3C);
+    OLED(uint8_t sda_pin, uint8_t scl_pin, uint_fast8_t width, uint_fast8_t height, tDisplayCtrl displayCtrl=CTRL_SSD1306, uint8_t i2c_address=0x3C);
+    
     virtual ~OLED();    
     
     void begin();
@@ -199,16 +209,19 @@ public:
     void noInverse(void);
         
 private:
+
     const uint8_t sda_pin;
     const uint8_t scl_pin;
     const uint8_t i2c_address;
     tDisplayCtrl displayController;
     bool usingOffset;
-    const uint_fast8_t pages = 8;
-    const uint_fast16_t bufsize = 1024;
+    const uint_fast8_t pages;
+    const uint_fast16_t bufsize;
     uint8_t *buffer;
     uint_fast8_t X;
     uint_fast8_t Y;
+    const uint_fast8_t width;
+    const uint_fast8_t height;
     bool ttyMode;
     bool fontInverted;
 
