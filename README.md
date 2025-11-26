@@ -235,40 +235,40 @@ The sole exceptions to this are `KC_ASST` and `KC_MCTL`, which have been exclude
 
 A complete list of all available keycodes and commands is included in the `keywords.txt` text file.
 
-To illustrate what this library has to offer, below is a table including the current complete list of the available **media** keycodes alongside the available **appearance codes**. **Media** keycodes are self-explanatory, however **appearance codes** require more elaboration.
+To illustrate what this library has to offer, below is a table including the current complete list of the available **appearance codes**.
 
-SquidHID uses **appearance codes** to determine what type of device the ESP32 advertises itself as to hosts. This corresponds to the icon next to the name of the device visible when scanning for Bluetooth devices to pair to, alongside the accompanying text explaining what the device does that is visible to the user on some operating systems. Every appearance code is tested and working.
+SquidHID uses **appearance codes** to determine what type of device the ESP32 advertises itself as to hosts over BLE. This corresponds to the icon next to the name of the device visible when scanning for Bluetooth devices to pair to, alongside the accompanying text explaining what the device does that is visible to the user on some operating systems. Every appearance code is tested and working.
 
-| FULL MEDIA KEYCODE                 | MEDIA KEYCODE ALIAS       | | APPEARANCE CODE - REGULAR  | APPEARANCE CODE - UNUSUAL |
-| ---------------------------------- | ------------------------- |-| -------------------------- | ------------------------- |
-| KEY_SYSTEM_POWER                   | KC_PWR                    | | GENERIC_HID                | OUTDOOR_SPORTS            |
-| KEY_SYSTEM_SLEEP                   | KC_SLEP                   | | KEYBOARD                   | LOCATION_DISPLAY          |
-| KEY_SYSTEM_WAKE                    | KC_WAKE                   | | MOUSE                      | LOCATION_POD              |
-| KEY_NEXT_TRACK                     | KC_MNXT                   | | JOYSTICK                   | WEIGHT_SCALE              |
-| KEY_PREVIOUS_TRACK                 | KC_MPRV                   | | GAMEPAD                    | EAR_THERMOMETER           |
-| KEY_FAST_FORWARD                   | KC_MFFD                   | | DIGITIZER                  | BLOOD_PRESSURE            |
-| KEY_REWIND                         | KC_MRWD                   | | DIGITAL_PEN                | PULSE_OXIMETER            |
-| KEY_STOP                           | KC_MSTP                   | | HEADPHONES                 | GLUCOSE_METER             |
-| KEY_PLAY_PAUSE                     | KC_MPLY                   | | DISPLAY                    | GLUCOSE_CONTINUOUS        |
-| KEY_MUTE                           | KC_MUTE                   | | REMOTE_CONTROL             | MEDICATION_DELIVERY       |
-| KEY_VOLUME_UP                      | KC_VOLU                   | | REMOTE_PRESENTATION        | INSULIN_PEN               |
-| KEY_VOLUME_DOWN                    | KC_VOLD                   | | KEYRING                    | INSULIN_PUMP              |
-| KEY_WWW_HOME                       | KC_WHOM                   | | DESKTOP                    | WHEELCHAIR                |
-| KEY_LOCAL_MACHINE_BROWSER          | KC_MYCM                   | | SERVER                     | MOBILITY_SCOOTER          |
-| KEY_CALCULATOR                     | KC_CALC                   | | LAPTOP                     |
-| KEY_WWW_BOOKMARKS                  | KC_WFAV                   | | TABLET                     |
-| KEY_WWW_SEARCH                     | KC_WSCH                   | | PHONE                      |
-| KEY_WWW_STOP                       | KC_WSTP                   | | SMARTWATCH                 |
-| KEY_WWW_REFRESH                    | KC_WREF                   | | CYCLING_COMPUTER           |
-| KEY_WWW_BACK                       | KC_WBAK                   | | RUNNING_WALKING            |
-| KEY_WWW_FORWARD                    | KC_WFWD                   | | WEARABLE                   |
-| KEY_CONSUMER_CONTROL_CONFIGURATION | KC_MSEL                   | | WEARABLE_IN_SHOE           |
-| KEY_EMAIL_READER                   | KC_MAIL                   | | WEARABLE_ON_SHOE           |
-| KEY_EJECT                          | KC_EJCT                   | | WEARABLE_ON_HIP            |
-| KEY_BRIGHTNESS_UP                  | KC_BRIU                   | | CLOCK                      |
-| KEY_BRIGHTNESS_DOWN                | KC_BRID                   | | BARCODE_SCANNER            |
-| KEY_CONTROL_PANEL                  | KC_CPNL                   | | CARD_READER                |
-| KEY_LAUNCHPAD                      | KC_LPAD                   | | IOT_GATEWAY                |
+| APPEARANCE CODE - REGULAR  | APPEARANCE CODE - UNUSUAL |
+| -------------------------- | ------------------------- |
+| GENERIC_HID                | OUTDOOR_SPORTS            |
+| KEYBOARD                   | LOCATION_DISPLAY          |
+| MOUSE                      | LOCATION_POD              |
+| JOYSTICK                   | WEIGHT_SCALE              |
+| GAMEPAD                    | EAR_THERMOMETER           |
+| DIGITIZER                  | BLOOD_PRESSURE            |
+| DIGITAL_PEN                | PULSE_OXIMETER            |
+| HEADPHONES                 | GLUCOSE_METER             |
+| DISPLAY                    | GLUCOSE_CONTINUOUS        |
+| REMOTE_CONTROL             | MEDICATION_DELIVERY       |
+| REMOTE_PRESENTATION        | INSULIN_PEN               |
+| KEYRING                    | INSULIN_PUMP              |
+| DESKTOP                    | WHEELCHAIR                |
+| SERVER                     | MOBILITY_SCOOTER          |
+| LAPTOP                     |
+| TABLET                     |
+| PHONE                      |
+| SMARTWATCH                 |
+| CYCLING_COMPUTER           |
+| RUNNING_WALKING            |
+| WEARABLE                   |
+| WEARABLE_IN_SHOE           |
+| WEARABLE_ON_SHOE           |
+| WEARABLE_ON_HIP            |
+| CLOCK                      |
+| BARCODE_SCANNER            |
+| CARD_READER                |
+| IOT_GATEWAY                |
 
 
 
