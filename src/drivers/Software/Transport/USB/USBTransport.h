@@ -6,7 +6,7 @@
 #ifndef USBTRANSPORT_H
 #define USBTRANSPORT_H
 
-#include "../../Appearance.h"
+#include "../../../Appearance.h"
 #include "../../Log/Log.h"
 #include "../Transport.h"
 
@@ -30,11 +30,12 @@ private:
     uint16_t appearance;
     
     #ifdef USB_HID_AVAILABLE
-    USBHID* hidDevice;
+      USBHID *hidDevice;
     #endif
-
+    
     const uint8_t* reportMap;
     size_t reportMapLength;
+    bool hidDeviceInitialized;
 
 public:
     USBTransport();
@@ -62,11 +63,14 @@ public:
     // Callback registration
     void setCallbacks(TransportCallbacks* callbacks) override;
     
-    // HID descriptor management
+    // HID descriptor management (for compatibility with Transport interface)
     void setReportMap(const uint8_t* descriptor, size_t length) override;
     
     // Service availability
     bool supportsHID() override;
+    
+    // Service reinitialization
+    bool reinitializeHID();
 };
 
 #endif
