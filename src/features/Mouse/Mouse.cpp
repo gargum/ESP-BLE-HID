@@ -5,6 +5,8 @@
 
 #include "Mouse.h"
 
+#if !SPACEMOUSE_ENABLE
+
 static const char* MOUSE_TAG = "SQUIDMOUSE";
 
 SQUIDMOUSE::SQUIDMOUSE() 
@@ -125,3 +127,5 @@ void SQUIDMOUSE::sendMouseReport() {
     
     delay(_delay_ms);
 }
+
+#endif
