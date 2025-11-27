@@ -6,6 +6,8 @@
 #ifndef MOUSE_H
 #define MOUSE_H
 
+#if !SPACEMOUSE_ENABLE
+
 #include <stdint.h>
 #include "HIDTypes.h"
 #include "../../drivers/Software/Log/Log.h"
@@ -87,4 +89,5 @@ public:
     void sendMouseReport();
     void releaseAll();
 };
+#endif
 #endif
