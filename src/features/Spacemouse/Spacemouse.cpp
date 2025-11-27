@@ -7,8 +7,34 @@
 
 static const char* SPACEMOUSE_TAG = "SQUID6DOF";
 
+#if MOUSE_ENABLE
+static const char* MOUSE_TAG = "SQUIDMOUSE";
+#endif
+
+#if DIGITIZER_ENABLE
+static const char* DIGI_TAG = "SQUIDTABLET";
+#endif
+
+#if GAMEPAD_ENABLE
+static const char* GAMEPAD_TAG = "SQUIDGAMEPAD";
+#endif
+
 SQUIDSPACEMOUSE::SQUIDSPACEMOUSE() 
-    : transport(nullptr), _delay_ms(7) {
+    : 
+    #if MOUSE_ENABLE
+    
+    #endif
+    
+    #if DIGITIZER_ENABLE
+    _screenWidth(DEFAULT_WIDTH), _screenHeight(DEFAULT_HEIGHT),
+    #endif
+    
+    #if GAMEPAD_ENABLE
+    
+    #endif
+    
+    transport(nullptr), _delay_ms(7)
+    {
     memset(&_transReport, 0, sizeof(_transReport));
     memset(&_rotReport, 0, sizeof(_rotReport));
     memset(&_buttonReport, 0, sizeof(_buttonReport));
@@ -91,7 +117,7 @@ void SQUIDSPACEMOUSE::rotate(int16_t rx, int16_t ry, int16_t rz) {
     }
 }
 
-void SQUIDSPACEMOUSE::press(uint8_t button) {
+void SQUIDSPACEMOUSE::press(SpacemouseKey button) {
     if (button < 1 || button > 32) {
         SQUID_LOG_WARN(SPACEMOUSE_TAG, "Invalid button number: %d (must be 1-32)", button);
         return;
@@ -105,7 +131,7 @@ void SQUIDSPACEMOUSE::press(uint8_t button) {
     sendReport();
 }
 
-void SQUIDSPACEMOUSE::release(uint8_t button) {
+void SQUIDSPACEMOUSE::release(SpacemouseKey button) {
     if (button < 1 || button > 32) {
         SQUID_LOG_WARN(SPACEMOUSE_TAG, "Invalid button number: %d (must be 1-32)", button);
         return;
@@ -119,7 +145,7 @@ void SQUIDSPACEMOUSE::release(uint8_t button) {
     sendReport();
 }
 
-bool SQUIDSPACEMOUSE::isPressed(uint8_t button) {
+bool SQUIDSPACEMOUSE::isPressed(SpacemouseKey button) {
     if (button < 1 || button > 32) {
         return false;
     }
@@ -148,6 +174,79 @@ void SQUIDSPACEMOUSE::releaseAll() {
     sendReport();
     SQUID_LOG_DEBUG(SPACEMOUSE_TAG, "All Spacemouse buttons released");
 }
+
+#if MOUSE_ENABLE
+
+#endif
+
+#if DIGITIZER_ENABLE
+void SQUIDSPACEMOUSE::click(uint16_t x, uint16_t y, SpacemouseKey b) {
+    
+    uint8_t digitizerButtons = static_cast<uint8_t>(b);
+    
+    SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer click at X:%u, Y:%u, buttons: 0x%02X", x, y, digitizerButtons);
+    
+    _transReport.tx = x;
+    _transReport.ty = y;
+    _buttonReport.buttons = b;
+    sendReport();
+    delay(_delay_ms);
+    releaseAll(); // Release
+    
+    SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer click completed");
+}
+
+void SQUIDSPACEMOUSE::moveTo(uint16_t x, uint16_t y, uint8_t pressure, SpacemouseKey buttons) {
+    if (isConnected() && transport) {
+        // Scale to HID descriptor's 0-32767 range
+        uint16_t scaledX = (x * 32767ULL) / _screenWidth;
+        uint16_t scaledY = (y * 32767ULL) / _screenHeight;
+        
+        uint8_t buttonValue = static_cast<uint8_t>(buttons);
+        _transReport.tx = scaledX;
+        _transReport.ty = scaledY;
+        _transReport.tz = pressure;
+        _buttonReport.buttons = buttons;
+        
+        sendReport();
+        
+        SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer move - X:%u->%u, Y:%u->%u, Pressure:%u, Buttons:0x%02X",
+                     x, scaledX, y, scaledY, pressure, buttonValue);
+    } else {
+        SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer movement ignored - %s%s", 
+                     !isConnected() ? "not connected" : "",
+                     !transport ? "no input characteristic" : "");
+    }
+} 
+
+void SQUIDSPACEMOUSE::beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure) {
+    SQUID_LOG_DEBUG(DIGI_TAG, "Beginning stroke at X:%u, Y:%u, initial pressure:%u", x, y, initialPressure);
+    moveTo(x, y, initialPressure, SpacemouseKey{0});
+}
+
+void SQUIDSPACEMOUSE::updateStroke(uint16_t x, uint16_t y, uint16_t pressure) {
+    SQUID_LOG_DEBUG(DIGI_TAG, "Updating stroke at X:%u, Y:%u, pressure:%u", x, y, pressure);
+    moveTo(x, y, pressure, SpacemouseKey{0});
+}
+
+void SQUIDSPACEMOUSE::endStroke(uint16_t x, uint16_t y) {
+    SQUID_LOG_DEBUG(DIGI_TAG, "Ending stroke at X:%u, Y:%u", x, y);
+    moveTo(x, y, 0, SpacemouseKey{0});
+}
+
+void SQUIDSPACEMOUSE::setDigitizerRange(uint16_t maxX, uint16_t maxY) {
+    SQUID_LOG_DEBUG(DIGI_TAG, "Setting digitizer range - previous: X:%u, Y:%u", _screenWidth, _screenHeight);
+    
+    _screenWidth = maxX;
+    _screenHeight = maxY;
+    
+    SQUID_LOG_INFO(DIGI_TAG, "Digitizer range set to X:%u, Y:%u", _screenWidth, _screenHeight);
+}
+#endif
+
+#if GAMEPAD_ENABLE
+
+#endif
 
 void SQUIDSPACEMOUSE::sendReport() {
     if (!isConnected() || !transport) {
