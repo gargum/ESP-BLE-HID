@@ -201,11 +201,12 @@ void SQUIDSPACEMOUSE::moveTo(uint16_t x, uint16_t y, uint8_t pressure, Spacemous
         // Scale to HID descriptor's 0-32767 range
         uint16_t scaledX = (x * 32767ULL) / _screenWidth;
         uint16_t scaledY = (y * 32767ULL) / _screenHeight;
+        uint16_t truePressure = pressure * 10;
+        uint8_t  buttonValue = static_cast<uint8_t>(buttons);
         
-        uint8_t buttonValue = static_cast<uint8_t>(buttons);
         _transReport.tx = scaledX;
         _transReport.ty = scaledY;
-        _transReport.tz = pressure;
+        _transReport.tz = truePressure;
         _buttonReport.buttons = buttons;
         
         sendReport();
@@ -221,11 +222,13 @@ void SQUIDSPACEMOUSE::moveTo(uint16_t x, uint16_t y, uint8_t pressure, Spacemous
 
 void SQUIDSPACEMOUSE::beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure) {
     SQUID_LOG_DEBUG(DIGI_TAG, "Beginning stroke at X:%u, Y:%u, initial pressure:%u", x, y, initialPressure);
-    moveTo(x, y, initialPressure, SpacemouseKey{0});
+    uint16_t truePressure = initialPressure * 10;
+    moveTo(x, y, truePressure, SpacemouseKey{0});
 }
 
 void SQUIDSPACEMOUSE::updateStroke(uint16_t x, uint16_t y, uint16_t pressure) {
     SQUID_LOG_DEBUG(DIGI_TAG, "Updating stroke at X:%u, Y:%u, pressure:%u", x, y, pressure);
+    uint16_t truePressure = pressure * 10;
     moveTo(x, y, pressure, SpacemouseKey{0});
 }
 
