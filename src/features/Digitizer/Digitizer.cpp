@@ -5,6 +5,8 @@
 
 #include "Digitizer.h"
 
+#if !SPACEMOUSE_ENABLE
+
 static const char* DIGI_TAG = "SQUIDTABLET";
 
 SQUIDTABLET::SQUIDTABLET() 
@@ -213,3 +215,5 @@ void SQUIDTABLET::sendDigitizerReport() {
     
     delay(_delay_ms);
 }
+
+#endif
