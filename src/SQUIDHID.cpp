@@ -49,6 +49,10 @@ const size_t       descriptorSize = sizeof(_basicReportDescriptor)
   +  sizeof(_gamepadReportDescriptor)
 #endif
 
+#if SPACEMOUSE_ENABLE
+  +  sizeof(_spacemouseReportDescriptor)
+#endif
+
 #if STENO_ENABLE
   +  sizeof(_stenoReportDescriptor)
 #endif
@@ -96,6 +100,12 @@ public:
         // Gamepad descriptor
         memcpy(current, _gamepadReportDescriptor, sizeof(_gamepadReportDescriptor));
         current += sizeof(_gamepadReportDescriptor);
+        #endif
+        
+        #if SPACEMOUSE_ENABLE
+        // Spacemouse descriptor
+        memcpy(current, _spacemouseReportDescriptor, sizeof(_spacemouseReportDescriptor));
+        current += sizeof(_spacemouseReportDescriptor);
         #endif
         
         #if STENO_ENABLE
@@ -323,6 +333,11 @@ void SQUIDHID::begin(void) {
     SQUID_LOG_DEBUG(LOG_TAG, "Gamepad support enabled");
     #endif
     
+    #if SPACEMOUSE_ENABLE
+    spacemouse.begin(transport.get(), _delay_ms);
+    SQUID_LOG_DEBUG(LOG_TAG, "Spacemouse support enabled");
+    #endif
+    
     #if STENO_ENABLE
     steno.begin(transport.get(), _delay_ms);
     SQUID_LOG_DEBUG(LOG_TAG, "PloverHID support enabled");
@@ -525,6 +540,9 @@ void SQUIDHID::onConnect() {
     #if GAMEPAD_ENABLE
     gamepad.onConnect();
     #endif
+    #if SPACEMOUSE_ENABLE
+    spacemouse.onConnect();
+    #endif
     #if STENO_ENABLE
     steno.onConnect();
     #endif
@@ -577,6 +595,9 @@ void SQUIDHID::onDisconnect() {
     #if GAMEPAD_ENABLE
     gamepad.onDisconnect();
     #endif
+    #if SPACEMOUSE_ENABLE
+    spacemouse.onDisconnect();
+    #endif
     #if STENO_ENABLE
     steno.onDisconnect();
     #endif
@@ -608,6 +629,10 @@ void SQUIDHID::releaseAll() {
   
   #if GAMEPAD_ENABLE
   gamepad.releaseAll();
+  #endif
+  
+  #if SPACEMOUSE_ENABLE
+  spacemouse.releaseAll();
   #endif
 }
 
@@ -730,6 +755,11 @@ void SQUIDHID::setupKeymap(const std::vector<std::vector<LayerKeymapEntry>>& lay
                 this->mouse.press(key_entry.key.mouse_key);
                 #endif
                 break;
+            case KeypressType::SPACEMOUSE_KEY:
+                #if SPACEMOUSE_ENABLE
+                this->spacemouse.press(key_entry.key.spacemouse_key);
+                #endif
+                break;
             default:
                 break;
         }
@@ -761,6 +791,11 @@ void SQUIDHID::setupKeymap(const std::vector<std::vector<LayerKeymapEntry>>& lay
             case KeypressType::MOUSE_KEY:
                 #if MOUSE_ENABLE
                 this->mouse.release(key_entry.key.mouse_key);
+                #endif
+                break;
+            case KeypressType::SPACEMOUSE_KEY:
+                #if SPACEMOUSE_ENABLE
+                this->spacemouse.release(key_entry.key.spacemouse_key);
                 #endif
                 break;
             default:
@@ -895,7 +930,29 @@ void SQUIDHID::sendDigitizerReport() { digitizer.sendDigitizerReport(); }
 #endif
 
 //
-// ----------------------------------------- GeminiPR Stenotype Block
+// ----------------------------------------- Spacemouse Block
+//
+
+#if SPACEMOUSE_ENABLE
+void SQUIDHID::spacemouseMove(int16_t tx, int16_t ty, int16_t tz, int16_t rx, int16_t ry, int16_t rz) { spacemouse.move(tx, ty, tz, rx, ry, rz); }
+
+void SQUIDHID::spacemouseTranslate(int16_t tx, int16_t ty, int16_t tz) { spacemouse.translate(tx, ty, tz); }
+
+void SQUIDHID::spacemouseRotate(int16_t rx, int16_t ry, int16_t rz) { spacemouse.rotate(rx, ry, rz); }
+
+void SQUIDHID::spacemousePress(uint8_t button) { spacemouse.press(button); }
+
+void SQUIDHID::spacemouseRelease(uint8_t button) { spacemouse.release(button); }
+
+bool SQUIDHID::spacemouseIsPressed(uint8_t button) { return spacemouse.isPressed(button); }
+
+void SQUIDHID::spacemouseSetAllButtons(uint32_t buttons) { spacemouse.setAllButtons(buttons); }
+
+void SQUIDHID::sendSpacemouseReport() { spacemouse.sendReport(); }
+#endif
+
+//
+// ----------------------------------------- PloverHID Stenotype Block
 //
 
 #if STENO_ENABLE
