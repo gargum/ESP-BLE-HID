@@ -5,6 +5,8 @@
 
 #include "Gamepad.h"
 
+#if !SPACEMOUSE_ENABLE
+
 static const char* GAMEPAD_TAG = "SQUIDGAMEPAD";
 
 SQUIDGAMEPAD::SQUIDGAMEPAD() 
@@ -247,3 +249,5 @@ void SQUIDGAMEPAD::sendGamepadReport() {
     
     delay(_delay_ms);
 }
+
+#endif
