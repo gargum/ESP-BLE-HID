@@ -68,15 +68,16 @@ private:
     NimBLECharacteristic* inputSpacetrans;
     NimBLECharacteristic* inputSpacerotat;
     NimBLECharacteristic* inputSpaceclick;
-    #endif
-    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+    #else
+    #if MOUSE_ENABLE
     NimBLECharacteristic* inputMouse;
     #endif
-    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+    #if DIGITIZER_ENABLE
     NimBLECharacteristic* inputDigitizer;
     #endif
-    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+    #if GAMEPAD_ENABLE
     NimBLECharacteristic* inputGamepad;
+    #endif
     #endif
     #if STENO_ENABLE
     NimBLECharacteristic* inputSteno;
