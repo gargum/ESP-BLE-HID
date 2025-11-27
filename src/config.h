@@ -11,7 +11,7 @@
 #define MOUSE_ENABLE      true
 #define DIGITIZER_ENABLE  true
 #define GAMEPAD_ENABLE    true
-#define SPACEMOUSE_ENABLE false  // Please note that if the Spacemouse is turned on, the Mouse, Digitizer and Gamepad must be turned off. 
+#define SPACEMOUSE_ENABLE true
 
 #define LED_ENABLE        false
 // #define LED_PIN          20
