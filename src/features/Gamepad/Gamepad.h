@@ -15,7 +15,7 @@
 #define GAMEPAD_BUTTON_COUNT 64
 #define GAMEPAD_ANALOGUE_COUNT 6
 
-#define GAMEPAD_ID    0x06
+#define GAMEPAD_ID    0x09
 
 typedef struct {
   uint32_t buttons[2];
