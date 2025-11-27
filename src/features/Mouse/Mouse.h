@@ -12,7 +12,7 @@
 #include "../../drivers/Software/Event/Types.h"
 #include "../../drivers/Software/Transport/Transport.h"
 
-#define MOUSE_ID      0x04
+#define MOUSE_ID      0x07
 
 typedef struct {
   uint8_t buttons;
