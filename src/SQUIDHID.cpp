@@ -934,15 +934,15 @@ void SQUIDHID::sendDigitizerReport() { digitizer.sendDigitizerReport(); }
 //
 
 #if SPACEMOUSE_ENABLE
-void SQUIDHID::spacemouseMove(int16_t tx, int16_t ty, int16_t tz, int16_t rx, int16_t ry, int16_t rz) { spacemouse.move(tx, ty, tz, rx, ry, rz); }
+void SQUIDHID::move(int16_t tx, int16_t ty, int16_t tz, int16_t rx, int16_t ry, int16_t rz) { spacemouse.move(tx, ty, tz, rx, ry, rz); }
 
-void SQUIDHID::spacemouseTranslate(int16_t tx, int16_t ty, int16_t tz) { spacemouse.translate(tx, ty, tz); }
+void SQUIDHID::translate(int16_t tx, int16_t ty, int16_t tz) { spacemouse.translate(tx, ty, tz); }
 
-void SQUIDHID::spacemouseRotate(int16_t rx, int16_t ry, int16_t rz) { spacemouse.rotate(rx, ry, rz); }
+void SQUIDHID::rotate(int16_t rx, int16_t ry, int16_t rz) { spacemouse.rotate(rx, ry, rz); }
 
-void SQUIDHID::spacemousePress(uint8_t button) { spacemouse.press(button); }
+void SQUIDHID::press(uint8_t button) { spacemouse.press(button); }
 
-void SQUIDHID::spacemouseRelease(uint8_t button) { spacemouse.release(button); }
+void SQUIDHID::release(uint8_t button) { spacemouse.release(button); }
 
 bool SQUIDHID::spacemouseIsPressed(uint8_t button) { return spacemouse.isPressed(button); }
 
