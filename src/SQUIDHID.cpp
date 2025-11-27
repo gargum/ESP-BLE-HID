@@ -37,15 +37,15 @@ const size_t       descriptorSize = sizeof(_basicReportDescriptor)
   +  sizeof(_mediakeyReportDescriptor)
 #endif
 
-#if MOUSE_ENABLE
+#if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
   +  sizeof(_mouseReportDescriptor)
 #endif
 
-#if DIGITIZER_ENABLE
+#if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
   +  sizeof(_digitizerReportDescriptor)
 #endif
 
-#if GAMEPAD_ENABLE
+#if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
   +  sizeof(_gamepadReportDescriptor)
 #endif
 
@@ -84,19 +84,19 @@ public:
         current += sizeof(_mediakeyReportDescriptor);
         #endif
         
-        #if MOUSE_ENABLE
+        #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
         // Mouse descriptor
         memcpy(current, _mouseReportDescriptor, sizeof(_mouseReportDescriptor));
         current += sizeof(_mouseReportDescriptor);
         #endif
         
-        #if DIGITIZER_ENABLE
+        #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
         // Digitizer descriptor
         memcpy(current, _digitizerReportDescriptor, sizeof(_digitizerReportDescriptor));
         current += sizeof(_digitizerReportDescriptor);
         #endif
         
-        #if GAMEPAD_ENABLE
+        #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
         // Gamepad descriptor
         memcpy(current, _gamepadReportDescriptor, sizeof(_gamepadReportDescriptor));
         current += sizeof(_gamepadReportDescriptor);
@@ -318,17 +318,17 @@ void SQUIDHID::begin(void) {
     SQUID_LOG_DEBUG(LOG_TAG, "Media key support enabled");
     #endif
     
-    #if MOUSE_ENABLE
+    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
     mouse.begin(transport.get(), _delay_ms);
     SQUID_LOG_DEBUG(LOG_TAG, "Mouse support enabled");
     #endif
     
-    #if DIGITIZER_ENABLE
+    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
     digitizer.begin(transport.get(), _delay_ms);
     SQUID_LOG_DEBUG(LOG_TAG, "Digitizer support enabled");
     #endif
     
-    #if GAMEPAD_ENABLE
+    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
     gamepad.begin(transport.get(), _delay_ms);
     SQUID_LOG_DEBUG(LOG_TAG, "Gamepad support enabled");
     #endif
@@ -528,13 +528,13 @@ void SQUIDHID::onConnect() {
     #if MEDIA_ENABLE
     media.onConnect();
     #endif
-    #if MOUSE_ENABLE
+    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
     mouse.onConnect();
     #endif
-    #if DIGITIZER_ENABLE 
+    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
     digitizer.onConnect();
     #endif
-    #if GAMEPAD_ENABLE
+    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
     gamepad.onConnect();
     #endif
     #if SPACEMOUSE_ENABLE
@@ -583,13 +583,13 @@ void SQUIDHID::onDisconnect() {
     #if MEDIA_ENABLE
     media.onDisconnect();
     #endif
-    #if MOUSE_ENABLE
+    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
     mouse.onDisconnect();
     #endif
-    #if DIGITIZER_ENABLE
+    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
     digitizer.onDisconnect();
     #endif
-    #if GAMEPAD_ENABLE
+    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
     gamepad.onDisconnect();
     #endif
     #if SPACEMOUSE_ENABLE
@@ -616,20 +616,20 @@ void SQUIDHID::releaseAll() {
   media.releaseAll();
   #endif
   
-  #if MOUSE_ENABLE
+  #if SPACEMOUSE_ENABLE
+  spacemouse.releaseAll();
+  #endif
+  
+  #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
   mouse.releaseAll();
+  #endif
+  
+  #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+  gamepad.releaseAll();
   #endif
   
   #if STENO_ENABLE
   steno.releaseAll();
-  #endif
-  
-  #if GAMEPAD_ENABLE
-  gamepad.releaseAll();
-  #endif
-  
-  #if SPACEMOUSE_ENABLE
-  spacemouse.releaseAll();
   #endif
 }
 
@@ -658,18 +658,20 @@ void SQUIDHID::setAppearance(uint16_t newAppearance) {
         transport->setAppearance(newAppearance);
     }
     
-    #if DIGITIZER_ENABLE
-    digitizer.setAppearance(newAppearance);
-    #endif
+    #if !SPACEMOUSE_ENABLE
+      #if DIGITIZER_ENABLE
+        digitizer.setAppearance(newAppearance);
+      #endif
   
-    #if DIGITIZER_ENABLE && MOUSE_ENABLE
-    SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X, Mode: %s", newAppearance, digitizer.isAbsoluteMode() ? "absolute" : "relative");
-    #elif !DIGITIZER_ENABLE && MOUSE_ENABLE
-    SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X (Mouse only)", newAppearance);
-    #elif DIGITIZER_ENABLE && !MOUSE_ENABLE
-    SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X (Digitizer only)", newAppearance);
-    #else
-    SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X", newAppearance);
+      #if DIGITIZER_ENABLE && MOUSE_ENABLE
+        SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X, Mode: %s", newAppearance, digitizer.isAbsoluteMode() ? "absolute" : "relative");
+      #elif !DIGITIZER_ENABLE && MOUSE_ENABLE
+        SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X (Mouse only)", newAppearance);
+      #elif DIGITIZER_ENABLE && !MOUSE_ENABLE
+        SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X (Digitizer only)", newAppearance);
+      #else
+        SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X", newAppearance);
+      #endif
     #endif
 }
 
@@ -737,24 +739,24 @@ void SQUIDHID::setupKeymap(const std::vector<std::vector<LayerKeymapEntry>>& lay
                 this->media.press(key_entry.key.media_key);
                 #endif
                 break;
-            case KeypressType::STENO_KEY:
-                #if STENO_ENABLE
-                this->steno.press(key_entry.key.steno_key);
-                #endif
-                break;
-            case KeypressType::GAMEPAD_BUTTON:
-                #if GAMEPAD_ENABLE
-                this->gamepad.press(key_entry.key.gamepad_button);
-                #endif
-                break;
-            case KeypressType::MOUSE_KEY:
-                #if MOUSE_ENABLE
-                this->mouse.press(key_entry.key.mouse_key);
-                #endif
-                break;
             case KeypressType::SPACEMOUSE_KEY:
                 #if SPACEMOUSE_ENABLE
                 this->spacemouse.press(key_entry.key.spacemouse_key);
+                #endif
+                break;
+            case KeypressType::MOUSE_KEY:
+                #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+                this->mouse.press(key_entry.key.mouse_key);
+                #endif
+                break;
+            case KeypressType::GAMEPAD_BUTTON:
+                #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+                this->gamepad.press(key_entry.key.gamepad_button);
+                #endif
+                break;
+            case KeypressType::STENO_KEY:
+                #if STENO_ENABLE
+                this->steno.press(key_entry.key.steno_key);
                 #endif
                 break;
             default:
@@ -775,24 +777,24 @@ void SQUIDHID::setupKeymap(const std::vector<std::vector<LayerKeymapEntry>>& lay
                 this->media.release(key_entry.key.media_key);
                 #endif
                 break;
-            case KeypressType::STENO_KEY:
-                #if STENO_ENABLE
-                this->steno.release(key_entry.key.steno_key);
-                #endif
-                break;
-            case KeypressType::GAMEPAD_BUTTON:
-                #if GAMEPAD_ENABLE
-                this->gamepad.release(key_entry.key.gamepad_button);
-                #endif
-                break;
-            case KeypressType::MOUSE_KEY:
-                #if MOUSE_ENABLE
-                this->mouse.release(key_entry.key.mouse_key);
-                #endif
-                break;
             case KeypressType::SPACEMOUSE_KEY:
                 #if SPACEMOUSE_ENABLE
                 this->spacemouse.release(key_entry.key.spacemouse_key);
+                #endif
+                break;
+            case KeypressType::MOUSE_KEY:
+                #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+                this->mouse.release(key_entry.key.mouse_key);
+                #endif
+                break;
+            case KeypressType::GAMEPAD_BUTTON:
+                #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+                this->gamepad.release(key_entry.key.gamepad_button);
+                #endif
+                break;
+            case KeypressType::STENO_KEY:
+                #if STENO_ENABLE
+                this->steno.release(key_entry.key.steno_key);
                 #endif
                 break;
             default:
@@ -893,22 +895,46 @@ void SQUIDHID::translate(int16_t tx, int16_t ty, int16_t tz) { spacemouse.transl
 
 void SQUIDHID::rotate(int16_t rx, int16_t ry, int16_t rz) { spacemouse.rotate(rx, ry, rz); }
 
-void SQUIDHID::press(uint8_t button) { spacemouse.press(button); }
+void SQUIDHID::press(SpacemouseKey button) { spacemouse.press(button); }
 
-void SQUIDHID::release(uint8_t button) { spacemouse.release(button); }
+void SQUIDHID::release(SpacemouseKey button) { spacemouse.release(button); }
 
-bool SQUIDHID::spacemouseIsPressed(uint8_t button) { return spacemouse.isPressed(button); }
+bool SQUIDHID::spacemouseIsPressed(SpacemouseKey button) { return spacemouse.isPressed(button); }
 
 void SQUIDHID::spacemouseSetAllButtons(uint32_t buttons) { spacemouse.setAllButtons(buttons); }
 
 void SQUIDHID::sendSpacemouseReport() { spacemouse.sendReport(); }
+
+
+// 3DConnexion reports interfere with other pointers, so I'm using the 3DConnexion report to emulate the other pointers whenever necessary to get around that
+#if MOUSE_ENABLE
+
+#endif
+
+#if DIGITIZER_ENABLE
+void SQUIDHID::click(uint16_t x, uint16_t y, SpacemouseKey b) { spacemouse.click(x, y, b); }
+
+void SQUIDHID::moveTo(uint16_t x, uint16_t y, uint8_t pressure, SpacemouseKey buttons) { spacemouse.moveTo(x, y, pressure, buttons); }
+
+void SQUIDHID::beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure) { spacemouse.beginStroke(x, y, initialPressure); }
+
+void SQUIDHID::updateStroke(uint16_t x, uint16_t y, uint16_t pressure) { spacemouse.updateStroke(x, y, pressure); }
+
+void SQUIDHID::endStroke(uint16_t x, uint16_t y) { spacemouse.endStroke(x, y); }
+
+void SQUIDHID::setDigitizerRange(uint16_t maxX, uint16_t maxY) { spacemouse.setDigitizerRange(maxX, maxY); }
+#endif
+
+#if GAMEPAD_ENABLE
+
+#endif
 #endif
 
 //
 // ----------------------------------------- Mouse Block
 //
 
-#if MOUSE_ENABLE
+#if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
 size_t SQUIDHID::press(MouseKey b) { return mouse.press(b); }
 
 size_t SQUIDHID::release(MouseKey b) { return mouse.release(b); }
@@ -924,7 +950,7 @@ bool SQUIDHID::mouseIsPressed(MouseKey b) { return mouse.mouseIsPressed(b); }
 // ----------------------------------------- Digitizer Block
 //
 
-#if DIGITIZER_ENABLE
+#if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
 void SQUIDHID::click(uint16_t x, uint16_t y, DigitizerKey b) { digitizer.click(x, y, b); }
 
 void SQUIDHID::moveTo(uint16_t x, uint16_t y, uint8_t pressure, DigitizerKey buttons) { digitizer.moveTo(x, y, pressure, buttons); }
@@ -952,7 +978,7 @@ void SQUIDHID::sendDigitizerReport() { digitizer.sendDigitizerReport(); }
 // ----------------------------------------- Gamepad Block
 //
 
-#if GAMEPAD_ENABLE
+#if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
 size_t SQUIDHID::press(GamepadButton button) { return gamepad.press(button); }
 
 size_t SQUIDHID::release(GamepadButton button) { return gamepad.release(button); }
