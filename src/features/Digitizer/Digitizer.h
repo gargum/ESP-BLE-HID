@@ -12,7 +12,7 @@
 #include "../../drivers/Software/Event/Types.h"
 #include "../../drivers/Software/Transport/Transport.h"
 
-#define DIGITIZER_ID  0x05
+#define DIGITIZER_ID  0x08
 
 typedef struct {
     uint8_t buttons;
