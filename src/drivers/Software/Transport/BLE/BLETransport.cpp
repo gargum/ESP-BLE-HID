@@ -23,15 +23,16 @@ BLETransport::BLETransport()
       inputSpacetrans(nullptr),
       inputSpacerotat(nullptr),
       inputSpaceclick(nullptr),
-      #endif
-      #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+      #else
+      #if MOUSE_ENABLE
       inputMouse(nullptr), 
       #endif
-      #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+      #if DIGITIZER_ENABLE
       inputDigitizer(nullptr), 
       #endif
-      #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+      #if GAMEPAD_ENABLE
       inputGamepad(nullptr),
+      #endif
       #endif
       #if STENO_ENABLE
       inputSteno(nullptr), 
