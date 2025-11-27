@@ -19,6 +19,11 @@ BLETransport::BLETransport()
       #if MEDIA_ENABLE
       inputMediaKeys(nullptr),
       #endif
+      #if SPACEMOUSE_ENABLE
+      inputSpacetrans(nullptr),
+      inputSpacerotat(nullptr),
+      inputSpaceclick(nullptr),
+      #endif
       #if MOUSE_ENABLE
       inputMouse(nullptr), 
       #endif
@@ -27,11 +32,6 @@ BLETransport::BLETransport()
       #endif
       #if GAMEPAD_ENABLE
       inputGamepad(nullptr),
-      #endif
-      #if SPACEMOUSE_ENABLE
-      inputSpacetrans(nullptr),
-      inputSpacerotat(nullptr),
-      inputSpaceclick(nullptr),
       #endif
       #if STENO_ENABLE
       inputSteno(nullptr), 
@@ -164,19 +164,19 @@ void BLETransport::createHIDService() {
     #if MEDIA_ENABLE
     inputMediaKeys = hidDevice->getInputReport(0x03);      // Media keys
     #endif
+    #if SPACEMOUSE_ENABLE
+    inputSpacetrans = hidDevice->getInputReport(0x04);     // Spacemouse translations
+    inputSpacerotat = hidDevice->getInputReport(0x05);     // Spacemouse rotations
+    inputSpaceclick = hidDevice->getInputReport(0x06);     // Spacemouse buttons
+    #endif
     #if MOUSE_ENABLE
-    inputMouse = hidDevice->getInputReport(0x04);          // Mouse
+    inputMouse = hidDevice->getInputReport(0x07);          // Mouse
     #endif
     #if DIGITIZER_ENABLE
-    inputDigitizer = hidDevice->getInputReport(0x05);      // Digitizer
+    inputDigitizer = hidDevice->getInputReport(0x08);      // Digitizer
     #endif
     #if GAMEPAD_ENABLE
-    inputGamepad = hidDevice->getInputReport(0x06);        // Gamepad
-    #endif
-    #if SPACEMOUSE_ENABLE
-    inputSpacetrans = hidDevice->getInputReport(0x07);     // Spacemouse translations
-    inputSpacerotat = hidDevice->getInputReport(0x08);     // Spacemouse rotations
-    inputSpaceclick = hidDevice->getInputReport(0x09);     // Spacemouse buttons
+    inputGamepad = hidDevice->getInputReport(0x09);        // Gamepad
     #endif
     #if STENO_ENABLE
     inputSteno = hidDevice->getInputReport(0x50);          // Plover HID steno
@@ -211,6 +211,29 @@ void BLETransport::createHIDService() {
     }
     #endif
     
+    #if SPACEMOUSE_ENABLE    
+    if (inputSpacetrans) {
+        inputSpacetrans->setCallbacks(this);
+        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse translations characteristic created");
+    } else {
+        SQUID_LOG_ERROR(TRANSPORT_TAG, "Spacemouse Translations Input characteristic creation failed!");
+    }
+    
+    if (inputSpacerotat) {
+        inputSpacerotat->setCallbacks(this);
+        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse rotations characteristic created");
+    } else {
+        SQUID_LOG_ERROR(TRANSPORT_TAG, "Spacemouse Rotations Input characteristic creation failed!");
+    }
+    
+    if (inputSpaceclick) {
+        inputSpaceclick->setCallbacks(this);
+        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse buttons characteristic created");
+    } else {
+        SQUID_LOG_ERROR(TRANSPORT_TAG, "Spacemouse Buttons Input characteristic creation failed!");
+    }
+    #endif
+    
     #if MOUSE_ENABLE
     if (inputMouse) {
         inputMouse->setCallbacks(this);
@@ -235,29 +258,6 @@ void BLETransport::createHIDService() {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Gamepad characteristic created");
     } else {
         SQUID_LOG_ERROR(TRANSPORT_TAG, "Gamepad Input characteristic creation failed!");
-    }
-    #endif
-    
-    #if SPACEMOUSE_ENABLE    
-    if (inputSpacetrans) {
-        inputSpacetrans->setCallbacks(this);
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse translations characteristic created");
-    } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Spacemouse Translations Input characteristic creation failed!");
-    }
-    
-    if (inputSpacerotat) {
-        inputSpacerotat->setCallbacks(this);
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse rotations characteristic created");
-    } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Spacemouse Rotations Input characteristic creation failed!");
-    }
-    
-    if (inputSpaceclick) {
-        inputSpaceclick->setCallbacks(this);
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse buttons characteristic created");
-    } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Spacemouse Buttons Input characteristic creation failed!");
     }
     #endif
     
@@ -292,6 +292,11 @@ void BLETransport::verifyCharacteristicHandles() {
         #if MEDIA_ENABLE
         {inputMediaKeys, "Media Keys Input"},
         #endif
+        #if SPACEMOUSE_ENABLE
+        {inputSpacetrans, "Spacemouse Translations Input"},
+        {inputSpacerotat, "Spacemouse Rotations Input"},
+        {inputSpaceclick, "Spacemouse Buttons Input"},
+        #endif
         #if MOUSE_ENABLE
         {inputMouse, "Mouse Input"},
         #endif
@@ -300,11 +305,6 @@ void BLETransport::verifyCharacteristicHandles() {
         #endif
         #if GAMEPAD_ENABLE
         {inputGamepad, "Gamepad Input"},
-        #endif
-        #if SPACEMOUSE_ENABLE
-        {inputSpacetrans, "Spacemouse Translations Input"},
-        {inputSpacerotat, "Spacemouse Rotations Input"},
-        {inputSpaceclick, "Spacemouse Buttons Input"},
         #endif
         #if STENO_ENABLE
         {inputSteno, "Steno Input"},
@@ -349,6 +349,11 @@ void BLETransport::debugCharacteristics() {
         #if MEDIA_ENABLE
         {inputMediaKeys, "Media Keys Input"},
         #endif
+        #if SPACEMOUSE_ENABLE
+        {inputSpacetrans, "Spacemouse Translations Input"},
+        {inputSpacerotat, "Spacemouse Rotations Input"},
+        {inputSpaceclick, "Spacemouse Buttons Input"},
+        #endif
         #if MOUSE_ENABLE
         {inputMouse, "Mouse Input"},
         #endif
@@ -357,11 +362,6 @@ void BLETransport::debugCharacteristics() {
         #endif
         #if GAMEPAD_ENABLE
         {inputGamepad, "Gamepad Input"},
-        #endif
-        #if SPACEMOUSE_ENABLE
-        {inputSpacetrans, "Spacemouse Translations Input"},
-        {inputSpacerotat, "Spacemouse Rotations Input"},
-        {inputSpaceclick, "Spacemouse Buttons Input"},
         #endif
         #if STENO_ENABLE
         {inputSteno, "Steno Input"},
@@ -405,19 +405,19 @@ bool BLETransport::sendReport(uint8_t reportId, const uint8_t* data, size_t leng
         #if MEDIA_ENABLE
         case 0x03: characteristic = inputMediaKeys; charName = "Media Keys"; break;
         #endif
+        #if SPACEMOUSE_ENABLE
+        case 0x04: characteristic = inputSpacetrans; charName = "Spacetrans"; break;
+        case 0x05: characteristic = inputSpacerotat; charName = "Spacerotat"; break;
+        case 0x06: characteristic = inputSpaceclick; charName = "Spaceclick"; break;
+        #endif
         #if MOUSE_ENABLE
-        case 0x04: characteristic = inputMouse; charName = "Mouse"; break;
+        case 0x07: characteristic = inputMouse; charName = "Mouse"; break;
         #endif
         #if DIGITIZER_ENABLE
-        case 0x05: characteristic = inputDigitizer; charName = "Digitizer"; break;
+        case 0x08: characteristic = inputDigitizer; charName = "Digitizer"; break;
         #endif
         #if GAMEPAD_ENABLE
-        case 0x06: characteristic = inputGamepad; charName = "Gamepad"; break;
-        #endif
-        #if SPACEMOUSE_ENABLE
-        case 0x07: characteristic = inputSpacetrans; charName = "Spacetrans"; break;
-        case 0x08: characteristic = inputSpacerotat; charName = "Spacerotat"; break;
-        case 0x09: characteristic = inputSpaceclick; charName = "Spaceclick"; break;
+        case 0x09: characteristic = inputGamepad; charName = "Gamepad"; break;
         #endif
         #if STENO_ENABLE
         case 0x50: characteristic = inputSteno; charName = "Steno"; break;
@@ -581,6 +581,18 @@ void BLETransport::onConnect(NimBLEServer* pServer) {
     }
     #endif
     
+    #if SPACEMOUSE_ENABLE
+    if (inputSpacetrans && inputSpacetrans->getHandle() != 0) {
+        inputSpacetrans->notify();
+    }
+    if (inputSpacerotat && inputSpacerotat->getHandle() != 0) {
+        inputSpacerotat->notify();
+    }
+    if (inputSpaceclick && inputSpaceclick->getHandle() != 0) {
+        inputSpaceclick->notify();
+    }
+    #endif
+    
     #if MOUSE_ENABLE
     if (inputMouse && inputMouse->getHandle() != 0) {
         inputMouse->notify();
@@ -596,18 +608,6 @@ void BLETransport::onConnect(NimBLEServer* pServer) {
     #if GAMEPAD_ENABLE
     if (inputGamepad && inputGamepad->getHandle() != 0) {
         inputGamepad->notify();
-    }
-    #endif
-    
-    #if SPACEMOUSE_ENABLE
-    if (inputSpacetrans && inputSpacetrans->getHandle() != 0) {
-        inputSpacetrans->notify();
-    }
-    if (inputSpacerotat && inputSpacerotat->getHandle() != 0) {
-        inputSpacerotat->notify();
-    }
-    if (inputSpaceclick && inputSpaceclick->getHandle() != 0) {
-        inputSpaceclick->notify();
     }
     #endif
     
@@ -664,6 +664,14 @@ void BLETransport::onSubscribe(NimBLEServer* pServer, ble_gap_conn_desc* desc, u
     } else if (inputMediaKeys && inputMediaKeys->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Media keys report subscribed");
     #endif
+    #if SPACEMOUSE_ENABLE 
+    } else if (inputSpacetrans && inputSpacetrans->getHandle() == attr_handle) {
+        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse translations report subscribed");
+    } else if (inputSpacerotat && inputSpacerotat->getHandle() == attr_handle) {
+        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse rotations report subscribed");
+    } else if (inputSpaceclick && inputSpaceclick->getHandle() == attr_handle) {
+        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse buttons report subscribed");
+    #endif
     #if MOUSE_ENABLE
     } else if (inputMouse && inputMouse->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Mouse report subscribed");
@@ -675,14 +683,6 @@ void BLETransport::onSubscribe(NimBLEServer* pServer, ble_gap_conn_desc* desc, u
     #if GAMEPAD_ENABLE
     } else if (inputGamepad && inputGamepad->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Gamepad report subscribed");
-    #endif
-    #if SPACEMOUSE_ENABLE
-    } else if (inputSpacetrans && inputSpacetrans->getHandle() == attr_handle) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse translations report subscribed");
-    } else if (inputSpacerotat && inputSpacerotat->getHandle() == attr_handle) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse rotations report subscribed");
-    } else if (inputSpaceclick && inputSpaceclick->getHandle() == attr_handle) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse buttons report subscribed");
     #endif
     #if STENO_ENABLE
     } else if (inputSteno && inputSteno->getHandle() == attr_handle) {
