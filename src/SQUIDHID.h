@@ -258,11 +258,11 @@ public:
   #endif
   
   #if SPACEMOUSE_ENABLE
-    void spacemouseMove(int16_t tx, int16_t ty, int16_t tz, int16_t rx, int16_t ry, int16_t rz);
-    void spacemouseTranslate(int16_t tx, int16_t ty, int16_t tz);
-    void spacemouseRotate(int16_t rx, int16_t ry, int16_t rz);
-    void spacemousePress(uint8_t button);
-    void spacemouseRelease(uint8_t button);
+    void move(int16_t tx, int16_t ty, int16_t tz, int16_t rx, int16_t ry, int16_t rz);
+    void translate(int16_t tx, int16_t ty, int16_t tz);
+    void rotate(int16_t rx, int16_t ry, int16_t rz);
+    void press(uint8_t button);
+    void release(uint8_t button);
     bool spacemouseIsPressed(uint8_t button);
     void spacemouseSetAllButtons(uint32_t buttons);
     void sendSpacemouseReport();
