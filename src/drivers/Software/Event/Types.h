@@ -20,16 +20,17 @@
 struct KeyTag {};
 
 // Barton-Nackman strong type aliasing because I think it looks really pretty
-struct ModKeyTag          : KeyTag {};
-struct MediaKeyTag        : KeyTag {};
-struct NKROKeyTag         : KeyTag {};
-struct StenoKeyTag        : KeyTag {};
-struct GamepadKeyTag      : KeyTag {};
-struct GamepadHatTag      : KeyTag {};
-struct GamepadAnalogueTag : KeyTag {};
-struct MouseKeyTag        : KeyTag {};
-struct DigitizerKeyTag    : KeyTag {};
-struct SpacemouseKeyTag   : KeyTag {};
+struct ModKeyTag             : KeyTag {};
+struct MediaKeyTag           : KeyTag {};
+struct NKROKeyTag            : KeyTag {};
+struct StenoKeyTag           : KeyTag {};
+struct GamepadKeyTag         : KeyTag {};
+struct GamepadHatTag         : KeyTag {};
+struct GamepadAnalogueTag    : KeyTag {};
+struct MouseKeyTag           : KeyTag {};
+struct DigitizerKeyTag       : KeyTag {};
+struct SpacemouseKeyTag      : KeyTag {};
+struct SpacemouseAnalogueTag : KeyTag {};
 
 // Template-based strong types
 template<typename Tag>
@@ -58,16 +59,17 @@ public:
 };
 
 // Specific key types - these are the actual definitions
-using ModKey          = KeyType<ModKeyTag>;
-using MediaKey        = KeyType<MediaKeyTag>;
-using NKROKey         = KeyType<NKROKeyTag>;
-using StenoKey        = KeyType<StenoKeyTag>;
-using GamepadButton   = KeyType<GamepadKeyTag>;
-using GamepadHat      = KeyType<GamepadHatTag>;
-using GamepadAnalogue = KeyType<GamepadAnalogueTag>;
-using MouseKey        = KeyType<MouseKeyTag>;
-using DigitizerKey    = KeyType<DigitizerKeyTag>;
-using SpacemouseKey   = KeyType<SpacemouseKeyTag>;
+using ModKey             = KeyType<ModKeyTag>;
+using MediaKey           = KeyType<MediaKeyTag>;
+using NKROKey            = KeyType<NKROKeyTag>;
+using StenoKey           = KeyType<StenoKeyTag>;
+using GamepadButton      = KeyType<GamepadKeyTag>;
+using GamepadHat         = KeyType<GamepadHatTag>;
+using GamepadAnalogue    = KeyType<GamepadAnalogueTag>;
+using MouseKey           = KeyType<MouseKeyTag>;
+using DigitizerKey       = KeyType<DigitizerKeyTag>;
+using SpacemouseKey      = KeyType<SpacemouseKeyTag>;
+using SpacemouseAnalogue = KeyType<SpacemouseAnalogueTag>;
 
 // Literal operators for easy creation
 constexpr ModKey operator"" _mod(unsigned long long value) {
@@ -108,6 +110,10 @@ constexpr DigitizerKey operator"" _digitizer(unsigned long long value) {
 
 constexpr SpacemouseKey operator"" _spacemouse(unsigned long long value) {
     return SpacemouseKey(static_cast<int32_t>(value));
+}
+
+constexpr SpacemouseAnalogue operator"" _spaceanalogue(unsigned long long value) {
+    return SpacemouseAnalogue(static_cast<int32_t>(value));
 }
 
 // Helper macro for enum type name generation
@@ -167,16 +173,17 @@ struct MatrixScanResult {
 
 // Union of all possible key types for the keymap
 union KeymapValue {
-    NKROKey         nkro_key;
-    ModKey          mod_key;
-    MediaKey        media_key;
-    StenoKey        steno_key;
-    GamepadButton   gamepad_button;
-    GamepadHat      gamepad_hat;
-    GamepadAnalogue gamepad_analogue;
-    MouseKey        mouse_key;
-    DigitizerKey    digitizer_key;
-    SpacemouseKey   spacemouse_key;
+    NKROKey            nkro_key;
+    ModKey             mod_key;
+    MediaKey           media_key;
+    StenoKey           steno_key;
+    GamepadButton      gamepad_button;
+    GamepadHat         gamepad_hat;
+    GamepadAnalogue    gamepad_analogue;
+    MouseKey           mouse_key;
+    DigitizerKey       digitizer_key;
+    SpacemouseKey      spacemouse_key;
+    SpacemouseAnalogue spacemouse_analogue;
     
     KeymapValue() : nkro_key(NKROKey{0}) {}
     KeymapValue(NKROKey k) : nkro_key(k) {}
@@ -189,6 +196,7 @@ union KeymapValue {
     KeymapValue(MouseKey k) : mouse_key(k) {}
     KeymapValue(DigitizerKey k) : digitizer_key(k) {}
     KeymapValue(SpacemouseKey k ) : spacemouse_key(k) {}
+    KeymapValue(SpacemouseAnalogue k) : spacemouse_analogue(k) {}
 };
 
 // Key type identifier
@@ -203,6 +211,7 @@ enum class KeypressType {
     MOUSE_KEY,
     DIGITIZER_KEY,
     SPACEMOUSE_KEY,
+    SPACEMOUSE_ANALOGUE
 };
 
 // Keymap entry
@@ -221,6 +230,7 @@ struct KeymapEntry {
     KeymapEntry(MouseKey k) : type(KeypressType::MOUSE_KEY), key(k) {}
     KeymapEntry(DigitizerKey k) : type(KeypressType::DIGITIZER_KEY), key(k) {}
     KeymapEntry(SpacemouseKey k) : type(KeypressType::SPACEMOUSE_KEY), key(k) {}
+    KeymapEntry(SpacemouseAnalogue k) : type(KeypressType::SPACEMOUSE_ANALOGUE), key(k) {}
     
     // Default constructor
     KeymapEntry() : type(KeypressType::NKRO_KEY), key(NKROKey{0}) {}
@@ -323,6 +333,11 @@ struct LayerKeymapEntry {
     LayerKeymapEntry(SpacemouseKey k)
         : action_type(LayerActionType::NORMAL_KEY) {
         action.key = KeymapEntry(k);   
+    }
+    
+    LayerKeymapEntry(SpacemouseAnalogue k)
+        : action_type(LayerActionType::NORMAL_KEY) {
+        action.key = KeymapEntry(k);
     }
     
     LayerKeymapEntry(StenoKey k) 
