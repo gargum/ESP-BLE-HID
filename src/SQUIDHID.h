@@ -252,7 +252,7 @@ public:
     #if DIGITIZER_ENABLE
     void      click(uint16_t x, uint16_t y, SpacemouseKey b = DI_BTN1);
     void      moveTo(uint16_t x, uint16_t y, uint8_t pressure = 0, SpacemouseKey buttons = SpacemouseKey{0});
-    void      beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 1270);
+    void      beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 127);
     void      updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
     void      endStroke(uint16_t x, uint16_t y);
     void      setDigitizerRange(uint16_t maxX, uint16_t maxY);
@@ -277,11 +277,7 @@ public:
     void      beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 127);
     void      updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
     void      endStroke(uint16_t x, uint16_t y);
-    void      useAbsoluteMode(bool state = true);
-    bool      isAbsoluteMode();
-    void      useAutoMode(bool state = true);
     void      setDigitizerRange(uint16_t maxX, uint16_t maxY);
-    bool      isAutoModeEnabled();
     void      sendDigitizerReport();
     #endif
   
