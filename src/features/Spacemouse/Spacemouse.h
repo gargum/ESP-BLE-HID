@@ -34,49 +34,30 @@ typedef struct {
 } SpaceButtonReport;
 
 static const uint8_t _spacemouseReportDescriptor[] = {
-  0x05, 0x01,           // Usage Page (Generic Desktop)
-  0x09, 0x08,           //  0x08: Usage (Multi-Axis)
-  0xa1, 0x01,           // Collection (Application)
-  0xa1, 0x00,           //   Collection (Physical)
-  0x85, SPACETRANS_ID,  //     Report ID
-  0x16, 0x00, 0x80,     //     Logical minimum (-500)
-  0x26, 0xff, 0x7f,     //     Logical maximum (500)
-  0x36, 0x00, 0x80,     //     Physical Minimum (-32768)
-  0x46, 0xff, 0x7f,     //     Physical Maximum (32767)
-  0x09, 0x30,           //     Usage (X)
-  0x09, 0x31,           //     Usage (Y)
-  0x09, 0x32,           //     Usage (Z)
-  0x75, 0x10,           //     Report Size (16)
-  0x95, 0x03,           //     Report Count (3)
-  0x81, 0x02,           //     Input (variable,absolute)
-  0xC0,                 //   End Collection
-
-  0xa1, 0x00,           //   Collection (Physical)
-  0x85, SPACEROTAT_ID,  //     Report ID
-  0x16, 0x00, 0x80,     //     Logical minimum (-500)
-  0x26, 0xff, 0x7f,     //     Logical maximum (500)
-  0x36, 0x00, 0x80,     //     Physical Minimum (-32768)
-  0x46, 0xff, 0x7f,     //     Physical Maximum (32767)
-  0x09, 0x33,           //     Usage (RX)
-  0x09, 0x34,           //     Usage (RY)
-  0x09, 0x35,           //     Usage (RZ)
-  0x75, 0x10,           //     Report Size (16)
-  0x95, 0x03,           //     Report Count (3)
-  0x81, 0x02,           //     Input (variable,absolute)
-  0xC0,                 //   End Collection
-
-  0xa1, 0x00,           //   Collection (Physical)
-  0x85, SPACECLICK_ID,  //     Report ID
-  0x15, 0x00,           //     Logical Minimum (0)
-  0x25, 0x01,           //     Logical Maximum (1)
-  0x75, 0x01,           //     Report Size (1)
-  0x95, 32,             //     Report Count (24)
-  0x05, 0x09,           //     Usage Page (Button)
-  0x19, 1,              //     Usage Minimum (Button #1)
-  0x29, 32,             //     Usage Maximum (Button #24)
-  0x81, 0x02,           //     Input (variable,absolute)
-  0xC0,                 //   End Collection
-  0xC0,                 // End Collection
+  // Spacemouse Translation axis
+  USAGE_PAGE(1),       0x01,                      USAGE(1),            0x08,                      
+  COLLECTION(1),       0x01,                      COLLECTION(1),       0x00,                    
+  REPORT_ID(1),        SPACETRANS_ID,             LOGICAL_MINIMUM(2),  0x00, 0x80,            
+  LOGICAL_MAXIMUM(2),  0xFF, 0x7F,                PHYSICAL_MINIMUM(2), 0x00, 0x80,           
+  PHYSICAL_MAXIMUM(2), 0xFF, 0x7F,                USAGE(1),            0x30,                    
+  USAGE(1),            0x31,                      USAGE(1),            0x32,                    
+  REPORT_SIZE(1),      0x10,                      REPORT_COUNT(1),     0x03,                    
+  HIDINPUT(1),         0x02,                      END_COLLECTION(0),
+  // Spacemouse Rotation axis
+  COLLECTION(1),       0x00,                      REPORT_ID(1),        SPACEROTAT_ID,
+  LOGICAL_MINIMUM(2),  0x00, 0x80,                LOGICAL_MAXIMUM(2),  0xFF, 0x7F,            
+  PHYSICAL_MINIMUM(2), 0x00, 0x80,                PHYSICAL_MAXIMUM(2), 0xFF, 0x7F,          
+  USAGE(1),            0x33,                      USAGE(1),            0x34,                    
+  USAGE(1),            0x35,                      REPORT_SIZE(1),      0x10,                    
+  REPORT_COUNT(1),     0x03,                      HIDINPUT(1),         0x02,                    
+  END_COLLECTION(0),
+  // Spacemouse/3DConnexion Buttons (I added 32 of them)
+  COLLECTION(1),       0x00,                      REPORT_ID(1),        SPACECLICK_ID,
+  LOGICAL_MINIMUM(1),  0x00,                      LOGICAL_MAXIMUM(1),  0x01,                  
+  REPORT_SIZE(1),      0x01,                      REPORT_COUNT(1),     0x20,                    
+  USAGE_PAGE(1),       0x09,                      USAGE_MINIMUM(1),    0x01,                    
+  USAGE_MAXIMUM(1),    0x20,                      HIDINPUT(1),         0x02,                    
+  END_COLLECTION(0),                              END_COLLECTION(0),
 };
 
 enum class SpacemouseKeys : uint32_t {
