@@ -13,10 +13,30 @@ BLETransport::BLETransport()
       batteryLevel(100), appearance(KEYBOARD),
       initialized(false), connected(false),
       reportMap(nullptr), reportMapLength(0),
-      inputNKRO(nullptr), inputMediaKeys(nullptr),
-      inputMouse(nullptr), inputDigitizer(nullptr), inputGamepad(nullptr),
-      inputSteno(nullptr), outputKeyboard(nullptr) {
-}
+      #if KEYBOARD_ENABLE
+      inputNKRO(nullptr), 
+      #endif
+      #if MEDIA_ENABLE
+      inputMediaKeys(nullptr),
+      #endif
+      #if MOUSE_ENABLE
+      inputMouse(nullptr), 
+      #endif
+      #if DIGITIZER_ENABLE
+      inputDigitizer(nullptr), 
+      #endif
+      #if GAMEPAD_ENABLE
+      inputGamepad(nullptr),
+      #endif
+      #if SPACEMOUSE_ENABLE
+      inputSpacetrans(nullptr),
+      inputSpacerotat(nullptr),
+      inputSpaceclick(nullptr),
+      #endif
+      #if STENO_ENABLE
+      inputSteno(nullptr), 
+      #endif
+      outputKeyboard(nullptr) { }
 
 BLETransport::~BLETransport() {
     end();
@@ -138,13 +158,29 @@ void BLETransport::createHIDService() {
     
     // Create input reports for each HID device type
     SQUID_LOG_DEBUG(TRANSPORT_TAG, "Creating HID input reports...");
-    
-    inputNKRO = hidDevice->getInputReport(0x02);      // NKRO keyboard  
-    inputMediaKeys = hidDevice->getInputReport(0x03); // Media keys
-    inputMouse = hidDevice->getInputReport(0x04);     // Mouse
-    inputDigitizer = hidDevice->getInputReport(0x05); // Digitizer
-    inputGamepad = hidDevice->getInputReport(0x06);   // Gamepad
-    inputSteno = hidDevice->getInputReport(0x07);     // Plover HID steno
+    #if KEYBOARD_ENABLE
+    inputNKRO = hidDevice->getInputReport(0x02);           // NKRO keyboard  
+    #endif
+    #if MEDIA_ENABLE
+    inputMediaKeys = hidDevice->getInputReport(0x03);      // Media keys
+    #endif
+    #if MOUSE_ENABLE
+    inputMouse = hidDevice->getInputReport(0x04);          // Mouse
+    #endif
+    #if DIGITIZER_ENABLE
+    inputDigitizer = hidDevice->getInputReport(0x05);      // Digitizer
+    #endif
+    #if GAMEPAD_ENABLE
+    inputGamepad = hidDevice->getInputReport(0x06);        // Gamepad
+    #endif
+    #if SPACEMOUSE_ENABLE
+    inputSpacetrans = hidDevice->getInputReport(0x07);     // Spacemouse translations
+    inputSpacerotat = hidDevice->getInputReport(0x08);     // Spacemouse rotations
+    inputSpaceclick = hidDevice->getInputReport(0x09);     // Spacemouse buttons
+    #endif
+    #if STENO_ENABLE
+    inputSteno = hidDevice->getInputReport(0x50);          // Plover HID steno
+    #endif
     
     // Create output report for keyboard
     outputKeyboard = hidDevice->getOutputReport(0x01);
@@ -157,47 +193,82 @@ void BLETransport::createHIDService() {
         SQUID_LOG_ERROR(TRANSPORT_TAG, "Keyboard Output characteristic creation failed!");
     }
     
+    #if KEYBOARD_ENABLE
     if (inputNKRO) {
         inputNKRO->setCallbacks(this);
         SQUID_LOG_INFO(TRANSPORT_TAG, "NKRO characteristic created");
     } else {
         SQUID_LOG_ERROR(TRANSPORT_TAG, "NKRO Input characteristic creation failed!");
     }
+    #endif
     
+    #if MEDIA_ENABLE
     if (inputMediaKeys) {
         inputMediaKeys->setCallbacks(this);
         SQUID_LOG_INFO(TRANSPORT_TAG, "Media keys characteristic created");
     } else {
         SQUID_LOG_ERROR(TRANSPORT_TAG, "Media Keys Input characteristic creation failed!");
     }
+    #endif
     
+    #if MOUSE_ENABLE
     if (inputMouse) {
         inputMouse->setCallbacks(this);
         SQUID_LOG_INFO(TRANSPORT_TAG, "Mouse characteristic created");
     } else {
         SQUID_LOG_ERROR(TRANSPORT_TAG, "Mouse Input characteristic creation failed!");
     }
+    #endif
     
+    #if DIGITIZER_ENABLE
     if (inputDigitizer) {
         inputDigitizer->setCallbacks(this);
         SQUID_LOG_INFO(TRANSPORT_TAG, "Digitizer characteristic created");
     } else {
         SQUID_LOG_ERROR(TRANSPORT_TAG, "Digitizer Input characteristic creation failed!");
     }
+    #endif
     
+    #if GAMEPAD_ENABLE
     if (inputGamepad) {
         inputGamepad->setCallbacks(this);
         SQUID_LOG_INFO(TRANSPORT_TAG, "Gamepad characteristic created");
     } else {
         SQUID_LOG_ERROR(TRANSPORT_TAG, "Gamepad Input characteristic creation failed!");
     }
+    #endif
     
+    #if SPACEMOUSE_ENABLE    
+    if (inputSpacetrans) {
+        inputSpacetrans->setCallbacks(this);
+        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse translations characteristic created");
+    } else {
+        SQUID_LOG_ERROR(TRANSPORT_TAG, "Spacemouse Translations Input characteristic creation failed!");
+    }
+    
+    if (inputSpacerotat) {
+        inputSpacerotat->setCallbacks(this);
+        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse rotations characteristic created");
+    } else {
+        SQUID_LOG_ERROR(TRANSPORT_TAG, "Spacemouse Rotations Input characteristic creation failed!");
+    }
+    
+    if (inputSpaceclick) {
+        inputSpaceclick->setCallbacks(this);
+        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse buttons characteristic created");
+    } else {
+        SQUID_LOG_ERROR(TRANSPORT_TAG, "Spacemouse Buttons Input characteristic creation failed!");
+    }
+    #endif
+    
+    #if STENO_ENABLE
     if (inputSteno) {
         inputSteno->setCallbacks(this);
         SQUID_LOG_INFO(TRANSPORT_TAG, "Steno characteristic created");
     } else {
         SQUID_LOG_ERROR(TRANSPORT_TAG, "Steno Input characteristic creation failed!");
     }
+    #endif
     
     // Start HID services AFTER creating all characteristics
     SQUID_LOG_DEBUG(TRANSPORT_TAG, "Starting HID services...");
@@ -215,12 +286,29 @@ void BLETransport::createHIDService() {
 
 void BLETransport::verifyCharacteristicHandles() {
     std::vector<std::pair<NimBLECharacteristic*, const char*>> characteristics = {
+        #if KEYBOARD_ENABLE
         {inputNKRO, "NKRO Input"},
+        #endif
+        #if MEDIA_ENABLE
         {inputMediaKeys, "Media Keys Input"},
+        #endif
+        #if MOUSE_ENABLE
         {inputMouse, "Mouse Input"},
+        #endif
+        #if DIGITIZER_ENABLE
         {inputDigitizer, "Digitizer Input"},
+        #endif
+        #if GAMEPAD_ENABLE
         {inputGamepad, "Gamepad Input"},
+        #endif
+        #if SPACEMOUSE_ENABLE
+        {inputSpacetrans, "Spacemouse Translations Input"},
+        {inputSpacerotat, "Spacemouse Rotations Input"},
+        {inputSpaceclick, "Spacemouse Buttons Input"},
+        #endif
+        #if STENO_ENABLE
         {inputSteno, "Steno Input"},
+        #endif
         {outputKeyboard, "Keyboard Output"}
     };
     
@@ -255,12 +343,29 @@ void BLETransport::debugCharacteristics() {
     SQUID_LOG_INFO(TRANSPORT_TAG, "HID Service: %s", hidDevice && hidDevice->getHidService() ? "VALID" : "NULL");
     
     std::vector<std::pair<NimBLECharacteristic*, const char*>> characteristics = {
+        #if KEYBOARD_ENABLE
         {inputNKRO, "NKRO Input"},
+        #endif
+        #if MEDIA_ENABLE
         {inputMediaKeys, "Media Keys Input"},
+        #endif
+        #if MOUSE_ENABLE
         {inputMouse, "Mouse Input"},
+        #endif
+        #if DIGITIZER_ENABLE
         {inputDigitizer, "Digitizer Input"},
+        #endif
+        #if GAMEPAD_ENABLE
         {inputGamepad, "Gamepad Input"},
+        #endif
+        #if SPACEMOUSE_ENABLE
+        {inputSpacetrans, "Spacemouse Translations Input"},
+        {inputSpacerotat, "Spacemouse Rotations Input"},
+        {inputSpaceclick, "Spacemouse Buttons Input"},
+        #endif
+        #if STENO_ENABLE
         {inputSteno, "Steno Input"},
+        #endif
         {outputKeyboard, "Keyboard Output"}
     };
     
@@ -294,12 +399,29 @@ bool BLETransport::sendReport(uint8_t reportId, const uint8_t* data, size_t leng
     
     // Map report IDs to characteristics
     switch (reportId) {
+        #if KEYBOARD_ENABLE
         case 0x02: characteristic = inputNKRO; charName = "NKRO"; break;
+        #endif
+        #if MEDIA_ENABLE
         case 0x03: characteristic = inputMediaKeys; charName = "Media Keys"; break;
+        #endif
+        #if MOUSE_ENABLE
         case 0x04: characteristic = inputMouse; charName = "Mouse"; break;
+        #endif
+        #if DIGITIZER_ENABLE
         case 0x05: characteristic = inputDigitizer; charName = "Digitizer"; break;
+        #endif
+        #if GAMEPAD_ENABLE
         case 0x06: characteristic = inputGamepad; charName = "Gamepad"; break;
-        case 0x07: characteristic = inputSteno; charName = "Steno"; break;
+        #endif
+        #if SPACEMOUSE_ENABLE
+        case 0x07: characteristic = inputSpacetrans; charName = "Spacetrans"; break;
+        case 0x08: characteristic = inputSpacerotat; charName = "Spacerotat"; break;
+        case 0x09: characteristic = inputSpaceclick; charName = "Spaceclick"; break;
+        #endif
+        #if STENO_ENABLE
+        case 0x50: characteristic = inputSteno; charName = "Steno"; break;
+        #endif
         default:
             SQUID_LOG_WARN(TRANSPORT_TAG, "Unknown report ID: %d", reportId);
             return false;
@@ -477,6 +599,18 @@ void BLETransport::onConnect(NimBLEServer* pServer) {
     }
     #endif
     
+    #if SPACEMOUSE_ENABLE
+    if (inputSpacetrans && inputSpacetrans->getHandle() != 0) {
+        inputSpacetrans->notify();
+    }
+    if (inputSpacerotat && inputSpacerotat->getHandle() != 0) {
+        inputSpacerotat->notify();
+    }
+    if (inputSpaceclick && inputSpaceclick->getHandle() != 0) {
+        inputSpaceclick->notify();
+    }
+    #endif
+    
     #if STENO_ENABLE
     if (inputSteno && inputSteno->getHandle() != 0) {
         inputSteno->notify();
@@ -520,18 +654,40 @@ void BLETransport::onSubscribe(NimBLEServer* pServer, ble_gap_conn_desc* desc, u
     SQUID_LOG_INFO(TRANSPORT_TAG, "Subscribe event - attr_handle: %d", attr_handle);
     
     // Check which characteristic was subscribed by comparing handles
-    if (inputNKRO && inputNKRO->getHandle() == attr_handle) {
+    if (outputKeyboard) {
+        SQUID_LOG_INFO(TRANSPORT_TAG, "Subscribing to output reports isn't really a thing."); 
+    #if KEYBOARD_ENABLE
+    } else if (inputNKRO && inputNKRO->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "NKRO report subscribed");
+    #endif
+    #if MEDIA_ENABLE
     } else if (inputMediaKeys && inputMediaKeys->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Media keys report subscribed");
+    #endif
+    #if MOUSE_ENABLE
     } else if (inputMouse && inputMouse->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Mouse report subscribed");
+    #endif
+    #if DIGITIZER_ENABLE
     } else if (inputDigitizer && inputDigitizer->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Digitizer report subscribed");
+    #endif
+    #if GAMEPAD_ENABLE
     } else if (inputGamepad && inputGamepad->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Gamepad report subscribed");
+    #endif
+    #if SPACEMOUSE_ENABLE
+    } else if (inputSpacetrans && inputSpacetrans->getHandle() == attr_handle) {
+        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse translations report subscribed");
+    } else if (inputSpacerotat && inputSpacerotat->getHandle() == attr_handle) {
+        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse rotations report subscribed");
+    } else if (inputSpaceclick && inputSpaceclick->getHandle() == attr_handle) {
+        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse buttons report subscribed");
+    #endif
+    #if STENO_ENABLE
     } else if (inputSteno && inputSteno->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Steno report subscribed");
+    #endif
     } else {
         SQUID_LOG_DEBUG(TRANSPORT_TAG, "Unknown characteristic subscribed, handle: %d", attr_handle);
     }
