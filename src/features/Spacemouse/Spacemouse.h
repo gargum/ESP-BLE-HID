@@ -16,6 +16,11 @@
 #define SPACEROTAT_ID 0x05 // Look at any gamepad's HID Report you guys, you don't have to do this
 #define SPACECLICK_ID 0x06 // Why would you do it like this?! 
 
+#if DIGITIZER_ENABLE
+#define DEFAULT_WIDTH   1920
+#define DEFAULT_HEIGHT  1080
+#endif
+
 // Spacemouse report structures
 typedef struct {
     int16_t tx;  // Translation X
@@ -59,6 +64,24 @@ static const uint8_t _spacemouseReportDescriptor[] = {
   USAGE_MAXIMUM(1),    0x20,                      HIDINPUT(1),         0x02,                    
   END_COLLECTION(0),                              END_COLLECTION(0),
 };
+
+enum class SpacemouseAnalogues : uint8_t {
+
+  SPACEMOUSE_TX = 0,  // Translation X
+  SPACEMOUSE_TY = 1,  // Translation Y
+  SPACEMOUSE_TZ = 2,  // Translation Z
+  SPACEMOUSE_RX = 3,  // Rotation X
+  SPACEMOUSE_RY = 4,  // Rotation Y
+  SPACEMOUSE_RZ = 5   // Rotation Z
+
+};
+
+MK(SpacemouseAnalogue, SM_TX, SPACEMOUSE_TX);
+MK(SpacemouseAnalogue, SM_TY, SPACEMOUSE_TY);
+MK(SpacemouseAnalogue, SM_TZ, SPACEMOUSE_TZ);
+MK(SpacemouseAnalogue, SM_RX, SPACEMOUSE_RX);
+MK(SpacemouseAnalogue, SM_RY, SPACEMOUSE_RY);
+MK(SpacemouseAnalogue, SM_RZ, SPACEMOUSE_RZ);
 
 enum class SpacemouseKeys : uint32_t {
   SPACEMOUSE_1  = 0x00000001,
@@ -128,6 +151,24 @@ MK(SpacemouseKey, SM_30, SPACEMOUSE_30);
 MK(SpacemouseKey, SM_31, SPACEMOUSE_31);
 MK(SpacemouseKey, SM_32, SPACEMOUSE_32);
 
+#if MOUSE_ENABLE
+MK(SpacemouseKey, MO_BTN1, SPACEMOUSE_1);
+MK(SpacemouseKey, MO_BTN2, SPACEMOUSE_2);
+MK(SpacemouseKey, MO_BTN3, SPACEMOUSE_3);
+MK(SpacemouseKey, MO_BTN4, SPACEMOUSE_4);
+MK(SpacemouseKey, MO_BTN5, SPACEMOUSE_5);
+#endif
+
+#if DIGITIZER_ENABLE
+MK(SpacemouseKey, DI_BTN1, SPACEMOUSE_1);
+MK(SpacemouseKey, DI_BTN2, SPACEMOUSE_2);
+MK(SpacemouseKey, DI_BTN3, SPACEMOUSE_3);
+#endif
+
+#if GAMEPAD_ENABLE
+
+#endif
+
 class SQUIDSPACEMOUSE {
 private:
     Transport*              transport;
@@ -135,6 +176,19 @@ private:
     SpaceRotationReport     _rotReport;  
     SpaceButtonReport       _buttonReport;
     uint32_t                _delay_ms;
+    
+    #if MOUSE_ENABLE
+    
+    #endif
+    
+    #if DIGITIZER_ENABLE
+      uint16_t              _screenWidth;
+      uint16_t              _screenHeight;
+    #endif
+    
+    #if GAMEPAD_ENABLE
+    
+    #endif
     
 public:
     SQUIDSPACEMOUSE();
@@ -148,12 +202,29 @@ public:
     void   move(int16_t tx, int16_t ty, int16_t tz, int16_t rx, int16_t ry, int16_t rz);
     void   translate(int16_t tx, int16_t ty, int16_t tz);
     void   rotate(int16_t rx, int16_t ry, int16_t rz);
-    void   press(uint8_t button);
-    void   release(uint8_t button);
-    bool   isPressed(uint8_t button);
+    void   press(SpacemouseKey button);
+    void   release(SpacemouseKey button);
+    bool   isPressed(SpacemouseKey button);
     void   setAllButtons(uint32_t buttons);
     void   sendReport();
     void   releaseAll();
+    
+    #if MOUSE_ENABLE
+    
+    #endif
+    
+    #if DIGITIZER_ENABLE
+    void click(uint16_t x, uint16_t y, SpacemouseKey b = DI_BTN1); 
+    void moveTo(uint16_t x, uint16_t y, uint8_t pressure = 0, SpacemouseKey buttons = SpacemouseKey{0});
+    void beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 1270);
+    void updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
+    void endStroke(uint16_t x, uint16_t y);
+    void setDigitizerRange(uint16_t maxX, uint16_t maxY);
+    #endif
+    
+    #if GAMEPAD_ENABLE
+    
+    #endif
     
 };
 
