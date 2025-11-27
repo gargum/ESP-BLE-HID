@@ -34,12 +34,8 @@
   #include "features/Media/Media.h"
 #endif
 
-#if STENO_ENABLE
-  #include "features/Steno/Steno.h"
-#endif
-
-#if GAMEPAD_ENABLE
-  #include "features/Gamepad/Gamepad.h"
+#if SPACEMOUSE_ENABLE
+  #include "features/Spacemouse/Spacemouse.h"
 #endif
 
 #if MOUSE_ENABLE
@@ -50,8 +46,12 @@
   #include "features/Digitizer/Digitizer.h"
 #endif
 
-#if SPACEMOUSE_ENABLE
-  #include "features/Spacemouse/Spacemouse.h"
+#if GAMEPAD_ENABLE
+  #include "features/Gamepad/Gamepad.h"
+#endif
+
+#if STENO_ENABLE
+  #include "features/Steno/Steno.h"
 #endif
 
 #if LED_ENABLE
@@ -74,8 +74,6 @@
 // Scanning/Polling interval
 #define SCAN_INTERVAL 1
 #define POLL_INTERVAL 250
-#define LED_INTERVAL  50
-#define OLED_INTERVAL 100
 
 class SQUIDHID : public Print
     , public TransportCallbacks
@@ -109,6 +107,10 @@ private:
     SQUIDMEDIA                media;
   #endif
   
+  #if SPACEMOUSE_ENABLE
+    SQUIDSPACEMOUSE           spacemouse;
+  #endif
+  
   #if MOUSE_ENABLE
     SQUIDMOUSE                mouse;
   #endif
@@ -117,16 +119,12 @@ private:
     SQUIDTABLET               digitizer;
   #endif
   
-  #if SPACEMOUSE_ENABLE
-    SQUIDSPACEMOUSE           spacemouse;
+  #if GAMEPAD_ENABLE
+    SQUIDGAMEPAD              gamepad;
   #endif
   
   #if STENO_ENABLE
     SQUIDSTENO                steno;
-  #endif
-  
-  #if GAMEPAD_ENABLE
-    SQUIDGAMEPAD              gamepad;
   #endif
   
   #if LED_ENABLE
@@ -136,11 +134,13 @@ private:
     uint32_t     ledOverrideEndTime;
     bool         ledOverrideActive;
     uint32_t     ledOverrideColor;
+    bool         ledsDirty;
   #endif
   
   #if OLED_ENABLE
     OLED*        oledDisplay;
     bool         oledInitialized;
+    bool         oledDirty;
   #endif
   
 public:
@@ -235,6 +235,17 @@ public:
     void   sendMediaReport();
   #endif
   
+  #if SPACEMOUSE_ENABLE
+    void move(int16_t tx, int16_t ty, int16_t tz, int16_t rx, int16_t ry, int16_t rz);
+    void translate(int16_t tx, int16_t ty, int16_t tz);
+    void rotate(int16_t rx, int16_t ry, int16_t rz);
+    void press(uint8_t button);
+    void release(uint8_t button);
+    bool spacemouseIsPressed(uint8_t button);
+    void spacemouseSetAllButtons(uint32_t buttons);
+    void sendSpacemouseReport();
+  #endif
+  
   #if MOUSE_ENABLE
     size_t press(MouseKey b = MO_BTN1);
     size_t release(MouseKey b = MO_BTN1);
@@ -257,24 +268,6 @@ public:
     void sendDigitizerReport();
   #endif
   
-  #if SPACEMOUSE_ENABLE
-    void move(int16_t tx, int16_t ty, int16_t tz, int16_t rx, int16_t ry, int16_t rz);
-    void translate(int16_t tx, int16_t ty, int16_t tz);
-    void rotate(int16_t rx, int16_t ry, int16_t rz);
-    void press(uint8_t button);
-    void release(uint8_t button);
-    bool spacemouseIsPressed(uint8_t button);
-    void spacemouseSetAllButtons(uint32_t buttons);
-    void sendSpacemouseReport();
-  #endif
-  
-  #if STENO_ENABLE
-    size_t    press(StenoKey stenoKey);
-    size_t    release(StenoKey stenoKey);
-    void      stenoStroke(const StenoKey* keys, size_t count);
-    void      sendStenoReport();
-  #endif
-  
   #if GAMEPAD_ENABLE
     size_t    press(GamepadButton button);
     size_t    release(GamepadButton button);
@@ -289,6 +282,13 @@ public:
     void      gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]);
     void      sendGamepadReport();
   #endif     
+            
+  #if STENO_ENABLE
+    size_t    press(StenoKey stenoKey);
+    size_t    release(StenoKey stenoKey);
+    void      stenoStroke(const StenoKey* keys, size_t count);
+    void      sendStenoReport();
+  #endif
              
   #if LED_ENABLE
     NeoPixel* leds;
@@ -302,6 +302,7 @@ public:
     void      setLEDBrightness(uint8_t brightness);
     void      rainbowLEDs(uint16_t first_hue = 0, int8_t reps = 1, uint8_t saturation = 255, uint8_t brightness = 255, bool gammify = true);
     bool      ledsCanShow();
+    void      markLEDsDirty() { ledsDirty = true; }
     void      updateLEDs();
   #endif
 
@@ -329,6 +330,7 @@ public:
     void oledShowConnectionStatus(bool connected);
     void oledShowBatteryLevel(uint8_t level);
     void oledShowLayerInfo(uint8_t layer);
+    void markOLEDDirty() { oledDirty = true; }
     #else
       #error "You need to turn on I2C to use the I2C OLED driver!"
     #endif
