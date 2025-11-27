@@ -352,8 +352,6 @@ void SQUIDHID::update() {
     static uint32_t lastUpdateTime        = 0;
     static uint32_t lastPollTime          = 0;
     static uint32_t lastLogProcessTime    = 0;
-    static uint32_t lastLEDTime           = 0;
-    static uint32_t lastOLEDTime          = 0;
     uint32_t currentTime                  = millis();
     
     if (currentTime - lastLogProcessTime >= 10) {
@@ -386,19 +384,18 @@ void SQUIDHID::update() {
     }
     
     #if LED_ENABLE
-    if (currentTime - lastLEDTime >= LED_INTERVAL) {
-        lastLEDTime = currentTime;
-        if (leds && leds->canShow()) {
+    // Only update LEDs if they're dirty and ready to show
+    if (ledsDirty && leds && leds->canShow()) {
         leds->show();
-        }
+        ledsDirty = false;
     }
     #endif
     
     #if OLED_ENABLE
-    // Update OLED, but not too frequently so as to avoid flickering
-    if (currentTime - lastOLEDTime >= 100) { // Update every 100ms
-        lastOLEDTime = currentTime;
-        // Could add periodic status updates here if needed
+    // Only update OLED if it's dirty
+    if (oledDirty && oledDisplay && oledInitialized) {
+        oledDisplay->display();
+        oledDirty = false;
     }
     #endif
 }
@@ -534,7 +531,7 @@ void SQUIDHID::onConnect() {
     #if MOUSE_ENABLE
     mouse.onConnect();
     #endif
-    #if DIGITIZER_ENABLE
+    #if DIGITIZER_ENABLE 
     digitizer.onConnect();
     #endif
     #if GAMEPAD_ENABLE
@@ -886,6 +883,28 @@ void SQUIDHID::sendMediaReport() { media.sendMediaReport(); }
 #endif
 
 //
+// ----------------------------------------- Spacemouse Block
+//
+
+#if SPACEMOUSE_ENABLE
+void SQUIDHID::move(int16_t tx, int16_t ty, int16_t tz, int16_t rx, int16_t ry, int16_t rz) { spacemouse.move(tx, ty, tz, rx, ry, rz); }
+
+void SQUIDHID::translate(int16_t tx, int16_t ty, int16_t tz) { spacemouse.translate(tx, ty, tz); }
+
+void SQUIDHID::rotate(int16_t rx, int16_t ry, int16_t rz) { spacemouse.rotate(rx, ry, rz); }
+
+void SQUIDHID::press(uint8_t button) { spacemouse.press(button); }
+
+void SQUIDHID::release(uint8_t button) { spacemouse.release(button); }
+
+bool SQUIDHID::spacemouseIsPressed(uint8_t button) { return spacemouse.isPressed(button); }
+
+void SQUIDHID::spacemouseSetAllButtons(uint32_t buttons) { spacemouse.setAllButtons(buttons); }
+
+void SQUIDHID::sendSpacemouseReport() { spacemouse.sendReport(); }
+#endif
+
+//
 // ----------------------------------------- Mouse Block
 //
 
@@ -930,42 +949,6 @@ void SQUIDHID::sendDigitizerReport() { digitizer.sendDigitizerReport(); }
 #endif
 
 //
-// ----------------------------------------- Spacemouse Block
-//
-
-#if SPACEMOUSE_ENABLE
-void SQUIDHID::move(int16_t tx, int16_t ty, int16_t tz, int16_t rx, int16_t ry, int16_t rz) { spacemouse.move(tx, ty, tz, rx, ry, rz); }
-
-void SQUIDHID::translate(int16_t tx, int16_t ty, int16_t tz) { spacemouse.translate(tx, ty, tz); }
-
-void SQUIDHID::rotate(int16_t rx, int16_t ry, int16_t rz) { spacemouse.rotate(rx, ry, rz); }
-
-void SQUIDHID::press(uint8_t button) { spacemouse.press(button); }
-
-void SQUIDHID::release(uint8_t button) { spacemouse.release(button); }
-
-bool SQUIDHID::spacemouseIsPressed(uint8_t button) { return spacemouse.isPressed(button); }
-
-void SQUIDHID::spacemouseSetAllButtons(uint32_t buttons) { spacemouse.setAllButtons(buttons); }
-
-void SQUIDHID::sendSpacemouseReport() { spacemouse.sendReport(); }
-#endif
-
-//
-// ----------------------------------------- PloverHID Stenotype Block
-//
-
-#if STENO_ENABLE
-size_t SQUIDHID::press(StenoKey stenoKey) { return steno.press(stenoKey); }
-
-size_t SQUIDHID::release(StenoKey stenoKey) { return steno.release(stenoKey); }
-
-void SQUIDHID::stenoStroke(const StenoKey* keys, size_t count) { steno.stenoStroke(keys, count); }
-
-void SQUIDHID::sendStenoReport() { steno.sendStenoReport(); }
-#endif
-
-//
 // ----------------------------------------- Gamepad Block
 //
 
@@ -996,6 +979,20 @@ void SQUIDHID::sendGamepadReport() { gamepad.sendGamepadReport(); }
 #endif
 
 //
+// ----------------------------------------- PloverHID Stenotype Block
+//
+
+#if STENO_ENABLE
+size_t SQUIDHID::press(StenoKey stenoKey) { return steno.press(stenoKey); }
+
+size_t SQUIDHID::release(StenoKey stenoKey) { return steno.release(stenoKey); }
+
+void SQUIDHID::stenoStroke(const StenoKey* keys, size_t count) { steno.stenoStroke(keys, count); }
+
+void SQUIDHID::sendStenoReport() { steno.sendStenoReport(); }
+#endif
+
+//
 // ----------------------------------------- LED Block (NeoPixel)
 //
 
@@ -1008,6 +1005,7 @@ void SQUIDHID::initializeLEDs(uint16_t count, int16_t pin, neoPixelType type) {
     ledCount = count;
     ledPin = pin;
     ledType = type;
+    ledsDirty = true;  // Mark as dirty on initialization
     
     leds = new NeoPixel(count, pin, type);
     
@@ -1017,12 +1015,14 @@ void SQUIDHID::initializeLEDs(uint16_t count, int16_t pin, neoPixelType type) {
 void SQUIDHID::setLEDColor(uint16_t index, uint32_t color) {
     if (leds && index < ledCount) {
         leds->setPixelColor(index, color);
+        ledsDirty = true;  // Mark as dirty when color changes
     }
 }
 
 void SQUIDHID::setLEDColor(uint16_t index, uint8_t r, uint8_t g, uint8_t b) {
     if (leds && index < ledCount) {
         leds->setPixelColor(index, leds->Color(r, g, b));
+        ledsDirty = true;  // Mark as dirty when color changes
     }
 }
 
@@ -1030,6 +1030,7 @@ void SQUIDHID::fillLEDs(uint8_t r, uint8_t g, uint8_t b) {
     if (leds) {
         uint32_t color = leds->Color(r, g, b);
         leds->fill(color);
+        ledsDirty = true;  // Mark as dirty when fill changes
     }
 }
 
@@ -1037,35 +1038,47 @@ void SQUIDHID::fillLEDsRGB(uint8_t r, uint8_t g, uint8_t b, uint16_t first, uint
     if (leds) {
         uint32_t color = leds->Color(r, g, b);
         leds->fill(color, first, count);
+        ledsDirty = true;  // Mark as dirty when fill changes
     }
 }
 
 void SQUIDHID::clearLEDs() {
     if (leds) {
         leds->clear();
+        ledsDirty = true;  // Mark as dirty when cleared
     }
 }
 
 void SQUIDHID::showLEDs() {
     if (leds && leds->canShow()) {
         leds->show();
+        ledsDirty = false;  // Clear dirty flag after showing
     }
 }
 
 void SQUIDHID::setLEDBrightness(uint8_t brightness) {
     if (leds) {
         leds->setBrightness(brightness);
+        ledsDirty = true;  // Mark as dirty when brightness changes
     }
 }
 
 void SQUIDHID::rainbowLEDs(uint16_t first_hue, int8_t reps, uint8_t saturation, uint8_t brightness, bool gammify) {
     if (leds) {
         leds->rainbow(first_hue, reps, saturation, brightness, gammify);
+        ledsDirty = true;  // Mark as dirty when rainbow pattern changes
     }
 }
 
 bool SQUIDHID::ledsCanShow() {
     return leds ? leds->canShow() : false;
+}
+
+void SQUIDHID::updateLEDs() {
+    if (ledsDirty && leds && leds->canShow()) { // LEDs only update when dirty
+        leds->show();
+        ledsDirty = false;
+    }
 }
 #endif
 
@@ -1082,7 +1095,6 @@ void SQUIDHID::initializeOLED(uint8_t sda_pin, uint8_t scl_pin,
         delete oledDisplay;
     }
     
-    // Use config values if not specified, with 128x64 as default fallback
     uint_fast8_t displayWidth = (width == 0) ? 
                                (OLED_WIDTH > 0 ? OLED_WIDTH : 128) : width;
     uint_fast8_t displayHeight = (height == 0) ? 
@@ -1091,6 +1103,7 @@ void SQUIDHID::initializeOLED(uint8_t sda_pin, uint8_t scl_pin,
     oledDisplay = new OLED(sda_pin, scl_pin, displayWidth, displayHeight, 
                           displayCtrl, i2c_address);
     oledInitialized = false;
+    oledDirty = true;  // Mark as dirty on initialization
     
     SQUID_LOG_INFO(LOG_TAG, "OLED driver initialized on SDA:%d SCL:%d, Size: %dx%d", 
                    sda_pin, scl_pin, displayWidth, displayHeight);
@@ -1099,12 +1112,13 @@ void SQUIDHID::initializeOLED(uint8_t sda_pin, uint8_t scl_pin,
 void SQUIDHID::oledClear(OLED::tColor color) {
     if (oledDisplay && oledInitialized) {
         oledDisplay->clear(color);
+        oledDirty = true;  // Mark as dirty when cleared
     }
 }
-
 void SQUIDHID::oledDisplayUpdate() {
     if (oledDisplay && oledInitialized) {
         oledDisplay->display();
+        oledDirty = false;  // Clear dirty flag on updates
     }
 }
 
@@ -1123,12 +1137,14 @@ void SQUIDHID::oledSetCursor(uint_fast8_t x, uint_fast8_t y) {
 void SQUIDHID::oledDrawString(uint_fast8_t x, uint_fast8_t y, const char* s, OLED::tFontScaling scaling, OLED::tColor color) {
     if (oledDisplay && oledInitialized) {
         oledDisplay->draw_string(x, y, s, scaling, color);
+        oledDirty = true;  // Mark as dirty when drawing stuff
     }
 }
 
 void SQUIDHID::oledDrawString_P(uint_fast8_t x, uint_fast8_t y, const char* s, OLED::tFontScaling scaling, OLED::tColor color) {
     if (oledDisplay && oledInitialized) {
         oledDisplay->draw_string_P(x, y, s, scaling, color);
+        oledDirty = true;  // Mark as dirty when drawing stuff
     }
 }
 
@@ -1174,7 +1190,7 @@ size_t SQUIDHID::oledPrintf(const char *format, ...) {
     }
     
     len = oledDisplay->write((const uint8_t*) buffer, len);
-    
+    oledDirty = true;  // Mark as dirty when drawing stuff
     if (buffer != temp) delete[] buffer;
     return len;
 }
@@ -1188,12 +1204,14 @@ void SQUIDHID::oledSetTTYMode(bool enabled) {
 void SQUIDHID::oledDrawBitmap(uint_fast8_t x, uint_fast8_t y, uint_fast8_t width, uint_fast8_t height, const uint8_t* data, OLED::tColor color) {
     if (oledDisplay && oledInitialized) {
         oledDisplay->draw_bitmap(x, y, width, height, data, color);
+        oledDirty = true;  // Mark as dirty when drawing stuff
     }
 }
 
 void SQUIDHID::oledDrawBitmap_P(uint_fast8_t x, uint_fast8_t y, uint_fast8_t width, uint_fast8_t height, const uint8_t* data, OLED::tColor color) {
     if (oledDisplay && oledInitialized) {
         oledDisplay->draw_bitmap_P(x, y, width, height, data, color);
+        oledDirty = true;  // Mark as dirty when drawing stuff
     }
 }
 
@@ -1214,6 +1232,7 @@ void SQUIDHID::oledShowSquidLogo(OLED::tColor color) {
     }
     
     oledDisplay->display();
+    oledDirty = false;  // Clear dirty flag whenever it finishes displaying something
 }
 
 void SQUIDHID::oledShowConnectionStatus(bool connected) {
@@ -1235,6 +1254,7 @@ void SQUIDHID::oledShowConnectionStatus(bool connected) {
     oledDisplay->draw_string(10, 32, battStr, OLED::NORMAL_SIZE, OLED::WHITE);
     
     oledDisplay->display();
+    oledDirty = false;  // Clear dirty flag whenever it finishes displaying something
 }
 
 void SQUIDHID::oledShowBatteryLevel(uint8_t level) {
@@ -1245,6 +1265,7 @@ void SQUIDHID::oledShowBatteryLevel(uint8_t level) {
     
     oledDisplay->draw_string(10, 32, battStr, OLED::NORMAL_SIZE, OLED::WHITE);
     oledDisplay->display();
+    oledDirty = false;  // Clear dirty flag whenever it finishes displaying something
 }
 
 void SQUIDHID::oledShowLayerInfo(uint8_t layer) {
@@ -1255,6 +1276,7 @@ void SQUIDHID::oledShowLayerInfo(uint8_t layer) {
     
     oledDisplay->draw_string(10, 48, layerStr, OLED::NORMAL_SIZE, OLED::WHITE);
     oledDisplay->display();
+    oledDirty = false;  // Clear dirty flag whenever it finishes displaying something
 }
 #endif
 
