@@ -81,13 +81,8 @@ private:
     Transport*            transport; 
     DigitizerReport       _digitizerReport;
     uint32_t              _delay_ms;
-    bool                  _useAbsolute;
-    bool                  _autoMode;
-    bool                  _digitizerConfigured;
     uint16_t              _screenWidth;
     uint16_t              _screenHeight;
-    
-    void _detectModeFromAppearance(uint16_t appearance);
     
 public:
     SQUIDTABLET();
@@ -103,13 +98,8 @@ public:
     void beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 127);
     void updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
     void endStroke(uint16_t x, uint16_t y);
-    void useAbsoluteMode(bool state = true);
-    bool isAbsoluteMode();
-    void useAutoMode(bool state = true);
     void setDigitizerRange(uint16_t maxX, uint16_t maxY);
-    bool isAutoModeEnabled();
     void sendDigitizerReport();
-    void setAppearance(uint16_t appearance);
 };
 #endif
 #endif
