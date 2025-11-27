@@ -58,12 +58,29 @@ private:
     NimBLEHIDDevice*      hidDevice;
     NimBLEAdvertising*    advertising;
     
+    #if KEYBOARD_ENABLE
     NimBLECharacteristic* inputNKRO;
+    #endif
+    #if MEDIA_ENABLE
     NimBLECharacteristic* inputMediaKeys;
+    #endif
+    #if MOUSE_ENABLE
     NimBLECharacteristic* inputMouse;
+    #endif
+    #if DIGITIZER_ENABLE
     NimBLECharacteristic* inputDigitizer;
+    #endif
+    #if GAMEPAD_ENABLE
     NimBLECharacteristic* inputGamepad;
+    #endif
+    #if SPACEMOUSE_ENABLE
+    NimBLECharacteristic* inputSpacetrans;
+    NimBLECharacteristic* inputSpacerotat;
+    NimBLECharacteristic* inputSpaceclick;
+    #endif
+    #if STENO_ENABLE
     NimBLECharacteristic* inputSteno;
+    #endif
     NimBLECharacteristic* outputKeyboard;
     
     // Callbacks
