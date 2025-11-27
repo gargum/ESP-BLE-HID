@@ -64,6 +64,11 @@ private:
     #if MEDIA_ENABLE
     NimBLECharacteristic* inputMediaKeys;
     #endif
+    #if SPACEMOUSE_ENABLE
+    NimBLECharacteristic* inputSpacetrans;
+    NimBLECharacteristic* inputSpacerotat;
+    NimBLECharacteristic* inputSpaceclick;
+    #endif
     #if MOUSE_ENABLE
     NimBLECharacteristic* inputMouse;
     #endif
@@ -72,11 +77,6 @@ private:
     #endif
     #if GAMEPAD_ENABLE
     NimBLECharacteristic* inputGamepad;
-    #endif
-    #if SPACEMOUSE_ENABLE
-    NimBLECharacteristic* inputSpacetrans;
-    NimBLECharacteristic* inputSpacerotat;
-    NimBLECharacteristic* inputSpaceclick;
     #endif
     #if STENO_ENABLE
     NimBLECharacteristic* inputSteno;
