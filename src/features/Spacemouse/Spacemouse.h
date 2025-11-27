@@ -12,9 +12,9 @@
 #include "../../drivers/Software/Event/Types.h"
 #include "../../drivers/Software/Transport/Transport.h"
 
-#define SPACETRANS_ID 0x07 // 3DConnexion, why tf did you give one thing 3 report IDs?!?!
-#define SPACEROTAT_ID 0x08 // Look at any gamepad's HID Report you guys, you don't have to do this
-#define SPACECLICK_ID 0x09 // Why would you do it like this?! 
+#define SPACETRANS_ID 0x04 // 3DConnexion, why tf did you give one thing 3 report IDs?!?!
+#define SPACEROTAT_ID 0x05 // Look at any gamepad's HID Report you guys, you don't have to do this
+#define SPACECLICK_ID 0x06 // Why would you do it like this?! 
 
 // Spacemouse report structures
 typedef struct {
@@ -139,21 +139,22 @@ private:
 public:
     SQUIDSPACEMOUSE();
     
-    void begin(Transport* transport, uint32_t delay_ms = 7);
-    bool isConnected();
-    void onConnect();
-    void onDisconnect();
+    void   begin(Transport* transport, uint32_t delay_ms = 7);
+    bool   isConnected();
+    void   onConnect();
+    void   onDisconnect();
     
     // Space Mouse methods
-    void move(int16_t tx, int16_t ty, int16_t tz, int16_t rx, int16_t ry, int16_t rz);
-    void translate(int16_t tx, int16_t ty, int16_t tz);
-    void rotate(int16_t rx, int16_t ry, int16_t rz);
-    void press(uint8_t button);
-    void release(uint8_t button);
-    bool isPressed(uint8_t button);
-    void setAllButtons(uint32_t buttons);
-    void sendReport();
-    void releaseAll();
+    void   move(int16_t tx, int16_t ty, int16_t tz, int16_t rx, int16_t ry, int16_t rz);
+    void   translate(int16_t tx, int16_t ty, int16_t tz);
+    void   rotate(int16_t rx, int16_t ry, int16_t rz);
+    void   press(uint8_t button);
+    void   release(uint8_t button);
+    bool   isPressed(uint8_t button);
+    void   setAllButtons(uint32_t buttons);
+    void   sendReport();
+    void   releaseAll();
+    
 };
 
 #endif
