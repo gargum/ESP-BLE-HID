@@ -6,6 +6,8 @@
 #ifndef DIGITIZER_H
 #define DIGITIZER_H
 
+#if !SPACEMOUSE_ENABLE
+
 #include <stdint.h>
 #include "HIDTypes.h"
 #include "../../drivers/Software/Log/Log.h"
@@ -109,4 +111,5 @@ public:
     void sendDigitizerReport();
     void setAppearance(uint16_t appearance);
 };
+#endif
 #endif
