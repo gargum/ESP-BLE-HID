@@ -24,13 +24,13 @@ BLETransport::BLETransport()
       inputSpacerotat(nullptr),
       inputSpaceclick(nullptr),
       #endif
-      #if MOUSE_ENABLE
+      #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
       inputMouse(nullptr), 
       #endif
-      #if DIGITIZER_ENABLE
+      #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
       inputDigitizer(nullptr), 
       #endif
-      #if GAMEPAD_ENABLE
+      #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
       inputGamepad(nullptr),
       #endif
       #if STENO_ENABLE
@@ -169,13 +169,13 @@ void BLETransport::createHIDService() {
     inputSpacerotat = hidDevice->getInputReport(0x05);     // Spacemouse rotations
     inputSpaceclick = hidDevice->getInputReport(0x06);     // Spacemouse buttons
     #endif
-    #if MOUSE_ENABLE
+    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
     inputMouse = hidDevice->getInputReport(0x07);          // Mouse
     #endif
-    #if DIGITIZER_ENABLE
+    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
     inputDigitizer = hidDevice->getInputReport(0x08);      // Digitizer
     #endif
-    #if GAMEPAD_ENABLE
+    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
     inputGamepad = hidDevice->getInputReport(0x09);        // Gamepad
     #endif
     #if STENO_ENABLE
@@ -234,7 +234,7 @@ void BLETransport::createHIDService() {
     }
     #endif
     
-    #if MOUSE_ENABLE
+    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
     if (inputMouse) {
         inputMouse->setCallbacks(this);
         SQUID_LOG_INFO(TRANSPORT_TAG, "Mouse characteristic created");
@@ -243,7 +243,7 @@ void BLETransport::createHIDService() {
     }
     #endif
     
-    #if DIGITIZER_ENABLE
+    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
     if (inputDigitizer) {
         inputDigitizer->setCallbacks(this);
         SQUID_LOG_INFO(TRANSPORT_TAG, "Digitizer characteristic created");
@@ -252,7 +252,7 @@ void BLETransport::createHIDService() {
     }
     #endif
     
-    #if GAMEPAD_ENABLE
+    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
     if (inputGamepad) {
         inputGamepad->setCallbacks(this);
         SQUID_LOG_INFO(TRANSPORT_TAG, "Gamepad characteristic created");
@@ -297,13 +297,13 @@ void BLETransport::verifyCharacteristicHandles() {
         {inputSpacerotat, "Spacemouse Rotations Input"},
         {inputSpaceclick, "Spacemouse Buttons Input"},
         #endif
-        #if MOUSE_ENABLE
+        #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
         {inputMouse, "Mouse Input"},
         #endif
-        #if DIGITIZER_ENABLE
+        #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
         {inputDigitizer, "Digitizer Input"},
         #endif
-        #if GAMEPAD_ENABLE
+        #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
         {inputGamepad, "Gamepad Input"},
         #endif
         #if STENO_ENABLE
@@ -354,13 +354,13 @@ void BLETransport::debugCharacteristics() {
         {inputSpacerotat, "Spacemouse Rotations Input"},
         {inputSpaceclick, "Spacemouse Buttons Input"},
         #endif
-        #if MOUSE_ENABLE
+        #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
         {inputMouse, "Mouse Input"},
         #endif
-        #if DIGITIZER_ENABLE
+        #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
         {inputDigitizer, "Digitizer Input"},
         #endif
-        #if GAMEPAD_ENABLE
+        #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
         {inputGamepad, "Gamepad Input"},
         #endif
         #if STENO_ENABLE
@@ -410,13 +410,13 @@ bool BLETransport::sendReport(uint8_t reportId, const uint8_t* data, size_t leng
         case 0x05: characteristic = inputSpacerotat; charName = "Spacerotat"; break;
         case 0x06: characteristic = inputSpaceclick; charName = "Spaceclick"; break;
         #endif
-        #if MOUSE_ENABLE
+        #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
         case 0x07: characteristic = inputMouse; charName = "Mouse"; break;
         #endif
-        #if DIGITIZER_ENABLE
+        #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
         case 0x08: characteristic = inputDigitizer; charName = "Digitizer"; break;
         #endif
-        #if GAMEPAD_ENABLE
+        #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
         case 0x09: characteristic = inputGamepad; charName = "Gamepad"; break;
         #endif
         #if STENO_ENABLE
@@ -593,19 +593,19 @@ void BLETransport::onConnect(NimBLEServer* pServer) {
     }
     #endif
     
-    #if MOUSE_ENABLE
+    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
     if (inputMouse && inputMouse->getHandle() != 0) {
         inputMouse->notify();
     }
     #endif
     
-    #if DIGITIZER_ENABLE
+    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
     if (inputDigitizer && inputDigitizer->getHandle() != 0) {
         inputDigitizer->notify();
     }
     #endif
     
-    #if GAMEPAD_ENABLE
+    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
     if (inputGamepad && inputGamepad->getHandle() != 0) {
         inputGamepad->notify();
     }
@@ -672,15 +672,15 @@ void BLETransport::onSubscribe(NimBLEServer* pServer, ble_gap_conn_desc* desc, u
     } else if (inputSpaceclick && inputSpaceclick->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse buttons report subscribed");
     #endif
-    #if MOUSE_ENABLE
+    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
     } else if (inputMouse && inputMouse->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Mouse report subscribed");
     #endif
-    #if DIGITIZER_ENABLE
+    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
     } else if (inputDigitizer && inputDigitizer->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Digitizer report subscribed");
     #endif
-    #if GAMEPAD_ENABLE
+    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
     } else if (inputGamepad && inputGamepad->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Gamepad report subscribed");
     #endif
