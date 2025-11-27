@@ -657,22 +657,6 @@ void SQUIDHID::setAppearance(uint16_t newAppearance) {
     if (transport) {
         transport->setAppearance(newAppearance);
     }
-    
-    #if !SPACEMOUSE_ENABLE
-      #if DIGITIZER_ENABLE
-        digitizer.setAppearance(newAppearance);
-      #endif
-  
-      #if DIGITIZER_ENABLE && MOUSE_ENABLE
-        SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X, Mode: %s", newAppearance, digitizer.isAbsoluteMode() ? "absolute" : "relative");
-      #elif !DIGITIZER_ENABLE && MOUSE_ENABLE
-        SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X (Mouse only)", newAppearance);
-      #elif DIGITIZER_ENABLE && !MOUSE_ENABLE
-        SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X (Digitizer only)", newAppearance);
-      #else
-        SQUID_LOG_INFO(LOG_TAG, "Appearance set to: 0x%04X", newAppearance);
-      #endif
-    #endif
 }
 
 void SQUIDHID::setBatteryLevel(uint8_t level) {
@@ -961,15 +945,7 @@ void SQUIDHID::updateStroke(uint16_t x, uint16_t y, uint16_t pressure) { digitiz
 
 void SQUIDHID::endStroke(uint16_t x, uint16_t y) { digitizer.endStroke(x, y); }
 
-void SQUIDHID::useAbsoluteMode(bool state) { digitizer.useAbsoluteMode(state); }
-
-bool SQUIDHID::isAbsoluteMode() { return digitizer.isAbsoluteMode(); }
-
-void SQUIDHID::useAutoMode(bool state) { digitizer.useAutoMode(state); }
-
 void SQUIDHID::setDigitizerRange(uint16_t maxX, uint16_t maxY) { digitizer.setDigitizerRange(maxX, maxY); }
-
-bool SQUIDHID::isAutoModeEnabled() { return digitizer.isAutoModeEnabled(); }
 
 void SQUIDHID::sendDigitizerReport() { digitizer.sendDigitizerReport(); }
 #endif
