@@ -50,6 +50,10 @@
   #include "features/Digitizer/Digitizer.h"
 #endif
 
+#if SPACEMOUSE_ENABLE
+  #include "features/Spacemouse/Spacemouse.h"
+#endif
+
 #if LED_ENABLE
   #include "drivers/Hardware/LED/NeoPixel.h"
 #endif
@@ -110,15 +114,19 @@ private:
   #endif
   
   #if DIGITIZER_ENABLE
-    SQUIDTABLET              digitizer;
+    SQUIDTABLET               digitizer;
+  #endif
+  
+  #if SPACEMOUSE_ENABLE
+    SQUIDSPACEMOUSE           spacemouse;
   #endif
   
   #if STENO_ENABLE
-    SQUIDSTENO steno;
+    SQUIDSTENO                steno;
   #endif
   
   #if GAMEPAD_ENABLE
-    SQUIDGAMEPAD               gamepad;
+    SQUIDGAMEPAD              gamepad;
   #endif
   
   #if LED_ENABLE
@@ -247,6 +255,17 @@ public:
     void setDigitizerRange(uint16_t maxX, uint16_t maxY);
     bool isAutoModeEnabled();
     void sendDigitizerReport();
+  #endif
+  
+  #if SPACEMOUSE_ENABLE
+    void spacemouseMove(int16_t tx, int16_t ty, int16_t tz, int16_t rx, int16_t ry, int16_t rz);
+    void spacemouseTranslate(int16_t tx, int16_t ty, int16_t tz);
+    void spacemouseRotate(int16_t rx, int16_t ry, int16_t rz);
+    void spacemousePress(uint8_t button);
+    void spacemouseRelease(uint8_t button);
+    bool spacemouseIsPressed(uint8_t button);
+    void spacemouseSetAllButtons(uint32_t buttons);
+    void sendSpacemouseReport();
   #endif
   
   #if STENO_ENABLE
