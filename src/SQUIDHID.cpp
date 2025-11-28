@@ -892,7 +892,7 @@ void SQUIDHID::sendSpacemouseReport() { spacemouse.sendReport(); }
 
 // 3DConnexion reports interfere with other pointers, so I'm using the 3DConnexion report to emulate the other pointers whenever necessary to get around that
 #if MOUSE_ENABLE
-
+void SQUIDHID::move(int16_t x, int16_t y, int16_t wheel, int16_t hWheel) { spacemouse.move(x, y, wheel, hWheel); }
 #endif
 
 #if DIGITIZER_ENABLE
@@ -907,10 +907,12 @@ void SQUIDHID::updateStroke(uint16_t x, uint16_t y, uint16_t pressure) { spacemo
 void SQUIDHID::endStroke(uint16_t x, uint16_t y) { spacemouse.endStroke(x, y); }
 
 void SQUIDHID::setDigitizerRange(uint16_t maxX, uint16_t maxY) { spacemouse.setDigitizerRange(maxX, maxY); }
+
+void SQUIDHID::sendDigitizerReport() { spacemouse.sendReport(); }
 #endif
 
 #if GAMEPAD_ENABLE
-
+void SQUIDHID::sendGamepadReport() { spacemouse.sendReport(); }
 #endif
 #endif
 
