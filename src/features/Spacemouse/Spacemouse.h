@@ -178,12 +178,15 @@ private:
     uint32_t                _delay_ms;
     
     #if MOUSE_ENABLE
-    
+      uint16_t              _relativeX;
+      uint16_t              _relativeY;
     #endif
     
     #if DIGITIZER_ENABLE
       uint16_t              _screenWidth;
       uint16_t              _screenHeight;
+      uint16_t              _currentAbsoluteX;
+      uint16_t              _currentAbsoluteY;
     #endif
     
     #if GAMEPAD_ENABLE
@@ -210,16 +213,17 @@ public:
     void   releaseAll();
     
     #if MOUSE_ENABLE
-    
+    void   move(int16_t x, int16_t y, int16_t wheel = 0, int16_t hWheel = 0);
+    void   moveRelative(int16_t relX, int16_t relY, bool sendImmediately = true);
     #endif
     
     #if DIGITIZER_ENABLE
-    void click(uint16_t x, uint16_t y, SpacemouseKey b = DI_BTN1); 
-    void moveTo(uint16_t x, uint16_t y, uint8_t pressure = 0, SpacemouseKey buttons = SpacemouseKey{0});
-    void beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 1270);
-    void updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
-    void endStroke(uint16_t x, uint16_t y);
-    void setDigitizerRange(uint16_t maxX, uint16_t maxY);
+    void   click(uint16_t x, uint16_t y, SpacemouseKey b = DI_BTN1); 
+    void   moveTo(uint16_t x, uint16_t y, uint8_t pressure = 0, SpacemouseKey buttons = SpacemouseKey{0});
+    void   beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 1270);
+    void   updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
+    void   endStroke(uint16_t x, uint16_t y);
+    void   setDigitizerRange(uint16_t maxX, uint16_t maxY);
     #endif
     
     #if GAMEPAD_ENABLE
