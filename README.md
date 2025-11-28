@@ -196,12 +196,13 @@ Alongside your user sketch, there is a config.h file that is used for function t
 
 #define TRANSPORT        BLE        // Currently, the available transport methods for connecting to hosts are BLE, USB, and PS/2
 
-#define KEYBOARD_ENABLE  true       // Enabling the Keyboard feature allows you to include keyboard buttons in your sketches
-#define MEDIA_ENABLE     true       // Enabling the Media feature allows you to include media keys in your sketches
-#define STENO_ENABLE     true       // Enabling the Steno feature enables the PloverHID feature, allowing you to create a stenotype machine
-#define MOUSE_ENABLE     true       // Enabling the Mouse feature enables the relative pointer feature, allowing you to create a computer mouse or other pointing devicee
-#define DIGITIZER_ENABLE true       // Enabling the Digitizer feature enables the absolute pointer feature, which allows you to create things like Android-compatible drawing tablets with tip and barrel switches
-#define GAMEPAD_ENABLE   true       // Enabling the Gamepad feature enables the gamepad buttons, dual analogue joystick reports, the hat-switch d-pad reporting, and the dual analogue trigger reports
+#define KEYBOARD_ENABLE   true       // Enabling the Keyboard feature allows you to include keyboard buttons in your sketches
+#define MEDIA_ENABLE      true       // Enabling the Media feature allows you to include media keys in your sketches
+#define STENO_ENABLE      true       // Enabling the Steno feature enables the PloverHID feature, allowing you to create a stenotype machine
+#define MOUSE_ENABLE      true       // Enabling the Mouse feature enables the relative pointer feature, allowing you to create a computer mouse or other pointing devicee
+#define DIGITIZER_ENABLE  true       // Enabling the Digitizer feature enables the absolute pointer feature, which allows you to create things like Android-compatible drawing tablets with tip and barrel switches
+#define GAMEPAD_ENABLE    true       // Enabling the Gamepad feature enables the gamepad buttons, dual analogue joystick reports, the hat-switch d-pad reporting, and the dual analogue trigger reports
+#define SPACEMOUSE_ENABLE true       // Enabling the Spacemouse feature enables the 6-DOF Spacemouse reporting alongside 32 3DConnexion buttons for use in keymaps
 
 #define LED_ENABLE       true       // SquidHID comes bundled with a NeoPixel driver, allowing you to easily enable, define, and manipulate RGB LEDs
 #define LED_PIN          20         // Simply define which pin is being used as the data pin
