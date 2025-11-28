@@ -246,7 +246,9 @@ public:
     void      sendSpacemouseReport();
     
     #if MOUSE_ENABLE
+    void      click(SpacemouseKey b = MO_BTN1);
     void      move(int16_t x, int16_t y, int16_t wheel = 0, int16_t hWheel = 0);
+    void      sendMouseReport();
     #endif
     
     #if DIGITIZER_ENABLE
@@ -260,6 +262,12 @@ public:
     #endif
     
     #if GAMEPAD_ENABLE
+    void      gamepadSetLeftStick(int16_t x, int16_t y);
+    void      gamepadSetRightStick(int16_t x, int16_t y);
+    void      gamepadSetTriggers(int16_t left, int16_t right);
+    void      gamepadSetAxis(SpacemouseAnalogue axis, int16_t value);
+    int16_t   gamepadGetAxis(SpacemouseAnalogue axis);
+    void      gamepadSetAllAxes(int16_t values[6]);
     void      sendGamepadReport();
     #endif
   #else
@@ -268,8 +276,9 @@ public:
     size_t    press(MouseKey b = MO_BTN1);
     size_t    release(MouseKey b = MO_BTN1);
     void      click(MouseKey b = MO_BTN1);
-    void      move(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
+    void      move(int8_t x, int8_t y, int8_t wheel = 0, int8_t hWheel = 0);
     bool      mouseIsPressed(MouseKey b = MO_BTN1);
+    void      sendMouseReport();
     #endif
   
     #if DIGITIZER_ENABLE
