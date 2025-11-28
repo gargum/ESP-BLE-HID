@@ -246,7 +246,7 @@ public:
     void      sendSpacemouseReport();
     
     #if MOUSE_ENABLE
-    
+    void      move(int16_t x, int16_t y, int16_t wheel = 0, int16_t hWheel = 0);
     #endif
     
     #if DIGITIZER_ENABLE
@@ -256,10 +256,11 @@ public:
     void      updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
     void      endStroke(uint16_t x, uint16_t y);
     void      setDigitizerRange(uint16_t maxX, uint16_t maxY);
+    void      sendDigitizerReport();
     #endif
     
     #if GAMEPAD_ENABLE
-    
+    void      sendGamepadReport();
     #endif
   #else
   
