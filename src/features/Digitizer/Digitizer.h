@@ -70,6 +70,16 @@ MK(DigitizerKey, DI_BTN1, DIGITIZER_BTN1);
 MK(DigitizerKey, DI_BTN2, DIGITIZER_BTN2);
 MK(DigitizerKey, DI_BTN3, DIGITIZER_BTN3);
 
+enum class DigitizerAnalogues : uint8_t {
+  DIGITIZER_X_AXIS = 1,
+  DIGITIZER_Y_AXIS = 2,
+  DIGITIZER_Z_AXIS = 3
+};
+
+MK(DigitizerAnalogue, DI_AX, DIGITIZER_X_AXIS);
+MK(DigitizerAnalogue, DI_AY, DIGITIZER_Y_AXIS);
+MK(DigitizerAnalogue, DI_AZ, DIGITIZER_Z_AXIS);
+
 // Flag constants (internal, for 'flags' field)
 const uint8_t DIGITIZER_FLAG_IN_RANGE     = 0x01;  // Bit 0
 const uint8_t DIGITIZER_FLAG_TIP_SWITCH   = 0x02;  // Bit 1
