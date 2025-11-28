@@ -166,7 +166,12 @@ MK(SpacemouseKey, DI_BTN3, SPACEMOUSE_3);
 #endif
 
 #if GAMEPAD_ENABLE
-
+MK(SpacemouseAnalogue, GA_LX, SPACEMOUSE_TX);
+MK(SpacemouseAnalogue, GA_LY, SPACEMOUSE_TY);
+MK(SpacemouseAnalogue, GA_RX, SPACEMOUSE_TZ);
+MK(SpacemouseAnalogue, GA_RY, SPACEMOUSE_RX);
+MK(SpacemouseAnalogue, GA_LT, SPACEMOUSE_RY);
+MK(SpacemouseAnalogue, GA_RT, SPACEMOUSE_RZ);
 #endif
 
 class SQUIDSPACEMOUSE {
@@ -213,8 +218,10 @@ public:
     void   releaseAll();
     
     #if MOUSE_ENABLE
+    void   click(SpacemouseKey b = MO_BTN1);
     void   move(int16_t x, int16_t y, int16_t wheel = 0, int16_t hWheel = 0);
     void   moveRelative(int16_t relX, int16_t relY, bool sendImmediately = true);
+    void   sendMouseReport();
     #endif
     
     #if DIGITIZER_ENABLE
@@ -224,10 +231,17 @@ public:
     void   updateStroke(uint16_t x, uint16_t y, uint16_t pressure);
     void   endStroke(uint16_t x, uint16_t y);
     void   setDigitizerRange(uint16_t maxX, uint16_t maxY);
+    void   sendDigitizerReport();
     #endif
     
     #if GAMEPAD_ENABLE
-    
+    void    gamepadSetLeftStick(int16_t x, int16_t y);
+    void    gamepadSetRightStick(int16_t x, int16_t y);
+    void    gamepadSetTriggers(int16_t left, int16_t right);
+    void    gamepadSetAxis(SpacemouseAnalogue axis, int16_t value);
+    int16_t gamepadGetAxis(SpacemouseAnalogue axis);
+    void    gamepadSetAllAxes(int16_t values[6]);
+    void    sendGamepadReport();
     #endif
     
 };
