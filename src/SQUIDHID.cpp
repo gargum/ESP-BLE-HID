@@ -892,7 +892,11 @@ void SQUIDHID::sendSpacemouseReport() { spacemouse.sendReport(); }
 
 // 3DConnexion reports interfere with other pointers, so I'm using the 3DConnexion report to emulate the other pointers whenever necessary to get around that
 #if MOUSE_ENABLE
+void SQUIDHID::click(SpacemouseKey b) { spacemouse.click(b); }
+
 void SQUIDHID::move(int16_t x, int16_t y, int16_t wheel, int16_t hWheel) { spacemouse.move(x, y, wheel, hWheel); }
+
+void SQUIDHID::sendMouseReport() { spacemouse.sendReport(); }
 #endif
 
 #if DIGITIZER_ENABLE
@@ -912,31 +916,45 @@ void SQUIDHID::sendDigitizerReport() { spacemouse.sendReport(); }
 #endif
 
 #if GAMEPAD_ENABLE
+void SQUIDHID::gamepadSetLeftStick(int16_t x, int16_t y) { spacemouse.gamepadSetLeftStick(x, y); }
+
+void SQUIDHID::gamepadSetRightStick(int16_t x, int16_t y) { spacemouse.gamepadSetRightStick(x, y); }
+
+void SQUIDHID::gamepadSetTriggers(int16_t left, int16_t right) { spacemouse.gamepadSetTriggers(left, right); }
+
+void SQUIDHID::gamepadSetAxis(SpacemouseAnalogue axis, int16_t value) { spacemouse.gamepadSetAxis(axis, value); }
+
+int16_t SQUIDHID::gamepadGetAxis(SpacemouseAnalogue axis) { return spacemouse.gamepadGetAxis(axis); }
+
+void SQUIDHID::gamepadSetAllAxes(int16_t values[6]) { spacemouse.gamepadSetAllAxes(values); }
+
 void SQUIDHID::sendGamepadReport() { spacemouse.sendReport(); }
 #endif
-#endif
+#else
 
 //
 // ----------------------------------------- Mouse Block
 //
 
-#if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+#if MOUSE_ENABLE
 size_t SQUIDHID::press(MouseKey b) { return mouse.press(b); }
 
 size_t SQUIDHID::release(MouseKey b) { return mouse.release(b); }
 
 void SQUIDHID::click(MouseKey b) { mouse.click(b); }
 
-void SQUIDHID::move(signed char x, signed char y, signed char wheel, signed char hWheel) { mouse.move(x, y, wheel, hWheel); }
+void SQUIDHID::move(int8_t x, int8_t y, int8_t wheel, int8_t hWheel) { mouse.move(x, y, wheel, hWheel); }
 
 bool SQUIDHID::mouseIsPressed(MouseKey b) { return mouse.mouseIsPressed(b); }
+
+void SQUIDHID::sendMouseReport() { mouse.sendMouseReport(); }
 #endif
 
 //
 // ----------------------------------------- Digitizer Block
 //
 
-#if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+#if DIGITIZER_ENABLE
 void SQUIDHID::click(uint16_t x, uint16_t y, DigitizerKey b) { digitizer.click(x, y, b); }
 
 void SQUIDHID::moveTo(uint16_t x, uint16_t y, uint8_t pressure, DigitizerKey buttons) { digitizer.moveTo(x, y, pressure, buttons); }
@@ -956,7 +974,7 @@ void SQUIDHID::sendDigitizerReport() { digitizer.sendDigitizerReport(); }
 // ----------------------------------------- Gamepad Block
 //
 
-#if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+#if GAMEPAD_ENABLE
 size_t SQUIDHID::press(GamepadButton button) { return gamepad.press(button); }
 
 size_t SQUIDHID::release(GamepadButton button) { return gamepad.release(button); }
@@ -980,6 +998,7 @@ int16_t SQUIDHID::gamepadGetAxis(GamepadAnalogue axis) { return gamepad.gamepadG
 void SQUIDHID::gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]) { gamepad.gamepadSetAllAxes(values); }
 
 void SQUIDHID::sendGamepadReport() { gamepad.sendGamepadReport(); }
+#endif
 #endif
 
 //
