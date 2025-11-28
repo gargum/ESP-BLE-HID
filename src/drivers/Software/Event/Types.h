@@ -28,7 +28,9 @@ struct GamepadKeyTag         : KeyTag {};
 struct GamepadHatTag         : KeyTag {};
 struct GamepadAnalogueTag    : KeyTag {};
 struct MouseKeyTag           : KeyTag {};
+struct MouseAnalogueTag      : KeyTag {};
 struct DigitizerKeyTag       : KeyTag {};
+struct DigitizerAnalogueTag  : KeyTag {};
 struct SpacemouseKeyTag      : KeyTag {};
 struct SpacemouseAnalogueTag : KeyTag {};
 
@@ -67,7 +69,9 @@ using GamepadButton      = KeyType<GamepadKeyTag>;
 using GamepadHat         = KeyType<GamepadHatTag>;
 using GamepadAnalogue    = KeyType<GamepadAnalogueTag>;
 using MouseKey           = KeyType<MouseKeyTag>;
+using MouseAnalogue      = KeyType<MouseAnalogueTag>;
 using DigitizerKey       = KeyType<DigitizerKeyTag>;
+using DigitizerAnalogue  = KeyType<DigitizerAnalogueTag>;
 using SpacemouseKey      = KeyType<SpacemouseKeyTag>;
 using SpacemouseAnalogue = KeyType<SpacemouseAnalogueTag>;
 
@@ -104,8 +108,16 @@ constexpr MouseKey operator"" _mouse(unsigned long long value) {
     return MouseKey(static_cast<int32_t>(value));
 }
 
+constexpr MouseAnalogue operator"" _mouseanalogue(unsigned long long value) {
+    return MouseAnalogue(static_cast<int32_t>(value));
+}
+
 constexpr DigitizerKey operator"" _digitizer(unsigned long long value) {
     return DigitizerKey(static_cast<int32_t>(value));
+}
+
+constexpr DigitizerAnalogue operator"" _digitizeranalogue(unsigned long long value) {
+    return DigitizerAnalogue(static_cast<int32_t>(value));
 }
 
 constexpr SpacemouseKey operator"" _spacemouse(unsigned long long value) {
@@ -181,7 +193,9 @@ union KeymapValue {
     GamepadHat         gamepad_hat;
     GamepadAnalogue    gamepad_analogue;
     MouseKey           mouse_key;
+    MouseAnalogue      mouse_analogue;
     DigitizerKey       digitizer_key;
+    DigitizerAnalogue  digitizer_analogue;
     SpacemouseKey      spacemouse_key;
     SpacemouseAnalogue spacemouse_analogue;
     
@@ -194,7 +208,9 @@ union KeymapValue {
     KeymapValue(GamepadHat k) : gamepad_hat(k) {}
     KeymapValue(GamepadAnalogue k) : gamepad_analogue(k) {}
     KeymapValue(MouseKey k) : mouse_key(k) {}
+    KeymapValue(MouseAnalogue k) : mouse_analogue(k) {}
     KeymapValue(DigitizerKey k) : digitizer_key(k) {}
+    KeymapValue(DigitizerAnalogue k) : digitizer_analogue(k) {}
     KeymapValue(SpacemouseKey k ) : spacemouse_key(k) {}
     KeymapValue(SpacemouseAnalogue k) : spacemouse_analogue(k) {}
 };
@@ -209,7 +225,9 @@ enum class KeypressType {
     GAMEPAD_HAT,
     GAMEPAD_ANALOGUE,
     MOUSE_KEY,
+    MOUSE_ANALOGUE,
     DIGITIZER_KEY,
+    DIGITIZER_ANALOGUE,
     SPACEMOUSE_KEY,
     SPACEMOUSE_ANALOGUE
 };
@@ -228,7 +246,9 @@ struct KeymapEntry {
     KeymapEntry(GamepadHat k) : type(KeypressType::GAMEPAD_HAT), key(k) {}
     KeymapEntry(GamepadAnalogue k) : type(KeypressType::GAMEPAD_ANALOGUE), key(k) {}
     KeymapEntry(MouseKey k) : type(KeypressType::MOUSE_KEY), key(k) {}
+    KeymapEntry(MouseAnalogue k) : type(KeypressType::MOUSE_ANALOGUE), key(k) {}
     KeymapEntry(DigitizerKey k) : type(KeypressType::DIGITIZER_KEY), key(k) {}
+    KeymapEntry(DigitizerAnalogue k) : type(KeypressType::DIGITIZER_ANALOGUE), key(k) {}
     KeymapEntry(SpacemouseKey k) : type(KeypressType::SPACEMOUSE_KEY), key(k) {}
     KeymapEntry(SpacemouseAnalogue k) : type(KeypressType::SPACEMOUSE_ANALOGUE), key(k) {}
     
@@ -310,8 +330,18 @@ struct LayerKeymapEntry {
         action.key = KeymapEntry(k);
     }
     
+    LayerKeymapEntry(MouseAnalogue k)
+        : action_type(LayerActionType::NORMAL_KEY) {
+        action.key = KeymapEntry(k);
+    }
+    
     LayerKeymapEntry(DigitizerKey k) 
         : action_type(LayerActionType::NORMAL_KEY) { 
+        action.key = KeymapEntry(k);
+    }
+    
+    LayerKeymapEntry(DigitizerAnalogue k)
+        : action_type(LayerActionType::NORMAL_KEY) {
         action.key = KeymapEntry(k);
     }
     
