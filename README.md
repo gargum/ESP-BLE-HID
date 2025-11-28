@@ -10,21 +10,21 @@ NimBLE, USB, and PS/2 are the available transport methods supported by SquidHID 
 
 ## Features
 
-| CORE FEATURES                       | EXTENDED FUNCTIONS                                                                  | QOL & ADVANCED FUNCTIONS                                                                                                     |
-| ----------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------                                                              |
-| Keyboard emulation                  | *NKRO + 6KRO with full support for modifiers & media keys*                          | *Send full text strings, press/release keys, and send full keystrokes*                                                       |
-| Mouse emulation                     | *Absolute & Relative pointers you can hotswap between*                              | *Automatic context-aware switching between both pointer modes + full Android & iOS compatibility*                            |
-| Gamepad emulation                   | *64 buttons + 1 D-pad, 2 analogue sticks, 2 analogue triggers*                      | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                                     |
-| Digitizer emulation                 | *Pressure sensitivity + tip-switch, barrel, & eraser support*                       | *Programmable brushstroke macro support with variable pressure all throughout*                                               |
-| Spacemouse emulation                | *6-DOF Spacemouse emulation compatible with 3DConnextion software and firmware*     | *Includes 32 3DConnexion buttons users can include in keymaps*                                                               |
-| Stenotype emulation                 | *PloverHID keys and reports are fully supported*                                    | *No settings to worry about. Mix-and-match stenotype keys with all other input methods to your heart's content!*             |
-| Key Matrices                        | *Native support for pin pairs, single pins, MCP23XXX pins, and duplex matrices*     | *Automatically detects which pins use an external pull-up to function. Automatically handles matrices with full Japanese duplex configurations. Automatically configures any MCP23XXX variant if connected and enabled.* |
-| Keymaps with Layering               | *Currently allows keymaps with up to 32 layers to be defined in sketches*           | *Syntax is designed to be easy to read, write, modify, and understand*                                                       |
-| WS2812B RGB LED / NeoPixel support  | *Includes 21 pre-configured colour options and a range of helper functions*         | *Designed from the ground up to make defining and controlling your LEDs as easy and intuitive as possible for beginners*     |
-| OLED support (128x64 only for now)  | *Supports text strings, primitive shapes, even bitmaps and changing single pixels!* | *QMK Logo Editor's "RAW" bitmaps are supported! Simply copy the `static const unsigned char PROGMEM raw_logo[]` bitmap definition, then rename to `static const uint8_t PROGMEM new_name[]`* to use in your sketches! |
-| USB, BLE, and PS/2 support          | *Switch between protocols with a one-line change to the config.h file*              | *Automatically detects which protocols exist on your MCU and includes associated features and functions accordingly*         |
-| Set the PID, VID, and version       | *Set the name, manufacturer, and the battery level*                                 | *Set what type of device the ESP32 advertises itself as. Choose anything from keyboard to keyring to insulin pump!*          |
-| ESP32s in general are all supported | *Compatible even with boards that have no HID capabilities whatsoever*              | *Optimized for the ESP32s with the worst specs. Your board **will** work with this library!*                                 |
+| CORE FEATURES                       | EXTENDED FUNCTIONS                                                                        | QOL & ADVANCED FUNCTIONS                                                                                                     |
+| ----------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Keyboard emulation                  | *NKRO + 6KRO with full support for modifiers & media keys*                                | *Send full text strings, press/release keys, and send full keystrokes*                                                       |
+| Mouse emulation                     | *Absolute & Relative pointers you can hotswap between*                                    | *Automatic context-aware switching between both pointer modes + full Android & iOS compatibility*                            |
+| Gamepad emulation                   | *64 buttons + 1 D-pad, 2 analogue sticks, 2 analogue triggers*                            | *All inputs automatically recognized and populated in emualators like Dolphin and RPCS3*                                     |
+| Digitizer emulation                 | *Pressure sensitivity + tip-switch, barrel, & eraser support*                             | *Programmable brushstroke macro support with variable pressure all throughout*                                               |
+| Spacemouse emulation                | *6-DOF Spacemouse emulation compatible with 3DConnextion software and firmware*           | *Includes 32 3DConnexion buttons users can include in keymaps*                                                               |
+| Stenotype emulation                 | *PloverHID keys and reports are fully supported*                                          | *No settings to worry about. Mix-and-match stenotype keys with all other input methods to your heart's content!*             |
+| Key Matrices                        | *Native support for pin pairs, single pins, MCP23XXX pins, and duplex matrices*           | *Automatically detects which pins use an external pull-up to function. Automatically handles matrices with full Japanese duplex configurations. Automatically configures any MCP23XXX variant if connected and enabled.* |
+| Keymaps with Layering               | *Currently allows keymaps with up to 32 layers to be defined in sketches*                 | *Syntax is designed to be easy to read, write, modify, and understand*                                                       |
+| WS2812B RGB LED / NeoPixel support  | *Includes 21 pre-configured colour options and a range of helper functions*               | *Designed from the ground up to make defining and controlling your LEDs as easy and intuitive as possible for beginners*     |
+| OLED support                        | *Supports text, primitive shapes, bitmaps, and setting single pixels in all resolutions!* | *QMK Logo Editor's "RAW" bitmaps are supported! Simply copy the `static const unsigned char PROGMEM raw_logo[]` bitmap definition, then rename to `static const uint8_t PROGMEM new_name[]`* to use in your sketches! |
+| USB, BLE, and PS/2 support          | *Switch between protocols with a one-line change to the config.h file*                    | *Automatically detects which protocols exist on your MCU and includes associated features and functions accordingly*         |
+| Set the PID, VID, and version       | *Set the name, manufacturer, and the battery level*                                       | *Set what type of device the ESP32 advertises itself as. Choose anything from keyboard to keyring to insulin pump!*          |
+| ESP32s in general are all supported | *Compatible even with boards that have no HID capabilities whatsoever*                    | *Optimized for the ESP32s with the worst specs. Your board **will** work with this library!*                                 |
 
 ## Compatibility
 
@@ -209,8 +209,8 @@ Alongside your user sketch, there is a config.h file that is used for function t
 #define LED_COUNT        48         // Then, define how many LEDs are present
 
 #define OLED_ENABLE      true       // SquidHID also includes an I2C OLED driver, enabling you to add simple screens to projects
-#define OLED_HEIGHT      64         
-#define OLED_WIDTH       128
+#define OLED_HEIGHT      64         // The OLED driver supports I2C OLED screens of any screen resolution! Simply set your height and width in pixels
+#define OLED_WIDTH       128        // Please note that when rotating your OLED be 90 degrees, these height and width values do not change. Your images are the thing that rotates in this case
 
 #define MCP_ENABLE       true       // Enabling the MCP feature alongside the I2C and/or the SPI feature will allow MCP23XXX units to be automatically detected and configured for use in sketches
 
