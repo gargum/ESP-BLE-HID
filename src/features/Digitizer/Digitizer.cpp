@@ -1,6 +1,6 @@
 /**
  * @file Digitizer.cpp
- * @brief Implementation of the touch digitizer
+ * @brief Implementation of the touch digitizer feature
  */
 
 #include "Digitizer.h"
