@@ -65,6 +65,18 @@ MK(MouseKey, MO_BTN3, MOUSE_MIDDLE);
 MK(MouseKey, MO_BTN4, MOUSE_BACK);
 MK(MouseKey, MO_BTN5, MOUSE_FORWARD);
 
+enum class MouseAnalogues : uint8_t {
+  MOUSE_X_AXIS    = 1,
+  MOUSE_Y_AXIS    = 2,
+  MOUSE_H_SCROLL  = 3,
+  MOUSE_V_SCROLL  = 4
+};
+
+MK(MouseAnalogue, MO_AX, MOUSE_X_AXIS);
+MK(MouseAnalogue, MO_AY, MOUSE_Y_AXIS);
+MK(MouseAnalogue, MO_HS, MOUSE_H_SCROLL);
+MK(MouseAnalogue, MO_VS, MOUSE_V_SCROLL);
+
 class SQUIDMOUSE {
 private:
     Transport*            transport; 
@@ -84,7 +96,7 @@ public:
     size_t press(MouseKey b = MO_BTN1);
     size_t release(MouseKey b = MO_BTN1);
     void click(MouseKey b = MO_BTN1);
-    void move(signed char x, signed char y, signed char wheel = 0, signed char hWheel = 0);
+    void move(int8_t x, int8_t y, int8_t wheel = 0, int8_t hWheel = 0);
     bool mouseIsPressed(MouseKey b = MO_BTN1);
     void sendMouseReport();
     void releaseAll();
