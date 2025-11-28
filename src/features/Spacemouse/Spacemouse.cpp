@@ -176,6 +176,42 @@ void SQUIDSPACEMOUSE::releaseAll() {
 }
 
 #if MOUSE_ENABLE
+void SQUIDSPACEMOUSE::move(int16_t x, int16_t y, int16_t wheel, int16_t hWheel) {
+    if (!isConnected() || !transport) {
+        SQUID_LOG_DEBUG(MOUSE_TAG, "Relative mouse movement ignored - not connected");
+        return;
+    }
+    
+    _relativeX += x;
+    _relativeY += y;
+    
+    SQUID_LOG_DEBUG(MOUSE_TAG, "Mouse movement - X:%d, Y:%d, Wheel:%d, HWheel:%d (accumulated)", x, y);
+    
+    // Convert relative to absolute and send
+    moveRelative(x, y, true);
+
+}
+
+void SQUIDSPACEMOUSE::moveRelative(int16_t relX, int16_t relY, bool sendImmediately) {
+    
+    // Convert relative movement to absolute coordinates
+    int32_t newX = _currentAbsoluteX + relX;
+    int32_t newY = _currentAbsoluteY + relY;
+    
+    // Apply screen boundaries
+    newX = (newX < 0) ? 0 : (newX > _screenWidth) ? _screenWidth : newX;
+    newY = (newY < 0) ? 0 : (newY > _screenHeight) ? _screenHeight : newY;
+    
+    // Update current position
+    _currentAbsoluteX = static_cast<uint16_t>(newX);
+    _currentAbsoluteY = static_cast<uint16_t>(newY);
+    
+    SQUID_LOG_DEBUG(MOUSE_TAG, "Relative->Absolute conversion - Rel:(%d,%d) -> Abs:(%u,%u)", 
+                 relX, relY, _currentAbsoluteX, _currentAbsoluteY);
+    
+    moveTo(_currentAbsoluteX, _currentAbsoluteY, 0, SpacemouseKey{0});
+
+}
 
 #endif
 
