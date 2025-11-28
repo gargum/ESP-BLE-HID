@@ -83,7 +83,7 @@ void SQUIDMOUSE::click(MouseKey b) {
     SQUID_LOG_DEBUG(MOUSE_TAG, "Mouse click completed: 0x%02X", static_cast<uint8_t>(b));
 }
 
-void SQUIDMOUSE::move(signed char x, signed char y, signed char wheel, signed char hWheel) {
+void SQUIDMOUSE::move(int8_t x, int8_t y, int8_t wheel, int8_t hWheel) {
     if (isConnected() && transport) {
         _mouseReport.buttons = static_cast<uint8_t>(_mouseKeys);  // Convert to underlying type
         
