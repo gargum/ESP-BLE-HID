@@ -176,6 +176,20 @@ void SQUIDSPACEMOUSE::releaseAll() {
 }
 
 #if MOUSE_ENABLE
+void SQUIDSPACEMOUSE::click(SpacemouseKey b) {
+    
+    uint8_t mouseButtons = static_cast<uint8_t>(b);
+    
+    SQUID_LOG_DEBUG(DIGI_TAG, "Mouse click, buttons: 0x%02X", mouseButtons);
+    
+    _buttonReport.buttons = b;
+    sendReport();
+    delay(_delay_ms);
+    releaseAll(); // Release
+    
+    SQUID_LOG_DEBUG(DIGI_TAG, "Mouse click completed");
+}
+
 void SQUIDSPACEMOUSE::move(int16_t x, int16_t y, int16_t wheel, int16_t hWheel) {
     if (!isConnected() || !transport) {
         SQUID_LOG_DEBUG(MOUSE_TAG, "Relative mouse movement ignored - not connected");
@@ -213,6 +227,9 @@ void SQUIDSPACEMOUSE::moveRelative(int16_t relX, int16_t relY, bool sendImmediat
 
 }
 
+void SQUIDSPACEMOUSE::sendMouseReport() {
+  sendReport();
+}
 #endif
 
 #if DIGITIZER_ENABLE
@@ -281,10 +298,112 @@ void SQUIDSPACEMOUSE::setDigitizerRange(uint16_t maxX, uint16_t maxY) {
     
     SQUID_LOG_INFO(DIGI_TAG, "Digitizer range set to X:%u, Y:%u", _screenWidth, _screenHeight);
 }
+
+void SQUIDSPACEMOUSE::sendDigitizerReport() {
+  sendReport();
+}
 #endif
 
 #if GAMEPAD_ENABLE
+void SQUIDSPACEMOUSE::gamepadSetLeftStick(int16_t x, int16_t y) {
+    _transReport.tx = x;
+    _transReport.ty = y;
+    sendReport();
+}
 
+void SQUIDSPACEMOUSE::gamepadSetRightStick(int16_t x, int16_t y) {
+    _transReport.tz = x;
+    _rotReport.rx   = y;
+    sendReport();
+}
+
+void SQUIDSPACEMOUSE::gamepadSetTriggers(int16_t left, int16_t right) {
+    _rotReport.ry = left;
+    _rotReport.rz = right;
+    sendReport();
+}
+
+void SQUIDSPACEMOUSE::gamepadSetAxis(SpacemouseAnalogue axis, int16_t value) {
+    int8_t axisIndex = static_cast<int8_t>(axis);
+    if (axisIndex < 6) {
+        switch (axisIndex) {
+        case 0:
+            _transReport.tx = value;
+            break;
+        case 1:
+            _transReport.ty = value;
+            break;
+        case 2:
+            _transReport.tz = value;
+            break;
+        case 3:
+            _rotReport.rx = value;
+            break;
+        case 4:
+            _rotReport.ry = value;
+            break;
+        case 5:
+            _rotReport.rz = value;
+            break;
+        default:
+            break;
+        }
+        sendReport();
+    } else {
+        SQUID_LOG_WARN(GAMEPAD_TAG, "Invalid axis set attempt - Axis: %d, Value: %d", axisIndex, value);
+    }
+}
+
+int16_t SQUIDSPACEMOUSE::gamepadGetAxis(SpacemouseAnalogue axis) {
+    int8_t axisIndex = static_cast<int8_t>(axis);
+    int16_t value = 0;
+
+    if (axisIndex < 6) {
+        switch (axisIndex) {
+        case 0:
+            value =_transReport.tx;
+            break;
+        case 1:
+            value = _transReport.ty;
+            break;
+        case 2:
+            value = _transReport.tz;
+            break;
+        case 3:
+            value = _rotReport.rx;
+            break;
+        case 4:
+            value = _rotReport.ry;
+            break;
+        case 5:
+            value = _rotReport.rz;
+            break;
+        default:
+            break;
+        }
+        
+        return value;
+        
+    } else {
+        SQUID_LOG_WARN(GAMEPAD_TAG, "Invalid axis get attempt - Axis: %d, Value: %d", axisIndex, value);
+    }
+}
+
+void SQUIDSPACEMOUSE::gamepadSetAllAxes(int16_t values[6]) {
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "Setting all analogue axes");
+    _transReport.tx = values[0];
+    _transReport.ty = values[1];
+    _transReport.tz = values[2];
+    _rotReport.rx   = values[3];
+    _rotReport.ry   = values[4];
+    _rotReport.rz   = values[5];
+    sendReport();
+    SQUID_LOG_DEBUG(GAMEPAD_TAG, "All analogue axes set successfully");
+}
+
+void SQUIDSPACEMOUSE::sendGamepadReport() {
+  sendReport();
+}
 #endif
 
 void SQUIDSPACEMOUSE::sendReport() {
