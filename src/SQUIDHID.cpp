@@ -23,7 +23,12 @@ static const uint8_t _basicReportDescriptor[] = {
   REPORT_COUNT(1),    0x06,                      REPORT_SIZE(1),     0x08,
   LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x65,                   
   USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0x00,
-  USAGE_MAXIMUM(1),   0x65,                      HIDINPUT(1),        0x00,                   
+  USAGE_MAXIMUM(1),   0x65,                      HIDINPUT(1),        0x00,
+  // Status LEDs (I added 8 of them)                  
+  USAGE_PAGE(1),      0x08,                      USAGE_MINIMUM(1),   0x01,                      
+  USAGE_MAXIMUM(1),   0x08,                      LOGICAL_MINIMUM(1), 0x00,
+  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_COUNT(1),    0x08,                      
+  REPORT_SIZE(1),     0x01,                      HIDOUTPUT(1),       0x02,                      
   END_COLLECTION(0),
 };
 
@@ -37,20 +42,21 @@ const size_t       descriptorSize = sizeof(_basicReportDescriptor)
   +  sizeof(_mediakeyReportDescriptor)
 #endif
 
-#if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+#if SPACEMOUSE_ENABLE
+  +  sizeof(_spacemouseReportDescriptor)
+#else
+
+#if MOUSE_ENABLE
   +  sizeof(_mouseReportDescriptor)
 #endif
 
-#if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+#if DIGITIZER_ENABLE
   +  sizeof(_digitizerReportDescriptor)
 #endif
 
-#if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
-  +  sizeof(_gamepadReportDescriptor)
+#if GAMEPAD_ENABLE
+  +  sizeof(_gamepadReportDescriptor)  
 #endif
-
-#if SPACEMOUSE_ENABLE
-  +  sizeof(_spacemouseReportDescriptor)
 #endif
 
 #if STENO_ENABLE
@@ -60,8 +66,9 @@ const size_t       descriptorSize = sizeof(_basicReportDescriptor)
                         
 static uint8_t     _hidReportDescriptor[descriptorSize];
 static const char* LOG_TAG = "SQUIDHID";
-static             SQUIDHID* _activeSQUIDHIDInstance = nullptr;
 bool               getInitialized = false;
+
+SQUIDHID*          _activeSQUIDHIDInstance = nullptr;
 
 class HIDDescriptorInitializer {
 public:
@@ -84,28 +91,29 @@ public:
         current += sizeof(_mediakeyReportDescriptor);
         #endif
         
-        #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+        #if SPACEMOUSE_ENABLE
+        // Spacemouse descriptor
+        memcpy(current, _spacemouseReportDescriptor, sizeof(_spacemouseReportDescriptor));
+        current += sizeof(_spacemouseReportDescriptor);
+        #else
+        
+        #if MOUSE_ENABLE
         // Mouse descriptor
         memcpy(current, _mouseReportDescriptor, sizeof(_mouseReportDescriptor));
         current += sizeof(_mouseReportDescriptor);
         #endif
         
-        #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+        #if DIGITIZER_ENABLE
         // Digitizer descriptor
         memcpy(current, _digitizerReportDescriptor, sizeof(_digitizerReportDescriptor));
         current += sizeof(_digitizerReportDescriptor);
         #endif
         
-        #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+        #if GAMEPAD_ENABLE
         // Gamepad descriptor
         memcpy(current, _gamepadReportDescriptor, sizeof(_gamepadReportDescriptor));
         current += sizeof(_gamepadReportDescriptor);
         #endif
-        
-        #if SPACEMOUSE_ENABLE
-        // Spacemouse descriptor
-        memcpy(current, _spacemouseReportDescriptor, sizeof(_spacemouseReportDescriptor));
-        current += sizeof(_spacemouseReportDescriptor);
         #endif
         
         #if STENO_ENABLE
@@ -318,26 +326,28 @@ void SQUIDHID::begin(void) {
     SQUID_LOG_DEBUG(LOG_TAG, "Media key support enabled");
     #endif
     
-    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+    #if SPACEMOUSE_ENABLE
+    spacemouse.begin(transport.get(), _delay_ms);
+    SQUID_LOG_DEBUG(LOG_TAG, "Spacemouse support enabled");
+    #else
+    
+    #if MOUSE_ENABLE
     mouse.begin(transport.get(), _delay_ms);
     SQUID_LOG_DEBUG(LOG_TAG, "Mouse support enabled");
     #endif
     
-    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+    #if DIGITIZER_ENABLE
     digitizer.begin(transport.get(), _delay_ms);
     SQUID_LOG_DEBUG(LOG_TAG, "Digitizer support enabled");
     #endif
     
-    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+    #if GAMEPAD_ENABLE
     gamepad.begin(transport.get(), _delay_ms);
     SQUID_LOG_DEBUG(LOG_TAG, "Gamepad support enabled");
-    #endif
     
-    #if SPACEMOUSE_ENABLE
-    spacemouse.begin(transport.get(), _delay_ms);
-    SQUID_LOG_DEBUG(LOG_TAG, "Spacemouse support enabled");
     #endif
-    
+    #endif
+
     #if STENO_ENABLE
     steno.begin(transport.get(), _delay_ms);
     SQUID_LOG_DEBUG(LOG_TAG, "PloverHID support enabled");
@@ -528,17 +538,18 @@ void SQUIDHID::onConnect() {
     #if MEDIA_ENABLE
     media.onConnect();
     #endif
-    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
-    mouse.onConnect();
-    #endif
-    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
-    digitizer.onConnect();
-    #endif
-    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
-    gamepad.onConnect();
-    #endif
     #if SPACEMOUSE_ENABLE
     spacemouse.onConnect();
+    #else
+    #if MOUSE_ENABLE
+    mouse.onConnect();
+    #endif
+    #if DIGITIZER_ENABLE
+    digitizer.onConnect();
+    #endif
+    #if GAMEPAD_ENABLE
+    gamepad.onConnect();
+    #endif
     #endif
     #if STENO_ENABLE
     steno.onConnect();
@@ -583,17 +594,18 @@ void SQUIDHID::onDisconnect() {
     #if MEDIA_ENABLE
     media.onDisconnect();
     #endif
-    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
-    mouse.onDisconnect();
-    #endif
-    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
-    digitizer.onDisconnect();
-    #endif
-    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
-    gamepad.onDisconnect();
-    #endif
     #if SPACEMOUSE_ENABLE
     spacemouse.onDisconnect();
+    #else
+    #if MOUSE_ENABLE
+    mouse.onDisconnect();
+    #endif
+    #if DIGITIZER_ENABLE
+    digitizer.onDisconnect();
+    #endif
+    #if GAMEPAD_ENABLE
+    gamepad.onDisconnect();
+    #endif
     #endif
     #if STENO_ENABLE
     steno.onDisconnect();
@@ -618,14 +630,16 @@ void SQUIDHID::releaseAll() {
   
   #if SPACEMOUSE_ENABLE
   spacemouse.releaseAll();
-  #endif
+  #else
   
-  #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+  #if MOUSE_ENABLE
   mouse.releaseAll();
   #endif
   
-  #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+  #if GAMEPAD_ENABLE
   gamepad.releaseAll();
+  
+  #endif
   #endif
   
   #if STENO_ENABLE
@@ -635,7 +649,12 @@ void SQUIDHID::releaseAll() {
 
 void SQUIDHID::onDataReceived(const uint8_t* data, size_t length) {
     SQUID_LOG_DEBUG(LOG_TAG, "Received %zu bytes from transport", length);
-    // Handle incoming data, like HID output reports, serial data, and other stuff I never implemented
+    
+    // Handle HID output reports (host -> device)
+    if (length > 0) {
+        uint8_t reportId = data[0];
+        
+    }
 }
 
 void SQUIDHID::setTransport(std::unique_ptr<Transport> newTransport) {
@@ -726,16 +745,17 @@ void SQUIDHID::setupKeymap(const std::vector<std::vector<LayerKeymapEntry>>& lay
             case KeypressType::SPACEMOUSE_KEY:
                 #if SPACEMOUSE_ENABLE
                 this->spacemouse.press(key_entry.key.spacemouse_key);
-                #endif
+                #else
                 break;
             case KeypressType::MOUSE_KEY:
-                #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+                #if MOUSE_ENABLE
                 this->mouse.press(key_entry.key.mouse_key);
                 #endif
                 break;
             case KeypressType::GAMEPAD_BUTTON:
-                #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+                #if GAMEPAD_ENABLE
                 this->gamepad.press(key_entry.key.gamepad_button);
+                #endif
                 #endif
                 break;
             case KeypressType::STENO_KEY:
@@ -764,16 +784,17 @@ void SQUIDHID::setupKeymap(const std::vector<std::vector<LayerKeymapEntry>>& lay
             case KeypressType::SPACEMOUSE_KEY:
                 #if SPACEMOUSE_ENABLE
                 this->spacemouse.release(key_entry.key.spacemouse_key);
-                #endif
+                #else
                 break;
             case KeypressType::MOUSE_KEY:
-                #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+                #if MOUSE_ENABLE
                 this->mouse.release(key_entry.key.mouse_key);
                 #endif
                 break;
             case KeypressType::GAMEPAD_BUTTON:
-                #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+                #if GAMEPAD_ENABLE
                 this->gamepad.release(key_entry.key.gamepad_button);
+                #endif
                 #endif
                 break;
             case KeypressType::STENO_KEY:
