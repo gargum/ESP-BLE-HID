@@ -29,14 +29,11 @@ static const uint8_t _mouseReportDescriptor[] = {
   USAGE_PAGE(1),      0x01,                      USAGE(1),           0x02,             
   COLLECTION(1),      0x01,                      REPORT_ID(1),       MOUSE_ID,         
   USAGE(1),           0x01,                      COLLECTION(1),      0x00,             
-  // Buttons (5 bits)
+  // Buttons (8 bits)
   USAGE_PAGE(1),      0x09,                      USAGE_MINIMUM(1),   0x01,             
   USAGE_MAXIMUM(1),   0x05,                      LOGICAL_MINIMUM(1), 0x00,             
   LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,             
-  REPORT_COUNT(1),    0x05,                      HIDINPUT(1),        0x02,             
-  // Button padding (3 bits)
-  REPORT_SIZE(1),     0x03,                      REPORT_COUNT(1),    0x01,             
-  HIDINPUT(1),        0x03,             
+  REPORT_COUNT(1),    0x08,                      HIDINPUT(1),        0x02,                        
   // Relative X, Y, Wheel
   USAGE_PAGE(1),      0x01,                      USAGE(1),           0x30,             
   USAGE(1),           0x31,                      USAGE(1),           0x38,             
@@ -56,7 +53,10 @@ enum class MouseKeys : uint8_t {
   MOUSE_RIGHT   = 0x02,
   MOUSE_MIDDLE  = 0x04,
   MOUSE_BACK    = 0x08,
-  MOUSE_FORWARD = 0x10
+  MOUSE_FORWARD = 0x10,
+  MOUSE_SIDE_A  = 0x20,
+  MOUSE_SIDE_B  = 0x40,
+  MOUSE_SIDE_C  = 0x80
 };
 
 MK(MouseKey, MO_BTN1, MOUSE_LEFT);
@@ -64,6 +64,9 @@ MK(MouseKey, MO_BTN2, MOUSE_RIGHT);
 MK(MouseKey, MO_BTN3, MOUSE_MIDDLE);
 MK(MouseKey, MO_BTN4, MOUSE_BACK);
 MK(MouseKey, MO_BTN5, MOUSE_FORWARD);
+MK(MouseKey, MO_BTN6, MOUSE_SIDE_A);
+MK(MouseKey, MO_BTN7, MOUSE_SIDE_B);
+MK(MouseKey, MO_BTN8, MOUSE_SIDE_C);
 
 enum class MouseAnalogues : uint8_t {
   MOUSE_X_AXIS    = 1,
