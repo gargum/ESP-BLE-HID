@@ -36,18 +36,19 @@
 
 #if SPACEMOUSE_ENABLE
   #include "features/Spacemouse/Spacemouse.h"
-#endif
+#else
 
-#if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+#if MOUSE_ENABLE
   #include "features/Mouse/Mouse.h"
 #endif
 
-#if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+#if DIGITIZER_ENABLE
   #include "features/Digitizer/Digitizer.h"
 #endif
 
-#if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+#if GAMEPAD_ENABLE
   #include "features/Gamepad/Gamepad.h"
+#endif
 #endif
 
 #if STENO_ENABLE
@@ -66,14 +67,26 @@
   #include "drivers/Hardware/Expander/MCP/MCP23XXX.h"
 #endif
 
-#define SQUIDHID_VERSION "0.7.4"
+#define SQUIDHID_VERSION "0.8.4"
 #define SQUIDHID_VERSION_MAJOR 0
-#define SQUIDHID_VERSION_MINOR 7
+#define SQUIDHID_VERSION_MINOR 8
 #define SQUIDHID_VERSION_REVISION 4
 
 // Scanning/Polling interval
 #define SCAN_INTERVAL   1
 #define POLL_INTERVAL   250
+
+// These are used for the status LEDs, they aren't technically part of the NeoPixel driver
+enum LEDBits {
+    LED_NUM_LOCK       = 0x01,
+    LED_CAPS_LOCK      = 0x02,
+    LED_SCROLL_LOCK    = 0x04,
+    LED_COMPOSE        = 0x08,
+    LED_KANA           = 0x10,
+    LED_POWER          = 0x20,
+    LED_SHIFT          = 0x40,
+    LED_DO_NOT_DISTURB = 0x80
+};
 
 class SQUIDHID : public Print
     , public TransportCallbacks
@@ -109,18 +122,19 @@ private:
   
   #if SPACEMOUSE_ENABLE
     SQUIDSPACEMOUSE           spacemouse;
-  #endif
+  #else
   
-  #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+  #if MOUSE_ENABLE
     SQUIDMOUSE                mouse;
   #endif
   
-  #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+  #if DIGITIZER_ENABLE
     SQUIDTABLET               digitizer;
   #endif
   
-  #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+  #if GAMEPAD_ENABLE
     SQUIDGAMEPAD              gamepad;
+  #endif
   #endif
   
   #if STENO_ENABLE
