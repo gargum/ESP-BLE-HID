@@ -42,25 +42,19 @@ static const uint8_t _gamepadReportDescriptor[] = {
   // Padding
   REPORT_SIZE(1),     0x08,                      REPORT_COUNT(1),    0x01,
   HIDINPUT(1),        0x03,
-  // Left Stick X/Y
+  // Left Stick X/Y + Right Stick X/Y
   USAGE_PAGE(1),      0x01,                      USAGE(1),           0x01,             
   COLLECTION(1),      0x00,                      USAGE(1),           0x30,             
-  USAGE(1),           0x31,                      LOGICAL_MINIMUM(2), 0x01, 0x80,       
+  USAGE(1),           0x31,                      USAGE(1),           0x33,
+  USAGE(1),           0x34,                      LOGICAL_MINIMUM(2), 0x01, 0x80,       
   LOGICAL_MAXIMUM(2), 0xFF, 0x7F,                REPORT_SIZE(1),     0x10,             
-  REPORT_COUNT(1),    0x02,                      HIDINPUT(1),        0x02,             
-  END_COLLECTION(0),                    
-  // Right Stick X/Y
-  USAGE(1),           0x01,                      COLLECTION(1),      0x00,             
-  USAGE(1),           0x33,                      USAGE(1),           0x34,             
-  LOGICAL_MINIMUM(2), 0x01, 0x80,                LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       
-  REPORT_SIZE(1),     0x10,                      REPORT_COUNT(1),    0x02,             
-  HIDINPUT(1),        0x02,                      END_COLLECTION(0),                    
+  REPORT_COUNT(1),    0x04,                      HIDINPUT(1),        0x02,             
+  END_COLLECTION(0),                                      
   // Triggers
   USAGE(1),           0x32,                      USAGE(1),           0x35,             
   LOGICAL_MINIMUM(2), 0x00, 0x00,                LOGICAL_MAXIMUM(2), 0xFF, 0x7F,       
   REPORT_SIZE(1),     0x10,                      REPORT_COUNT(1),    0x02,             
-  HIDINPUT(1),        0x02,                   
-  END_COLLECTION(0),                     
+  HIDINPUT(1),        0x02,                      END_COLLECTION(0),           
 };
 
 enum class GamepadButtons : uint8_t {
@@ -310,6 +304,13 @@ public:
     int16_t gamepadGetAxis(GamepadAnalogue axis);
     void    gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]);
     void    sendGamepadReport();
+    
+    // Motion control methods
+    void setAccelerometer(int16_t x, int16_t y, int16_t z);
+    void setGyroscope(int16_t x, int16_t y, int16_t z);
+    void setMotionData(int16_t accel[3], int16_t gyro[3]);
+    void getAccelerometer(int16_t &x, int16_t &y, int16_t &z);
+    void getGyroscope(int16_t &x, int16_t &y, int16_t &z);
 };
 #endif
 #endif
