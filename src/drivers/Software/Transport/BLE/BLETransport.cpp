@@ -159,6 +159,8 @@ void BLETransport::createHIDService() {
     
     // Create input reports for each HID device type
     SQUID_LOG_DEBUG(TRANSPORT_TAG, "Creating HID input reports...");
+    
+    outputKeyboard = hidDevice->getOutputReport(0x01);     // Status LEDs
     #if KEYBOARD_ENABLE
     inputNKRO = hidDevice->getInputReport(0x02);           // NKRO keyboard  
     #endif
@@ -169,22 +171,20 @@ void BLETransport::createHIDService() {
     inputSpacetrans = hidDevice->getInputReport(0x04);     // Spacemouse translations
     inputSpacerotat = hidDevice->getInputReport(0x05);     // Spacemouse rotations
     inputSpaceclick = hidDevice->getInputReport(0x06);     // Spacemouse buttons
-    #endif
-    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+    #else
+    #if MOUSE_ENABLE
     inputMouse = hidDevice->getInputReport(0x07);          // Mouse
     #endif
-    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+    #if DIGITIZER_ENABLE
     inputDigitizer = hidDevice->getInputReport(0x08);      // Digitizer
     #endif
-    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+    #if GAMEPAD_ENABLE
     inputGamepad = hidDevice->getInputReport(0x09);        // Gamepad
+    #endif
     #endif
     #if STENO_ENABLE
     inputSteno = hidDevice->getInputReport(0x50);          // Plover HID steno
     #endif
-    
-    // Create output report for keyboard
-    outputKeyboard = hidDevice->getOutputReport(0x01);
     
     // Set callbacks for ALL characteristics
     if (outputKeyboard) {
@@ -233,9 +233,9 @@ void BLETransport::createHIDService() {
     } else {
         SQUID_LOG_ERROR(TRANSPORT_TAG, "Spacemouse Buttons Input characteristic creation failed!");
     }
-    #endif
+    #else
     
-    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+    #if MOUSE_ENABLE
     if (inputMouse) {
         inputMouse->setCallbacks(this);
         SQUID_LOG_INFO(TRANSPORT_TAG, "Mouse characteristic created");
@@ -244,7 +244,7 @@ void BLETransport::createHIDService() {
     }
     #endif
     
-    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+    #if DIGITIZER_ENABLE
     if (inputDigitizer) {
         inputDigitizer->setCallbacks(this);
         SQUID_LOG_INFO(TRANSPORT_TAG, "Digitizer characteristic created");
@@ -253,13 +253,14 @@ void BLETransport::createHIDService() {
     }
     #endif
     
-    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+    #if GAMEPAD_ENABLE
     if (inputGamepad) {
         inputGamepad->setCallbacks(this);
         SQUID_LOG_INFO(TRANSPORT_TAG, "Gamepad characteristic created");
     } else {
         SQUID_LOG_ERROR(TRANSPORT_TAG, "Gamepad Input characteristic creation failed!");
     }
+    #endif
     #endif
     
     #if STENO_ENABLE
@@ -297,15 +298,16 @@ void BLETransport::verifyCharacteristicHandles() {
         {inputSpacetrans, "Spacemouse Translations Input"},
         {inputSpacerotat, "Spacemouse Rotations Input"},
         {inputSpaceclick, "Spacemouse Buttons Input"},
-        #endif
-        #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+        #else
+        #if MOUSE_ENABLE
         {inputMouse, "Mouse Input"},
         #endif
-        #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+        #if DIGITIZER_ENABLE
         {inputDigitizer, "Digitizer Input"},
         #endif
-        #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+        #if GAMEPAD_ENABLE
         {inputGamepad, "Gamepad Input"},
+        #endif
         #endif
         #if STENO_ENABLE
         {inputSteno, "Steno Input"},
@@ -354,15 +356,16 @@ void BLETransport::debugCharacteristics() {
         {inputSpacetrans, "Spacemouse Translations Input"},
         {inputSpacerotat, "Spacemouse Rotations Input"},
         {inputSpaceclick, "Spacemouse Buttons Input"},
-        #endif
-        #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+        #else
+        #if MOUSE_ENABLE
         {inputMouse, "Mouse Input"},
         #endif
-        #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+        #if DIGITIZER_ENABLE
         {inputDigitizer, "Digitizer Input"},
         #endif
-        #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+        #if GAMEPAD_ENABLE
         {inputGamepad, "Gamepad Input"},
+        #endif
         #endif
         #if STENO_ENABLE
         {inputSteno, "Steno Input"},
@@ -410,15 +413,16 @@ bool BLETransport::sendReport(uint8_t reportId, const uint8_t* data, size_t leng
         case 0x04: characteristic = inputSpacetrans; charName = "Spacetrans"; break;
         case 0x05: characteristic = inputSpacerotat; charName = "Spacerotat"; break;
         case 0x06: characteristic = inputSpaceclick; charName = "Spaceclick"; break;
-        #endif
-        #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+        #else
+        #if MOUSE_ENABLE
         case 0x07: characteristic = inputMouse; charName = "Mouse"; break;
         #endif
-        #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+        #if DIGITIZER_ENABLE
         case 0x08: characteristic = inputDigitizer; charName = "Digitizer"; break;
         #endif
-        #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+        #if GAMEPAD_ENABLE
         case 0x09: characteristic = inputGamepad; charName = "Gamepad"; break;
+        #endif
         #endif
         #if STENO_ENABLE
         case 0x50: characteristic = inputSteno; charName = "Steno"; break;
@@ -592,24 +596,25 @@ void BLETransport::onConnect(NimBLEServer* pServer) {
     if (inputSpaceclick && inputSpaceclick->getHandle() != 0) {
         inputSpaceclick->notify();
     }
-    #endif
+    #else
     
-    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+    #if MOUSE_ENABLE
     if (inputMouse && inputMouse->getHandle() != 0) {
         inputMouse->notify();
     }
     #endif
     
-    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+    #if DIGITIZER_ENABLE
     if (inputDigitizer && inputDigitizer->getHandle() != 0) {
         inputDigitizer->notify();
     }
     #endif
     
-    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+    #if GAMEPAD_ENABLE
     if (inputGamepad && inputGamepad->getHandle() != 0) {
         inputGamepad->notify();
     }
+    #endif
     #endif
     
     #if STENO_ENABLE
@@ -642,6 +647,21 @@ void BLETransport::onWrite(NimBLECharacteristic* characteristic) {
     SQUID_LOG_DEBUG(TRANSPORT_TAG, "Characteristic write - Handle: %d, UUID: %s", 
                    characteristic->getHandle(), characteristic->getUUID().toString().c_str());
     
+    // Specifically handle keyboard output reports (LED status and nothing else currently)
+    if (characteristic == outputKeyboard) {
+        auto value = characteristic->getValue();
+        SQUID_LOG_INFO(TRANSPORT_TAG, "Keyboard output report received - Length: %zu", value.length());
+        
+        // Logging the raw data for debugging
+        std::string hexStr;
+        for (size_t i = 0; i < value.length(); i++) {
+            char buf[4];
+            snprintf(buf, sizeof(buf), "%02X ", value[i]);
+            hexStr += buf;
+        }
+        SQUID_LOG_DEBUG(TRANSPORT_TAG, "Output report data: %s", hexStr.c_str());
+    }
+    
     if (transportCallbacks) {
         auto value = characteristic->getValue();
         transportCallbacks->onDataReceived(
@@ -672,18 +692,19 @@ void BLETransport::onSubscribe(NimBLEServer* pServer, ble_gap_conn_desc* desc, u
         SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse rotations report subscribed");
     } else if (inputSpaceclick && inputSpaceclick->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse buttons report subscribed");
-    #endif
-    #if MOUSE_ENABLE && !SPACEMOUSE_ENABLE
+    #else
+    #if MOUSE_ENABLE
     } else if (inputMouse && inputMouse->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Mouse report subscribed");
     #endif
-    #if DIGITIZER_ENABLE && !SPACEMOUSE_ENABLE
+    #if DIGITIZER_ENABLE
     } else if (inputDigitizer && inputDigitizer->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Digitizer report subscribed");
     #endif
-    #if GAMEPAD_ENABLE && !SPACEMOUSE_ENABLE
+    #if GAMEPAD_ENABLE
     } else if (inputGamepad && inputGamepad->getHandle() == attr_handle) {
         SQUID_LOG_INFO(TRANSPORT_TAG, "Gamepad report subscribed");
+    #endif
     #endif
     #if STENO_ENABLE
     } else if (inputSteno && inputSteno->getHandle() == attr_handle) {
