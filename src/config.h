@@ -7,11 +7,11 @@
 
 #define KEYBOARD_ENABLE   true
 #define MEDIA_ENABLE      true
-#define STENO_ENABLE      true
-#define MOUSE_ENABLE      true
-#define DIGITIZER_ENABLE  true
-#define GAMEPAD_ENABLE    true
-#define SPACEMOUSE_ENABLE true
+// #define STENO_ENABLE      true
+// #define MOUSE_ENABLE      true
+// #define DIGITIZER_ENABLE  true
+// #define GAMEPAD_ENABLE    true
+// #define SPACEMOUSE_ENABLE true
 
 #define LED_ENABLE        false
 // #define LED_PIN          20
