@@ -33,6 +33,7 @@ struct DigitizerKeyTag       : KeyTag {};
 struct DigitizerAnalogueTag  : KeyTag {};
 struct SpacemouseKeyTag      : KeyTag {};
 struct SpacemouseAnalogueTag : KeyTag {};
+struct HapticKeyTag          : KeyTag {};
 
 // Template-based strong types
 template<typename Tag>
@@ -74,6 +75,7 @@ using DigitizerKey       = KeyType<DigitizerKeyTag>;
 using DigitizerAnalogue  = KeyType<DigitizerAnalogueTag>;
 using SpacemouseKey      = KeyType<SpacemouseKeyTag>;
 using SpacemouseAnalogue = KeyType<SpacemouseAnalogueTag>;
+using HapticKey          = KeyType<HapticKeyTag>;
 
 // Literal operators for easy creation
 constexpr ModKey operator"" _mod(unsigned long long value) {
@@ -126,6 +128,10 @@ constexpr SpacemouseKey operator"" _spacemouse(unsigned long long value) {
 
 constexpr SpacemouseAnalogue operator"" _spaceanalogue(unsigned long long value) {
     return SpacemouseAnalogue(static_cast<int32_t>(value));
+}
+
+constexpr HapticKey operator"" _haptic(unsigned long long value) {
+    return HapticKey(static_cast<int32_t>(value));
 }
 
 // Helper macro for enum type name generation
@@ -198,6 +204,7 @@ union KeymapValue {
     DigitizerAnalogue  digitizer_analogue;
     SpacemouseKey      spacemouse_key;
     SpacemouseAnalogue spacemouse_analogue;
+    HapticKey          haptic_key;
     
     KeymapValue() : nkro_key(NKROKey{0}) {}
     KeymapValue(NKROKey k) : nkro_key(k) {}
@@ -213,6 +220,7 @@ union KeymapValue {
     KeymapValue(DigitizerAnalogue k) : digitizer_analogue(k) {}
     KeymapValue(SpacemouseKey k ) : spacemouse_key(k) {}
     KeymapValue(SpacemouseAnalogue k) : spacemouse_analogue(k) {}
+    KeymapValue(HapticKey k) : haptic_key(k) {}
 };
 
 // Key type identifier
@@ -229,7 +237,8 @@ enum class KeypressType {
     DIGITIZER_KEY,
     DIGITIZER_ANALOGUE,
     SPACEMOUSE_KEY,
-    SPACEMOUSE_ANALOGUE
+    SPACEMOUSE_ANALOGUE,
+    HAPTIC_KEY
 };
 
 // Keymap entry
@@ -251,6 +260,7 @@ struct KeymapEntry {
     KeymapEntry(DigitizerAnalogue k) : type(KeypressType::DIGITIZER_ANALOGUE), key(k) {}
     KeymapEntry(SpacemouseKey k) : type(KeypressType::SPACEMOUSE_KEY), key(k) {}
     KeymapEntry(SpacemouseAnalogue k) : type(KeypressType::SPACEMOUSE_ANALOGUE), key(k) {}
+    KeymapEntry(HapticKey k) : type(KeypressType::HAPTIC_KEY), key(k) {}
     
     // Default constructor
     KeymapEntry() : type(KeypressType::NKRO_KEY), key(NKROKey{0}) {}
@@ -367,6 +377,11 @@ struct LayerKeymapEntry {
     
     LayerKeymapEntry(SpacemouseAnalogue k)
         : action_type(LayerActionType::NORMAL_KEY) {
+        action.key = KeymapEntry(k);
+    }
+
+    LayerKeymapEntry(HapticKey k) 
+        : action_type(LayerActionType::NORMAL_KEY) { 
         action.key = KeymapEntry(k);
     }
     
@@ -523,7 +538,7 @@ public:
 };
 
 // ============================================================================
-// Helper Functions for Syntax
+// Helper Functions and Macros for Sketch Syntax
 // ============================================================================
 
 // Helper function to create matrix from initializer list
