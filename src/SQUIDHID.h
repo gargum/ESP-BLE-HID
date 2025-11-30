@@ -385,14 +385,6 @@ public:
     size_t    getQueueSize() const;
     bool      isInitialized() const;
     bool      isQueueEmpty() const;
-    
-    // Platform-specific control methods
-    #if defined(SQUIDHID_PLATFORM_ESP32)
-    void setESP32LogLevel(esp_log_level_t level);
-    #elif defined(SQUIDHID_PLATFORM_NRF52)
-    void setNRF52LogLevel(nrf_log_severity_t severity);
-    #endif
-
 };
 
 #endif
