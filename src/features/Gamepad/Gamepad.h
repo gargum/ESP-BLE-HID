@@ -8,11 +8,10 @@
 
 #if !SPACEMOUSE_ENABLE
 
-#include <stdint.h>
-#include "HIDTypes.h"
-#include "../../drivers/Software/Log/Log.h"
-#include "../../drivers/Software/Event/Types.h"
-#include "../../drivers/Software/Transport/Transport.h"
+#include "drivers/Software/HID/SquidHIDTypes.h"
+#include "drivers/Software/Log/Log.h"
+#include "drivers/Software/Event/Types.h"
+#include "drivers/Software/Transport/Transport.h"
 
 #define GAMEPAD_BUTTON_COUNT 64
 #define GAMEPAD_ANALOGUE_COUNT 6
