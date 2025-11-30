@@ -6,11 +6,10 @@
 #ifndef NKRO_H
 #define NKRO_H
 
-#include <stdint.h>
-#include "HIDTypes.h"
-#include "../../drivers/Software/Log/Log.h"
-#include "../../drivers/Software/Event/Types.h"
-#include "../../drivers/Software/Transport/Transport.h"
+#include "drivers/Software/HID/SquidHIDTypes.h"
+#include "drivers/Software/Log/Log.h"
+#include "drivers/Software/Event/Types.h"
+#include "drivers/Software/Transport/Transport.h"
 
 #define NKRO_KEY_COUNT 252 // Surprise! "N" in "N-Key Rollover" stands for "252" in my implementation.
 
