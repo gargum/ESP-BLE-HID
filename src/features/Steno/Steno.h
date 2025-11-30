@@ -6,11 +6,10 @@
 #ifndef STENO_H
 #define STENO_H
 
-#include <stdint.h>
-#include "HIDTypes.h"
-#include "../../drivers/Software/Log/Log.h"
-#include "../../drivers/Software/Event/Types.h"
-#include "../../drivers/Software/Transport/Transport.h"
+#include "drivers/Software/HID/SquidHIDTypes.h"
+#include "drivers/Software/Log/Log.h"
+#include "drivers/Software/Event/Types.h"
+#include "drivers/Software/Transport/Transport.h"
 
 #define STENO_ID 0x50
 
@@ -21,18 +20,12 @@ typedef struct {
 } StenoReport;
 
 static const uint8_t _stenoReportDescriptor[] = {
-    USAGE_PAGE(2),      0x50, 0xFF,              
-    USAGE(2),           0x56, 0x4C,              
-    COLLECTION(1),      0x02,                    
-    REPORT_ID(1),       STENO_ID,          
-    LOGICAL_MAXIMUM(1), 0x01,                    
-    REPORT_SIZE(1),     0x01,                    
-    REPORT_COUNT(1),    0x40,                    
-    USAGE_PAGE(1),      0x0A,                    
-    USAGE_MINIMUM(1),   0x00,                    
-    USAGE_MAXIMUM(1),   0x3F,                   
-    HIDINPUT(1),        0x02,                    
-    END_COLLECTION(0)                            
+  USAGE_PAGE(2),      0x50, 0xFF,                 USAGE(2),           0x56, 0x4C,              
+  COLLECTION(1),      0x02,                       REPORT_ID(1),       STENO_ID,          
+  LOGICAL_MAXIMUM(1), 0x01,                       REPORT_SIZE(1),     0x01,                    
+  REPORT_COUNT(1),    0x40,                       USAGE_PAGE(1),      0x0A,                    
+  USAGE_MINIMUM(1),   0x00,                       USAGE_MAXIMUM(1),   0x3F,                   
+  HIDINPUT(1),        0x02,                       END_COLLECTION(0)                            
 };
 
 // Plover HID key positions (bit positions in the 8-byte report)
