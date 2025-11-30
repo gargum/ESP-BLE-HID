@@ -6,11 +6,10 @@
 #ifndef SPACEMOUSE_H
 #define SPACEMOUSE_H
 
-#include <stdint.h>
-#include "HIDTypes.h"
-#include "../../drivers/Software/Log/Log.h"
-#include "../../drivers/Software/Event/Types.h"
-#include "../../drivers/Software/Transport/Transport.h"
+#include "drivers/Software/HID/SquidHIDTypes.h"
+#include "drivers/Software/Log/Log.h"
+#include "drivers/Software/Event/Types.h"
+#include "drivers/Software/Transport/Transport.h"
 
 #define SPACETRANS_ID 0x04 // 3DConnexion, why tf did you give one thing 3 report IDs?!?!
 #define SPACEROTAT_ID 0x05 // Look at any gamepad's HID Report you guys, you don't have to do this
@@ -151,15 +150,12 @@ MK(SpacemouseKey, SM_30, SPACEMOUSE_30);
 MK(SpacemouseKey, SM_31, SPACEMOUSE_31);
 MK(SpacemouseKey, SM_32, SPACEMOUSE_32);
 
-#if MOUSE_ENABLE
+#if MOUSE_ENABLE || DIGITIZER_ENABLE
 MK(SpacemouseKey, MO_BTN1, SPACEMOUSE_1);
 MK(SpacemouseKey, MO_BTN2, SPACEMOUSE_2);
 MK(SpacemouseKey, MO_BTN3, SPACEMOUSE_3);
 MK(SpacemouseKey, MO_BTN4, SPACEMOUSE_4);
 MK(SpacemouseKey, MO_BTN5, SPACEMOUSE_5);
-#endif
-
-#if DIGITIZER_ENABLE
 MK(SpacemouseKey, DI_BTN1, SPACEMOUSE_1);
 MK(SpacemouseKey, DI_BTN2, SPACEMOUSE_2);
 MK(SpacemouseKey, DI_BTN3, SPACEMOUSE_3);
@@ -182,12 +178,9 @@ private:
     SpaceButtonReport       _buttonReport;
     uint32_t                _delay_ms;
     
-    #if MOUSE_ENABLE
+    #if MOUSE_ENABLE || DIGITIZER_ENABLE
       uint16_t              _relativeX;
       uint16_t              _relativeY;
-    #endif
-    
-    #if DIGITIZER_ENABLE
       uint16_t              _screenWidth;
       uint16_t              _screenHeight;
       uint16_t              _currentAbsoluteX;
@@ -217,14 +210,11 @@ public:
     void   sendReport();
     void   releaseAll();
     
-    #if MOUSE_ENABLE
+    #if MOUSE_ENABLE || DIGITIZER_ENABLE
     void   click(SpacemouseKey b = MO_BTN1);
     void   move(int16_t x, int16_t y, int16_t wheel = 0, int16_t hWheel = 0);
     void   moveRelative(int16_t relX, int16_t relY, bool sendImmediately = true);
     void   sendMouseReport();
-    #endif
-    
-    #if DIGITIZER_ENABLE
     void   click(uint16_t x, uint16_t y, SpacemouseKey b = DI_BTN1); 
     void   moveTo(uint16_t x, uint16_t y, uint8_t pressure = 0, SpacemouseKey buttons = SpacemouseKey{0});
     void   beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure = 1270);
