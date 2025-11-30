@@ -1347,10 +1347,3 @@ size_t SQUIDHID::getQueueSize() const { return SQUIDLOGS::getInstance().getQueue
 bool SQUIDHID::isInitialized() const { return SQUIDLOGS::getInstance().isInitialized(); }
 
 bool SQUIDHID::isQueueEmpty() const { return SQUIDLOGS::getInstance().isQueueEmpty(); }
-
-// Platform-specific control methods
-#if defined(SQUIDHID_PLATFORM_ESP32)
-void SQUIDHID::setESP32LogLevel(esp_log_level_t level) { SQUIDLOGS::getInstance().setESP32LogLevel(level); }
-#elif defined(SQUIDHID_PLATFORM_NRF52)
-void SQUIDHID::setNRF52LogLevel(nrf_log_severity_t severity) { SQUIDLOGS::getInstance().setNRF52LogLevel(severity); }
-#endif
