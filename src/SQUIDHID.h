@@ -81,10 +81,7 @@ enum LEDBits {
     LED_CAPS_LOCK      = 0x02,
     LED_SCROLL_LOCK    = 0x04,
     LED_COMPOSE        = 0x08,
-    LED_KANA           = 0x10,
-    LED_POWER          = 0x20,
-    LED_SHIFT          = 0x40,
-    LED_DO_NOT_DISTURB = 0x80
+    LED_KANA           = 0x10
 };
 
 class SQUIDHID : public TransportCallbacks
@@ -224,7 +221,13 @@ public:
   void        toggleLayer(uint8_t layer);
   uint8_t     getActiveLayer() const;
   bool        isLayerActive(uint8_t layer) const;
-    
+  
+  // Combo management
+  void addCombo(const KeyComboConfig& combo);
+  void setCombos(const std::vector<KeyComboConfig>& combos);
+  void clearCombos();
+  void setComboTimeout(uint16_t timeout_ms);
+  
   #if KEYBOARD_ENABLE
     size_t    press(NKROKey k);
     size_t    press(ModKey modifier);
