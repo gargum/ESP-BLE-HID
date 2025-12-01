@@ -9,27 +9,34 @@
 
 static const uint8_t _basicReportDescriptor[] = {
   // ------------------------------------------------- Keyboard
-  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x06,                      
-  COLLECTION(1),      0x01,                      REPORT_ID(1),       KEYBOARD_ID,               
+  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x06,
+  COLLECTION(1),      0x01,                      REPORT_ID(1),       KEYBOARD_ID,
+
   // Modifiers (8 bits)
-  USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0xE0,                      
+  USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0xE0,
   USAGE_MAXIMUM(1),   0xE7,                      LOGICAL_MINIMUM(1), 0x00,
   LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,
-  REPORT_COUNT(1),    0x08,                      HIDINPUT(1),        0x02,                   
+  REPORT_COUNT(1),    0x08,                      HIDINPUT(1),        0x02,
+
   // Reserved byte
   REPORT_COUNT(1),    0x01,                      REPORT_SIZE(1),     0x08,
-  HIDINPUT(1),        0x01,                                 
-  // Key array (6 bytes for boot compatibility)
+  HIDINPUT(1),        0x01,
+
+  // Key array (6 bytes)
   REPORT_COUNT(1),    0x06,                      REPORT_SIZE(1),     0x08,
-  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x65,                   
+  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x65,
   USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0x00,
   USAGE_MAXIMUM(1),   0x65,                      HIDINPUT(1),        0x00,
-  // Status LEDs (I added 8 of them)                  
-  USAGE_PAGE(1),      0x08,                      USAGE_MINIMUM(1),   0x01,                      
-  USAGE_MAXIMUM(1),   0x08,                      LOGICAL_MINIMUM(1), 0x00,
-  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_COUNT(1),    0x08,                      
-  REPORT_SIZE(1),     0x01,                      HIDOUTPUT(1),       0x02,                      
-  END_COLLECTION(0),
+
+  // 5 LEDs
+  USAGE_PAGE(1),      0x08,                      USAGE_MINIMUM(1),   0x01,
+  USAGE_MAXIMUM(1),   0x05,                      LOGICAL_MINIMUM(1), 0x00,
+  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_COUNT(1),    0x05,
+  REPORT_SIZE(1),     0x01,                      HIDOUTPUT(1),       0x02,
+
+  // 3-bit padding
+  REPORT_COUNT(1),    0x03,                      REPORT_SIZE(1),     0x01,
+  HIDOUTPUT(1),       0x03,                      END_COLLECTION(0),
 };
 
 const size_t       descriptorSize = sizeof(_basicReportDescriptor) 
@@ -618,6 +625,14 @@ size_t SQUIDHID::write(const uint8_t *buf, size_t len) {
     while (len--) n += write(*buf++);
     return n;
 }
+
+void SQUIDHID::addCombo(const KeyComboConfig& combo) { keymap.addCombo(combo); }
+
+void SQUIDHID::setCombos(const std::vector<KeyComboConfig>& combos) { keymap.setCombos(combos); }
+
+void SQUIDHID::clearCombos() { keymap.clearCombos(); }
+
+void SQUIDHID::setComboTimeout(uint16_t timeout_ms) { keymap.setComboTimeout(timeout_ms); }
 
 void SQUIDHID::releaseAll() {
   #if KEYBOARD_ENABLE
