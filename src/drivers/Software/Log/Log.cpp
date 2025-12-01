@@ -158,43 +158,4 @@ void SQUIDLOGS::processQueue() {
 
 void SQUIDLOGS::flush() {
     processQueue();
-    
-    // Small delay to ensure platform-specific logging completes
-    #if defined(SQUIDHID_PLATFORM_NRF52)
-        delay(1); // nRF52 may need a moment for log flushing
-    #elif defined(SQUIDHID_PLATFORM_ESP32)
-        delay(1); // ESP32 logging is generally fast but safe to wait
-    #endif
 }
-
-// Platform-specific implementations (backward compatibility)
-#if defined(SQUIDHID_PLATFORM_ESP32)
-void SQUIDLOGS::setESP32LogLevel(esp_log_level_t level) {
-    // Map ESP32 level to our unified level
-    LogLevel unifiedLevel;
-    switch (level) {
-        case ESP_LOG_NONE:    unifiedLevel = LogLevel::NONE; break;
-        case ESP_LOG_ERROR:   unifiedLevel = LogLevel::ERROR; break;
-        case ESP_LOG_WARN:    unifiedLevel = LogLevel::WARNING; break;
-        case ESP_LOG_INFO:    unifiedLevel = LogLevel::INFO; break;
-        case ESP_LOG_DEBUG:   unifiedLevel = LogLevel::DEBUG; break;
-        case ESP_LOG_VERBOSE: unifiedLevel = LogLevel::VERBOSE; break;
-        default:              unifiedLevel = LogLevel::INFO; break;
-    }
-    setLogLevel(unifiedLevel);
-}
-#elif defined(SQUIDHID_PLATFORM_NRF52)
-void SQUIDLOGS::setNRF52LogLevel(nrf_log_severity_t severity) {
-    // Map nRF52 level to our unified level
-    LogLevel unifiedLevel;
-    switch (severity) {
-        case NRF_LOG_SEVERITY_NONE:      unifiedLevel = LogLevel::NONE; break;
-        case NRF_LOG_SEVERITY_ERROR:     unifiedLevel = LogLevel::ERROR; break;
-        case NRF_LOG_SEVERITY_WARNING:   unifiedLevel = LogLevel::WARNING; break;
-        case NRF_LOG_SEVERITY_INFO:      unifiedLevel = LogLevel::INFO; break;
-        case NRF_LOG_SEVERITY_DEBUG:     unifiedLevel = LogLevel::DEBUG; break;
-        default:                         unifiedLevel = LogLevel::INFO; break;
-    }
-    setLogLevel(unifiedLevel);
-}
-#endif
