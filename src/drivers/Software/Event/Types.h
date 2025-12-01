@@ -10,6 +10,10 @@
 #include <vector>
 #include <functional>
 #include <initializer_list>
+#include <unordered_map>
+#include <unordered_set>
+#include <algorithm>
+#include <string>
 #include "../Log/Log.h"
 
 // ============================================================================
@@ -266,6 +270,50 @@ struct KeymapEntry {
     KeymapEntry() : type(KeypressType::NKRO_KEY), key(NKROKey{0}) {}
 };
 
+namespace std {
+    template<>
+    struct hash<KeymapEntry> {
+        std::size_t operator()(const KeymapEntry& k) const noexcept {
+            // Combine type and value hash
+            std::size_t h1 = std::hash<int>{}(static_cast<int>(k.type));
+            std::size_t h2;
+            
+            switch (k.type) {
+                case KeypressType::NKRO_KEY:
+                    h2 = std::hash<int32_t>{}(k.key.nkro_key.get());
+                    break;
+                case KeypressType::MOD_KEY:
+                    h2 = std::hash<int32_t>{}(k.key.mod_key.get());
+                    break;
+                case KeypressType::MEDIA_KEY:
+                    h2 = std::hash<int32_t>{}(k.key.media_key.get());
+                    break;
+                // ... add cases for other key types
+                default:
+                    h2 = std::hash<int32_t>{}(0);
+            }
+            
+            return h1 ^ (h2 << 1);
+        }
+    };
+}
+
+inline bool operator==(const KeymapEntry& lhs, const KeymapEntry& rhs) {
+    if (lhs.type != rhs.type) return false;
+    
+    switch (lhs.type) {
+        case KeypressType::NKRO_KEY:
+            return lhs.key.nkro_key == rhs.key.nkro_key;
+        case KeypressType::MOD_KEY:
+            return lhs.key.mod_key == rhs.key.mod_key;
+        case KeypressType::MEDIA_KEY:
+            return lhs.key.media_key == rhs.key.media_key;
+        // ... add cases for other key types
+        default:
+            return memcmp(&lhs.key, &rhs.key, sizeof(KeymapValue)) == 0;
+    }
+}
+
 // Type alias for keymap
 class squid_map : public std::vector<KeymapEntry> {
 public:
@@ -276,6 +324,15 @@ public:
     squid_map(std::initializer_list<KeymapEntry> keys) 
         : std::vector<KeymapEntry>(keys) {}
     
+};
+
+// Early combo timeout tracking
+struct EarlyTimeoutInfo {
+    uint32_t last_key_press_time;
+    uint32_t last_key_release_time;
+    size_t active_key_count;
+        
+    EarlyTimeoutInfo() : last_key_press_time(0), last_key_release_time(0), active_key_count(0) {}
 };
 
 // ============================================================================
@@ -292,6 +349,89 @@ enum class LayerActionType {
     LAYER_MOD,            // Layer modifier (shift to layer while held)
     TRANSPARENT,          // Pass through to lower layer
     LAYER_DEFAULT,        // Switch to default layer
+};
+
+// Combo configuration structure
+struct ComboKeySpec {
+    enum class Type {
+        POSITION,    // Switch index
+        KEYCODE,     // Keycode from keymap
+        ANY_POSITION // Match any position with a specific keycode
+    };
+    
+    Type type;
+    
+    // Use a union with proper constructors
+    union Value {
+        size_t position;
+        KeymapEntry keycode;
+        
+        Value() : position(0) {}  // Default construct with position
+        Value(size_t pos) : position(pos) {}
+        Value(const KeymapEntry& key) : keycode(key) {}
+        ~Value() {}  // Union members are trivially destructible
+        
+        Value& operator=(const Value& other) {
+            if (this != &other) {
+                // Since we don't know which member is active, we just copy bytes
+                memcpy(this, &other, sizeof(Value));
+            }
+            return *this;
+        }
+    } value;
+    
+    // Constructors
+    ComboKeySpec(size_t pos) : type(Type::POSITION), value(pos) {}
+    ComboKeySpec(const KeymapEntry& key) : type(Type::KEYCODE), value(key) {}
+    ComboKeySpec(Type t, const KeymapEntry& key) : type(t), value(key) {}
+    
+    ComboKeySpec() : type(Type::POSITION), value(0) {}
+    
+    // Copy constructor
+    ComboKeySpec(const ComboKeySpec& other) : type(other.type), value() {
+        value = other.value;
+    }
+    
+    // Assignment operator
+    ComboKeySpec& operator=(const ComboKeySpec& other) {
+        if (this != &other) {
+            type = other.type;
+            value = other.value;
+        }
+        return *this;
+    }
+};
+
+// Combo state tracking
+struct ComboState {
+    std::vector<bool> pressed_keys;       // Which keys in the combo are pressed
+    uint32_t start_time;                  // When the combo sequence started
+    bool triggered;                       // Whether combo has been triggered
+    bool sent;                            // Whether action has been sent
+    
+    ComboState(size_t key_count) 
+        : pressed_keys(key_count, false), start_time(0), triggered(false), sent(false) {}
+};
+
+// Combo general structure
+struct KeyComboConfig {
+    std::vector<ComboKeySpec> key_specs;    // Flexible key specifications
+    uint16_t timeout_ms;                    // Time window for key presses
+    KeymapEntry action;                     // Action to trigger when combo is pressed
+    
+    KeyComboConfig(std::vector<ComboKeySpec> specs, KeymapEntry act, uint16_t timeout = 200)
+        : key_specs(specs), action(act), timeout_ms(timeout) {}
+    
+    // Backward compatibility constructor
+    KeyComboConfig(std::vector<size_t> positions, KeymapEntry act, uint16_t timeout = 200)
+        : action(act), timeout_ms(timeout) {
+        for (auto pos : positions) {
+            key_specs.push_back(ComboKeySpec(pos));
+        }
+    }
+    
+    // Default constructor
+    KeyComboConfig() : timeout_ms(200) {}
 };
 
 // Simple layer action value - using a struct instead of union
@@ -508,6 +648,35 @@ private:
     std::function<void(const KeymapEntry&)> _press_callback;
     std::function<void(const KeymapEntry&)> _release_callback;
     std::function<void(uint8_t)> _layer_change_callback;
+    std::unordered_map<KeymapEntry, std::vector<size_t>> _keycode_to_positions;
+    std::vector<KeyComboConfig> _key_combos;
+    std::unordered_set<size_t> _keys_in_active_combos;
+    std::unordered_map<size_t, std::vector<size_t>> _combo_key_to_combo_idx;
+    std::unordered_map<KeymapEntry, std::vector<size_t>> _combo_keycode_to_combo_idx;
+    std::vector<ComboState> _combo_states;
+    std::vector<size_t> getPositionsForComboKey(const ComboKeySpec& spec);
+    
+    // Combo timing
+    uint16_t _combo_timeout_ms = 200;
+    uint32_t _last_combo_check = 0;
+    void updateEarlyTimeoutInfo(size_t combo_idx, bool key_pressed);
+    bool shouldEarlyTimeout(size_t combo_idx) const;
+    std::vector<EarlyTimeoutInfo> _early_timeout_info;
+    
+    // Combo methods
+    void initializeCombos();
+    void updateCombos();
+    void updateComboForKey(size_t switch_index, bool pressed);
+    void updateKeycodeMappings();
+    void checkCombo(size_t combo_idx);
+    bool checkComboKeyPressed(const ComboKeySpec& spec, const std::vector<bool>& key_states);
+    bool isKeyInActiveCombo(size_t switch_index) const;
+    bool isAnyComboTriggered() const;
+    void triggerCombo(size_t combo_idx, bool pressed);
+    void sendComboAction(const KeymapEntry& action, bool pressed);
+    
+    // Combo debug
+    bool _combo_debug_enabled = false;
     
 public:
     SQUIDKEYMAP();
@@ -535,6 +704,20 @@ public:
     
     size_t getLayerCount() const;
     size_t getKeyCount() const;
+    
+    // Combo configuration
+    void addCombo(const KeyComboConfig& combo);
+    void setCombos(const std::vector<KeyComboConfig>& combos);
+    void clearCombos();
+    void resetComboState(size_t combo_idx);
+    void setComboTimeout(uint16_t timeout_ms);
+    
+    // State queries
+    size_t getComboCount() const;
+    bool isComboActive(size_t combo_idx) const;
+    
+    // Debugging helpers
+    void enableComboDebug(bool enabled) { _combo_debug_enabled = enabled; }
 };
 
 // ============================================================================
@@ -563,4 +746,65 @@ inline squid_map make_keymap(std::initializer_list<KeymapEntry> keys) {
     return squid_map(keys);
 }
 
+struct SimpleCombo {
+    std::vector<ComboKeySpec> keys;  // Use vector instead of initializer_list
+    KeymapEntry action;
+    uint16_t timeout_ms;
+    
+    // Constructor for position indices (backward compatibility)
+    template<typename T>
+    SimpleCombo(std::initializer_list<size_t> positions, T key_action, uint16_t t = 200) 
+        : action(KeymapEntry(key_action)), timeout_ms(t) {
+        keys.reserve(positions.size());
+        for (size_t pos : positions) {
+            keys.push_back(ComboKeySpec(pos));
+        }
+    }
+    
+    // Constructor for ComboKeySpec list
+    template<typename T>
+    SimpleCombo(std::initializer_list<ComboKeySpec> key_specs, T key_action, uint16_t t = 200) 
+        : action(KeymapEntry(key_action)), timeout_ms(t) {
+        keys.reserve(key_specs.size());
+        for (const auto& spec : key_specs) {
+            keys.push_back(spec);
+        }
+    }
+    
+    // Conversion to KeyComboConfig
+    operator KeyComboConfig() const {
+        return KeyComboConfig(keys, action, timeout_ms);
+    }
+};
+
+// Helper function to convert SimpleCombo list to vector
+inline std::vector<KeyComboConfig> make_combos_list(std::initializer_list<SimpleCombo> combos) {
+    std::vector<KeyComboConfig> result;
+    for (const auto& combo : combos) {
+        result.push_back(combo);
+    }
+    return result;
+}
+
+inline ComboKeySpec POS(size_t pos) { return ComboKeySpec(pos); }
+
+template<typename T>
+inline ComboKeySpec KEY(T key) { 
+    return ComboKeySpec(KeymapEntry(key)); 
+}
+
+template<typename T>
+inline ComboKeySpec ANY(T key) { 
+    return ComboKeySpec(ComboKeySpec::Type::ANY_POSITION, KeymapEntry(key)); 
+}
+
+#define COMBO(var_name) \
+    auto var_name = [](std::initializer_list<SimpleCombo> combos) -> std::vector<KeyComboConfig> { \
+        std::vector<KeyComboConfig> result; \
+        for (const auto& combo : combos) { \
+            result.push_back(combo); \
+        } \
+        return result; \
+    }
+    
 #endif // TYPES_H
