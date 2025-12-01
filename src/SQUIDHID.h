@@ -6,8 +6,6 @@
 #ifndef SQUIDHID_H
 #define SQUIDHID_H
 
-#include "Print.h"
-
 #include "config.h"
 #include "drivers/Software/Log/Log.h" 
 #include "drivers/Appearance.h"
@@ -89,8 +87,7 @@ enum LEDBits {
     LED_DO_NOT_DISTURB = 0x80
 };
 
-class SQUIDHID : public Print
-    , public TransportCallbacks
+class SQUIDHID : public TransportCallbacks
 {
 private:
   std::unique_ptr<Transport>  transport;
