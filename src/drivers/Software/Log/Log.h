@@ -76,16 +76,9 @@ public:
     size_t getQueueSize() const { return logQueue.size(); }
     bool isInitialized() const { return initialized; }
     bool isQueueEmpty() const { return logQueue.empty(); }
-    
-    // Platform-specific control methods (kept for backward compatibility)
-    #if defined(SQUIDHID_PLATFORM_ESP32)
-    void setESP32LogLevel(esp_log_level_t level);
-    #elif defined(SQUIDHID_PLATFORM_NRF52)
-    void setNRF52LogLevel(nrf_log_severity_t severity);
-    #endif
 };
 
-inline void _squidLogHelper(LogLevel level, const std::string& tag, const char* format, ...) {
+inline void _bleLogHelper(LogLevel level, const std::string& tag, const char* format, ...) {
     // Check if this log level should be processed
     if (static_cast<int>(level) > static_cast<int>(SQUIDLOGS::getInstance().getLogLevel())) {
         return;
@@ -102,19 +95,19 @@ inline void _squidLogHelper(LogLevel level, const std::string& tag, const char* 
 
 // Convenience macros for logging
 #define SQUID_LOG_VERBOSE(tag, format, ...) \
-    _squidLogHelper(LogLevel::VERBOSE, tag, format, ##__VA_ARGS__)
+    _bleLogHelper(LogLevel::VERBOSE, tag, format, ##__VA_ARGS__)
 
 #define SQUID_LOG_DEBUG(tag, format, ...) \
-    _squidLogHelper(LogLevel::DEBUG, tag, format, ##__VA_ARGS__)
+    _bleLogHelper(LogLevel::DEBUG, tag, format, ##__VA_ARGS__)
 
 #define SQUID_LOG_INFO(tag, format, ...) \
-    _squidLogHelper(LogLevel::INFO, tag, format, ##__VA_ARGS__)
+    _bleLogHelper(LogLevel::INFO, tag, format, ##__VA_ARGS__)
 
 #define SQUID_LOG_WARN(tag, format, ...) \
-    _squidLogHelper(LogLevel::WARNING, tag, format, ##__VA_ARGS__)
+    _bleLogHelper(LogLevel::WARNING, tag, format, ##__VA_ARGS__)
 
 #define SQUID_LOG_ERROR(tag, format, ...) \
-    _squidLogHelper(LogLevel::ERROR, tag, format, ##__VA_ARGS__)
+    _bleLogHelper(LogLevel::ERROR, tag, format, ##__VA_ARGS__)
 
 // Process queue macro (ALWAYS needed now)
 #define SQUID_LOG_PROCESS() SQUIDLOGS::getInstance().processQueue()
