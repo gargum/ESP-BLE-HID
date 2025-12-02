@@ -7,8 +7,8 @@
 #define SQUIDHID_H
 
 #include "config.h"
-#include "drivers/Software/Log/Log.h" 
 #include "drivers/Appearance.h"
+#include "drivers/Software/Log/Log.h" 
 #include "drivers/Software/Event/Types.h"
 #include "drivers/Software/HID/SquidHIDTypes.h"
 #include "drivers/Software/Transport/Transport.h"
@@ -103,8 +103,8 @@ private:
   uint8_t                     toMCPPin(uint8_t pin) const;
   
   #if MCP_ENABLE
-  MCP23XXX*                   mcpExpander = nullptr;
-  bool                        mcpInitialized = false;
+    MCP23XXX*                 mcpExpander = nullptr;
+    bool                      mcpInitialized = false;
   #endif
   
   #if KEYBOARD_ENABLE
