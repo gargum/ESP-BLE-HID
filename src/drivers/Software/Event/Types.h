@@ -14,7 +14,9 @@
 #include <unordered_set>
 #include <algorithm>
 #include <string>
-#include "../Log/Log.h"
+#include "drivers/Software/Log/Log.h"
+
+#include "drivers/Software/Basic/Matrix/Matrix.h"
 
 // ============================================================================
 // Strong Type Definitions
@@ -148,46 +150,6 @@ constexpr HapticKey operator"" _haptic(unsigned long long value) {
 #define PACKED __attribute__((packed))
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-
-// ============================================================================
-// Matrix Definitions
-// ============================================================================
-
-class SQUIDHID;
-
-// Matrix pin pair definition
-struct MatrixPinPair {
-    int from_pin;
-    int to_pin;
-    bool is_ground; // true if to_pin is GND
-    
-    MatrixPinPair(int from, int to = -1) 
-        : from_pin(from), to_pin(to), is_ground(to == -1) {}
-    
-    // Constructor for initializer list {from, to}
-    MatrixPinPair(std::initializer_list<int> pins) {
-        auto it = pins.begin();
-        from_pin = *it++;
-        if (it != pins.end()) {
-            to_pin = *it;
-            is_ground = false;
-        } else {
-            to_pin = -1;
-            is_ground = true;
-        }
-    }
-};
-
-// Type alias for matrix
-using squid_matrix = std::vector<MatrixPinPair>;
-
-// Matrix scan result
-struct MatrixScanResult {
-    size_t switch_index;
-    bool pressed;
-    
-    MatrixScanResult(size_t idx, bool p) : switch_index(idx), pressed(p) {}
-};
 
 // ============================================================================
 // Keymap Definitions
@@ -335,6 +297,31 @@ struct EarlyTimeoutInfo {
     EarlyTimeoutInfo() : last_key_press_time(0), last_key_release_time(0), active_key_count(0) {}
 };
 
+// Individual key tap tracking for combos
+struct KeyTapInfo {
+    uint32_t press_time;
+    uint32_t release_time;
+    bool is_tap;           // True if this was a quick tap (not part of a combo)
+    bool sent_as_normal;   // Whether normal key event was already sent
+    bool press_sent;       // Whether press event was sent
+    bool release_sent;     // Whether release event was sent
+    uint8_t tap_count;     // For detecting rapid taps
+    
+    KeyTapInfo() : press_time(0), release_time(0), is_tap(false), 
+                   sent_as_normal(false), press_sent(false), 
+                   release_sent(false), tap_count(0) {}
+    
+    void reset() {
+        press_time = 0;
+        release_time = 0;
+        is_tap = false;
+        sent_as_normal = false;
+        press_sent = false;
+        release_sent = false;
+        // Note: don't reset tap_count for rollover detection
+    }
+};
+
 // ============================================================================
 // Layer Definitions
 // ============================================================================
@@ -342,6 +329,7 @@ struct EarlyTimeoutInfo {
 // Layer action types
 enum class LayerActionType {
     NORMAL_KEY,           // Regular keypress
+    TAP_HOLD_KEY,         // Tap/Hold functionality
     LAYER_MOMENTARY,      // Momentary layer switch (while held)
     LAYER_TOGGLE,         // Toggle layer on/off
     LAYER_ON,             // Turn layer on
@@ -436,11 +424,11 @@ struct KeyComboConfig {
 
 // Simple layer action value - using a struct instead of union
 struct LayerActionValue {
-    KeymapEntry key;                   // For NORMAL_KEY
+    KeymapEntry key;                   // For NORMAL_KEY and TAP_HOLD_KEY tap action
     uint8_t layer_index;               // For layer actions
-    
+    KeymapEntry hold_action;           // For TAP_HOLD_KEY - hold action
     // Simple constructor
-    LayerActionValue() : key(), layer_index(0) {}
+    LayerActionValue() : key(), layer_index(0), hold_action() {}
 };
 
 // Enhanced keymap entry with layer support
@@ -564,6 +552,13 @@ inline LayerKeymapEntry TRANS() {
     return LayerKeymapEntry(LayerActionType::TRANSPARENT, 0); 
 }
 
+inline LayerKeymapEntry TAPHOLD(KeymapEntry tap_action, KeymapEntry hold_action) {
+    LayerKeymapEntry entry(LayerActionType::TAP_HOLD_KEY, 0);
+    entry.action.key = tap_action;
+    entry.action.hold_action = hold_action;
+    return entry;
+}
+
 // Helper for creating keymap and matrix definitions
 #define MATRIX(pin_entries) squid_matrix pin_entries
 #define LAYER(key_entries) std::vector<LayerKeymapEntry> key_entries
@@ -576,64 +571,56 @@ inline LayerKeymapEntry TRANS() {
 #define DF(layer) LayerKeymapEntry(LayerActionType::LAYER_DEFAULT, layer)
 #define TRANS LayerKeymapEntry(LayerActionType::TRANSPARENT, 0)
 
+// Simplified TH macro:
+#define TH(tap_key, hold_key) TAPHOLD(KeymapEntry(tap_key), KeymapEntry(hold_key))
+
 // ============================================================================
-// Matrix Class Implementation
+// Tap/Hold & Tap Dance Definitions
 // ============================================================================
 
-class SQUIDMATRIX {
-private:
-    squid_matrix _matrix;
-    std::vector<bool> _current_state; 
-    std::vector<bool> _previous_state; 
-    std::function<void(size_t, bool)> _key_event_callback;
+// Tap-Hold state object
+struct TapHoldState {
+    bool is_tap_hold_key;           // Whether this key has tap/hold behavior
+    bool pending_tap;               // Whether a tap is pending
+    bool is_held;                   // Whether currently held
+    uint32_t press_time;            // When the key was pressed
+    uint32_t tap_timeout;           // When the tap timeout expires
+    KeymapEntry tap_action;         // Action to send on tap
+    KeymapEntry hold_action;        // Action to send on hold
+    uint16_t tap_timeout_ms;        // Configurable tap timeout
+    uint16_t hold_threshold_ms;     // Configurable hold threshold
+    bool hold_action_sent;          // Whether the hold action has been sent
     
-    // GPIO function pointers for the matrix scanning
-    std::function<void(uint8_t, uint8_t)> _pinModeFunc;
-    std::function<void(uint8_t, uint8_t)> _digitalWriteFunc;
-    std::function<uint8_t(uint8_t)> _digitalReadFunc;
+    TapHoldState() : is_tap_hold_key(false), pending_tap(false), is_held(false),
+                     press_time(0), tap_timeout(0), tap_action(), hold_action(),
+                     tap_timeout_ms(200), hold_threshold_ms(150),
+                     hold_action_sent(false) {}
     
-    // Smart scanning members
-    std::vector<int> _unique_from_pins;
-    std::vector<int> _unique_to_pins;
-    std::unordered_map<int, bool> _pin_needs_pullup;
-    
-    // Scanning state
-    size_t _current_active_to_pin;
-    bool _scan_initialized;
-    
-    void initializePins();
-    void scanMatrix();
-    void extractUniquePins();
-    
-    // Smart pinmode detection methods
-    bool detectPinNeedsPullup(int pin);
-    void detectAllPinPullupRequirements();
-    bool getOptimalPinMode(int pin);
-    
-    // Unified GPIO helper methods
-    void unifiedPinMode(uint8_t pin, uint8_t mode);
-    void unifiedDigitalWrite(uint8_t pin, uint8_t value);
-    uint8_t unifiedDigitalRead(uint8_t pin);
-    
-    // Scanning methods
-    void scanWithTimeDivision();
-    void scanDirectGND();
-    
-public:
-    SQUIDMATRIX();
-    
-    void begin(const squid_matrix& matrix, 
-               std::function<void(size_t, bool)> key_event_callback = nullptr,
-               std::function<void(uint8_t, uint8_t)> pinModeFunc = nullptr,
-               std::function<void(uint8_t, uint8_t)> digitalWriteFunc = nullptr,
-               std::function<uint8_t(uint8_t)> digitalReadFunc = nullptr);
-    
-    void update();
-    bool isPressed(size_t switch_index) const;
-    size_t getSwitchCount() const;
-    
-    void printMatrixState();
-    void printPinPullupInfo();
+    void reset() {
+        pending_tap = false;
+        is_held = false;
+        tap_timeout = 0;
+        press_time = 0;
+        hold_action_sent = false;
+    }
+};
+
+// Per-combo tap/hold tracking
+struct ComboTapHoldInfo {
+    bool is_dual_function;           // Whether this combo has tap/hold behavior
+    uint16_t tap_timeout_ms;         // Max time to consider it a tap
+    std::vector<size_t> combo_keys;  // Keys involved in this combo
+        
+    ComboTapHoldInfo() : is_dual_function(false), tap_timeout_ms(200) {}
+};
+
+struct DelayedKeyEvent {
+    size_t switch_index;
+    bool pressed;
+    uint32_t scheduled_time;
+        
+    DelayedKeyEvent(size_t idx, bool p, uint32_t time) 
+        : switch_index(idx), pressed(p), scheduled_time(time) {}
 };
 
 // ============================================================================
@@ -644,9 +631,11 @@ class SQUIDKEYMAP {
 private:
     std::vector<std::vector<LayerKeymapEntry>> _layers;
     LayerState _layer_state;
-    
+    std::vector<TapHoldState> _tap_hold_states;
     std::function<void(const KeymapEntry&)> _press_callback;
     std::function<void(const KeymapEntry&)> _release_callback;
+    std::vector<DelayedKeyEvent> _delayed_key_events;
+    std::vector<KeyTapInfo> _key_tap_info;
     std::function<void(uint8_t)> _layer_change_callback;
     std::unordered_map<KeymapEntry, std::vector<size_t>> _keycode_to_positions;
     std::vector<KeyComboConfig> _key_combos;
@@ -654,14 +643,23 @@ private:
     std::unordered_map<size_t, std::vector<size_t>> _combo_key_to_combo_idx;
     std::unordered_map<KeymapEntry, std::vector<size_t>> _combo_keycode_to_combo_idx;
     std::vector<ComboState> _combo_states;
+    std::vector<ComboTapHoldInfo> _combo_tap_hold_info;
     std::vector<size_t> getPositionsForComboKey(const ComboKeySpec& spec);
     
     // Combo timing
-    uint16_t _combo_timeout_ms = 200;
+    uint16_t _combo_timeout_ms                      = 200;
+    static constexpr uint32_t TAP_TIMEOUT_MS        = 150;  // Max time for a tap
+    static constexpr uint32_t HOLD_THRESHOLD_MS     = 151;  // Min time for a hold
+    static constexpr uint32_t ROLLOVER_THRESHOLD_MS = 50;   // Max time between keys for roll
+    static constexpr uint32_t TYPING_FLOW_THRESHOLD = 50;   // ms between keys
+    
     uint32_t _last_combo_check = 0;
     void updateEarlyTimeoutInfo(size_t combo_idx, bool key_pressed);
     bool shouldEarlyTimeout(size_t combo_idx) const;
     std::vector<EarlyTimeoutInfo> _early_timeout_info;
+    bool isKeyTap(size_t switch_index) const;
+    void updateKeyTapInfo(size_t switch_index, bool pressed);
+    bool shouldProcessAsNormalKey(size_t switch_index) const;
     
     // Combo methods
     void initializeCombos();
@@ -674,6 +672,30 @@ private:
     bool isAnyComboTriggered() const;
     void triggerCombo(size_t combo_idx, bool pressed);
     void sendComboAction(const KeymapEntry& action, bool pressed);
+    
+    // Tap/Hold methods
+    // Methods for tap/hold handling
+    void updateTapHoldState(size_t switch_index, bool pressed);
+    bool isTapHoldKey(size_t switch_index) const;
+    void sendTapAction(size_t switch_index);
+    void cancelPendingTap(size_t switch_index);
+    void processDelayedEvents();
+    
+    // Method to determine if keys are being tapped or held for a combo
+    bool areComboKeysBeingHeld(size_t combo_idx) const;
+    bool areComboKeysBeingTapped(size_t combo_idx) const; 
+    
+    // Method to detect if this is a typing pattern vs combo attempt
+    bool isTypingPattern(size_t switch_index, bool pressed) const;
+    bool detectTypingFlow(size_t switch_index, bool pressed);
+    bool shouldSuppressForCombo(size_t switch_index, bool pressed) const;
+    
+    // Track typing patterns
+    uint32_t _last_any_key_press_time;
+    size_t _last_key_pressed;
+    uint32_t _last_normal_key_time;
+    bool _in_typing_flow;
+    uint32_t _typing_flow_start;
     
     // Combo debug
     bool _combo_debug_enabled = false;
@@ -712,9 +734,15 @@ public:
     void resetComboState(size_t combo_idx);
     void setComboTimeout(uint16_t timeout_ms);
     
+    // Tap/Hold configuration
+    void processTapHoldKey(size_t switch_index, bool pressed, const LayerKeymapEntry& action);
+    
     // State queries
     size_t getComboCount() const;
     bool isComboActive(size_t combo_idx) const;
+    void processNormalKey(size_t switch_index, bool pressed);
+    void processDelayedNormalKey(size_t switch_index);
+    void setComboTapHold(size_t combo_idx, bool enabled, uint16_t tap_timeout = 150);
     
     // Debugging helpers
     void enableComboDebug(bool enabled) { _combo_debug_enabled = enabled; }
