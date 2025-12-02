@@ -6,349 +6,6 @@
 #include "Types.h"
 
 // ============================================================================
-// Matrix Implementation
-// ============================================================================
-
-static const char* MATRIX_TAG = "SQUIDMATRIX";
-
-SQUIDMATRIX::SQUIDMATRIX() 
-    : _key_event_callback(nullptr), 
-      _pinModeFunc(nullptr),
-      _digitalWriteFunc(nullptr),
-      _digitalReadFunc(nullptr),
-      _current_active_to_pin(0),
-      _scan_initialized(false) {}
-
-void SQUIDMATRIX::begin(const squid_matrix& matrix, 
-                       std::function<void(size_t, bool)> key_event_callback,
-                       std::function<void(uint8_t, uint8_t)> pinModeFunc,
-                       std::function<void(uint8_t, uint8_t)> digitalWriteFunc,
-                       std::function<uint8_t(uint8_t)> digitalReadFunc) {
-    _matrix = matrix;
-    _key_event_callback = key_event_callback;
-    _pinModeFunc = pinModeFunc;
-    _digitalWriteFunc = digitalWriteFunc;
-    _digitalReadFunc = digitalReadFunc;
-    
-    // Initialize state vectors
-    _current_state.assign(_matrix.size(), false);
-    _previous_state.assign(_matrix.size(), false);
-    
-    // Extract all unique pins
-    extractUniquePins();
-    
-    // Detect pull-up requirements for all pins
-    detectAllPinPullupRequirements();
-    
-    // Initialize pins with optimal configurations
-    initializePins();
-    
-    _scan_initialized = true;
-    
-    SQUID_LOG_INFO(MATRIX_TAG, "Smart matrix initialized with %zu switches", _matrix.size());
-    SQUID_LOG_INFO(MATRIX_TAG, "Total unique pins: %zu", _unique_from_pins.size());
-    
-    // Print pull-up detection results
-    printPinPullupInfo();
-}
-
-void SQUIDMATRIX::extractUniquePins() {
-    _unique_from_pins.clear();
-    _unique_to_pins.clear();
-    _pin_needs_pullup.clear();
-    
-    // Extract ALL unique pins
-    for (size_t switch_idx = 0; switch_idx < _matrix.size(); ++switch_idx) {
-        const auto& pin_pair = _matrix[switch_idx];
-        
-        // Add FROM pin to unique list
-        if (std::find(_unique_from_pins.begin(), _unique_from_pins.end(), pin_pair.from_pin) == _unique_from_pins.end()) {
-            _unique_from_pins.push_back(pin_pair.from_pin);
-        }
-        
-        // Add TO pin to unique list (skip GND)
-        if (!pin_pair.is_ground) {
-            if (std::find(_unique_from_pins.begin(), _unique_from_pins.end(), pin_pair.to_pin) == _unique_from_pins.end()) {
-                _unique_from_pins.push_back(pin_pair.to_pin);
-            }
-            // Also add to TO pins list for scanning
-            if (std::find(_unique_to_pins.begin(), _unique_to_pins.end(), pin_pair.to_pin) == _unique_to_pins.end()) {
-                _unique_to_pins.push_back(pin_pair.to_pin);
-            }
-        }
-    }
-    
-    // Sort for consistency
-    std::sort(_unique_from_pins.begin(), _unique_from_pins.end());
-    std::sort(_unique_to_pins.begin(), _unique_to_pins.end());
-    
-    SQUID_LOG_DEBUG(MATRIX_TAG, "Unique pins: %zu, TO pins: %zu", 
-                   _unique_from_pins.size(), _unique_to_pins.size());
-}
-
-void SQUIDMATRIX::unifiedPinMode(uint8_t pin, uint8_t mode) {
-    if (_pinModeFunc) {
-        _pinModeFunc(pin, mode);
-    } else {
-        // Fallback to direct Arduino calls
-        ::pinMode(pin, mode);
-    }
-}
-
-void SQUIDMATRIX::unifiedDigitalWrite(uint8_t pin, uint8_t value) {
-    if (_digitalWriteFunc) {
-        _digitalWriteFunc(pin, value);
-    } else {
-        // Fallback to direct Arduino calls
-        ::digitalWrite(pin, value);
-    }
-}
-
-uint8_t SQUIDMATRIX::unifiedDigitalRead(uint8_t pin) {
-    if (_digitalReadFunc) {
-        return _digitalReadFunc(pin);
-    } else {
-        // Fallback to direct Arduino calls
-        return ::digitalRead(pin);
-    }
-}
-
-bool SQUIDMATRIX::detectPinNeedsPullup(int pin) {
-    SQUID_LOG_DEBUG(MATRIX_TAG, "Detecting pull-up requirement for pin %d", pin);
-    
-    // Step 1: Configure pin as INPUT (no pull-up) and read initial state
-    unifiedPinMode(pin, INPUT);
-    delayMicroseconds(25); // Allow signal to stabilize
-    
-    int initial_state = unifiedDigitalRead(pin);
-    SQUID_LOG_DEBUG(MATRIX_TAG, "Pin %d initial state (INPUT): %d", pin, initial_state);
-    
-    // Step 2: If pin reads HIGH with no pull-up, it has external pull-up
-    if (initial_state == HIGH) {
-        SQUID_LOG_DEBUG(MATRIX_TAG, "Pin %d has EXTERNAL pull-up resistor", pin);
-        return false; // No need for internal pull-up
-    }
-    
-    // Step 3: If pin reads LOW, configure as INPUT_PULLUP and check if it goes HIGH
-    unifiedPinMode(pin, INPUT_PULLUP);
-    delayMicroseconds(25); // Allow internal pull-up to activate
-    
-    int pullup_state = unifiedDigitalRead(pin);
-    SQUID_LOG_DEBUG(MATRIX_TAG, "Pin %d state (INPUT_PULLUP): %d", pin, pullup_state);
-    
-    // Step 4: If pin goes HIGH with internal pull-up, it needs internal pull-up
-    if (pullup_state == HIGH) {
-        SQUID_LOG_DEBUG(MATRIX_TAG, "Pin %d needs INTERNAL pull-up resistor", pin);
-        return true; // Needs internal pull-up
-    }
-    
-    // Step 5: If pin stays LOW even with pull-up, it might be shorted or have very strong pull-down
-    SQUID_LOG_WARN(MATRIX_TAG, "Pin %d stays LOW even with pull-up - may be shorted or have strong pull-down", pin);
-    
-    // Default to using pull-up for safety
-    return true;
-}
-
-void SQUIDMATRIX::detectAllPinPullupRequirements() {
-    SQUID_LOG_INFO(MATRIX_TAG, "Detecting pull-up requirements for all pins...");
-    
-    for (int pin : _unique_from_pins) {
-        bool needs_pullup = detectPinNeedsPullup(pin);
-        _pin_needs_pullup[pin] = needs_pullup;
-        
-        // Log the result
-        if (needs_pullup) {
-            SQUID_LOG_INFO(MATRIX_TAG, "Pin %d: USING internal pull-up", pin);
-        } else {
-            SQUID_LOG_INFO(MATRIX_TAG, "Pin %d: USING external pull-up (INPUT mode)", pin);
-        }
-    }
-    
-    // Count statistics
-    int internal_pullups = 0;
-    int external_pullups = 0;
-    
-    for (const auto& [pin, needs_pullup] : _pin_needs_pullup) {
-        if (needs_pullup) internal_pullups++;
-        else external_pullups++;
-    }
-    
-    SQUID_LOG_INFO(MATRIX_TAG, "Pull-up detection complete: %d internal, %d external", 
-                   internal_pullups, external_pullups);
-}
-
-bool SQUIDMATRIX::getOptimalPinMode(int pin) {
-    auto it = _pin_needs_pullup.find(pin);
-    if (it != _pin_needs_pullup.end()) {
-        return it->second; // true = needs INPUT_PULLUP, false = needs INPUT
-    }
-    
-    // If not detected (shouldn't happen), default to INPUT_PULLUP for safety
-    SQUID_LOG_WARN(MATRIX_TAG, "Pin %d not in pull-up cache, defaulting to INPUT_PULLUP", pin);
-    return true;
-}
-
-void SQUIDMATRIX::initializePins() {
-    // Configure all pins with their optimal modes based on detection
-    for (int pin : _unique_from_pins) {
-        bool needs_pullup = getOptimalPinMode(pin);
-        
-        if (needs_pullup) {
-            unifiedPinMode(pin, INPUT_PULLUP);
-            SQUID_LOG_DEBUG(MATRIX_TAG, "Configured pin %d as INPUT_PULLUP", pin);
-        } else {
-            unifiedPinMode(pin, INPUT);
-            SQUID_LOG_DEBUG(MATRIX_TAG, "Configured pin %d as INPUT (external pull-up)", pin);
-        }
-    }
-    
-    SQUID_LOG_INFO(MATRIX_TAG, "All pins initialized with optimal configurations");
-}
-
-void SQUIDMATRIX::printPinPullupInfo() {
-    SQUID_LOG_INFO(MATRIX_TAG, "=== Pin Pull-Up Configuration ===");
-    for (int pin : _unique_from_pins) {
-        bool needs_pullup = getOptimalPinMode(pin);
-        SQUID_LOG_INFO(MATRIX_TAG, "Pin %d: %s", pin, 
-                       needs_pullup ? "INPUT_PULLUP (internal)" : "INPUT (external pull-up)");
-    }
-    SQUID_LOG_INFO(MATRIX_TAG, "=== End Pin Configuration ===");
-}
-
-void SQUIDMATRIX::update() {
-    scanMatrix();
-}
-
-void SQUIDMATRIX::scanMatrix() {
-    if (!_scan_initialized) return;
-    
-    // Save previous state
-    _previous_state = _current_state;
-    
-    // Reset all pins to their optimal safe states before scanning
-    for (int pin : _unique_from_pins) {
-        bool needs_pullup = getOptimalPinMode(pin);
-        if (needs_pullup) {
-            unifiedPinMode(pin, INPUT_PULLUP);
-        } else {
-            unifiedPinMode(pin, INPUT);
-        }
-    }
-    
-    // Perform scanning based on matrix type
-    if (!_unique_to_pins.empty()) {
-        // Time-division multiplexing for matrices with explicit TO pins
-        scanWithTimeDivision();
-    } else {
-        // Direct scanning for GND-only matrices
-        scanDirectGND();
-    }
-}
-
-void SQUIDMATRIX::scanWithTimeDivision() {
-    int current_to_pin = _unique_to_pins[_current_active_to_pin];
-    
-    // Reduce stabilization delay
-    unifiedPinMode(current_to_pin, OUTPUT);
-    unifiedDigitalWrite(current_to_pin, LOW);
-    delayMicroseconds(3); // Reduced from 10μs
-    
-    for (size_t switch_idx = 0; switch_idx < _matrix.size(); ++switch_idx) {
-        const auto& pin_pair = _matrix[switch_idx];
-        if (pin_pair.is_ground || pin_pair.to_pin != current_to_pin) continue;
-        
-        // Pins should already be in correct state so just read immediately
-        bool pressed = (unifiedDigitalRead(pin_pair.from_pin) == LOW);
-        
-        _current_state[switch_idx] = pressed;
-        
-        // Immediate callback on state change
-        if (_current_state[switch_idx] != _previous_state[switch_idx] && _key_event_callback) {
-            _key_event_callback(switch_idx, pressed);
-        }
-    }
-    
-    // Restore TO pin
-    bool to_pin_needs_pullup = getOptimalPinMode(current_to_pin);
-    if (to_pin_needs_pullup) {
-        unifiedPinMode(current_to_pin, INPUT_PULLUP);
-    } else {
-        unifiedPinMode(current_to_pin, INPUT);
-    }
-    
-    _current_active_to_pin = (_current_active_to_pin + 1) % _unique_to_pins.size();
-}
-
-void SQUIDMATRIX::scanDirectGND() {
-    // Direct scanning for GND-based switches (no TO pins)
-    for (size_t switch_idx = 0; switch_idx < _matrix.size(); ++switch_idx) {
-        const auto& pin_pair = _matrix[switch_idx];
-        
-        // Skip non-GND switches
-        if (!pin_pair.is_ground) {
-            continue;
-        }
-        
-        // Use pre-detected optimal pin mode
-        bool needs_pullup = getOptimalPinMode(pin_pair.from_pin);
-        if (needs_pullup) {
-            unifiedPinMode(pin_pair.from_pin, INPUT_PULLUP);
-        } else {
-            unifiedPinMode(pin_pair.from_pin, INPUT);
-        }
-        
-        delayMicroseconds(3);
-        
-        // Read the pin - LOW means pressed in both modes
-        bool pressed = (unifiedDigitalRead(pin_pair.from_pin) == LOW);
-        
-        // Update state
-        _current_state[switch_idx] = pressed;
-        
-        // Check for state change
-        if (_current_state[switch_idx] != _previous_state[switch_idx]) {
-            SQUID_LOG_DEBUG(MATRIX_TAG, "GND switch: TO=%zu, %s (Mode: %s)", 
-                         switch_idx, pressed ? "PRESSED" : "RELEASED",
-                         needs_pullup ? "PULLUP" : "INPUT");
-            
-            if (_key_event_callback) {
-                _key_event_callback(switch_idx, pressed);
-            }
-        }
-        
-        // Restore pin to optimal safe state
-        if (needs_pullup) {
-            unifiedPinMode(pin_pair.from_pin, INPUT_PULLUP);
-        } else {
-            unifiedPinMode(pin_pair.from_pin, INPUT);
-        }
-    }
-}
-
-bool SQUIDMATRIX::isPressed(size_t switch_index) const {
-    if (switch_index < _current_state.size()) {
-        return _current_state[switch_index];
-    }
-    return false;
-}
-
-size_t SQUIDMATRIX::getSwitchCount() const {
-    return _matrix.size();
-}
-
-void SQUIDMATRIX::printMatrixState() {
-    SQUID_LOG_DEBUG(MATRIX_TAG, "Current matrix state:");
-    std::string state_str;
-    for (size_t switch_idx = 0; switch_idx < _current_state.size(); ++switch_idx) {
-        state_str += _current_state[switch_idx] ? "1" : "0";
-        if (switch_idx < _current_state.size() - 1) {
-            state_str += " ";
-        }
-    }
-    SQUID_LOG_DEBUG(MATRIX_TAG, "Switches: [%s]", state_str.c_str());
-}
-
-// ============================================================================
 // Keymap Implementation
 // ============================================================================
 
@@ -357,7 +14,10 @@ static const char* LAYER_KEYMAP_TAG = "SQUIDKEYMAP";
 SQUIDKEYMAP::SQUIDKEYMAP() 
     : _press_callback(nullptr), 
       _release_callback(nullptr),
-      _layer_change_callback(nullptr) {}
+      _layer_change_callback(nullptr),
+      _last_any_key_press_time(0),
+      _last_key_pressed(SIZE_MAX),
+      _last_normal_key_time(0) {}
 
 void SQUIDKEYMAP::begin(
     const std::vector<std::vector<LayerKeymapEntry>>& layers,
@@ -381,6 +41,22 @@ void SQUIDKEYMAP::begin(
     _combo_key_to_combo_idx.clear();
     _combo_timeout_ms = 200;
     
+    // Initialize key tap tracking
+    _key_tap_info.clear();
+    if (getKeyCount() > 0) {
+        _key_tap_info.resize(getKeyCount());
+    }
+    
+    // Initialize tap/hold tracking - FIX: Scan layers for tap-hold keys
+    _tap_hold_states.clear();
+    if (getKeyCount() > 0) {
+        _tap_hold_states.resize(getKeyCount());
+    }
+    
+    // Initialize typing flow
+    _in_typing_flow = false;
+    _typing_flow_start = 0;
+    
     updateKeycodeMappings();
     
     SQUID_LOG_INFO(LAYER_KEYMAP_TAG, "Layer keymap initialized with %zu layers", _layers.size());
@@ -392,91 +68,67 @@ void SQUIDKEYMAP::handleKeyEvent(size_t switch_index, bool pressed) {
         return;
     }
     
-    // First, check if this key is part of any active combo sequence
-    bool is_in_active_combo = false;
-    if (!_key_combos.empty()) {
-        // Update combo states first
+    uint32_t now = millis();
+    
+    // Update typing flow detection
+    bool was_in_typing_flow = _in_typing_flow;
+    _in_typing_flow = detectTypingFlow(switch_index, pressed);
+    
+    if (pressed) {
+        _last_any_key_press_time = now;
+        _last_key_pressed = switch_index;
+    }
+    
+    // Update tap tracking FIRST
+    updateKeyTapInfo(switch_index, pressed);
+    
+    // Check if this key is part of any combo
+    bool is_part_of_combo = (_combo_key_to_combo_idx.find(switch_index) != _combo_key_to_combo_idx.end());
+    
+    // Update combo states if this key is part of a combo
+    if (is_part_of_combo) {
         updateComboForKey(switch_index, pressed);
-        
-        // Check if this key is part of any combo that's currently being processed
-        auto it = _combo_key_to_combo_idx.find(switch_index);
-        if (it != _combo_key_to_combo_idx.end()) {
-            for (size_t combo_idx : it->second) {
-                if (combo_idx < _combo_states.size() && 
-                    _combo_states[combo_idx].start_time > 0) {
-                    // This key is part of an active combo sequence
-                    is_in_active_combo = true;
-                    break;
+    }
+    
+    // CRITICAL CHANGE: For keys that are part of combos, delay processing
+    // to see if they form a combo. Only process immediately if we're in typing flow
+    if (is_part_of_combo && !pressed) {
+        // Key release - check if we need to send delayed press/release
+        if (switch_index < _key_tap_info.size()) {
+            auto& tap_info = _key_tap_info[switch_index];
+            if (!tap_info.sent_as_normal && tap_info.is_tap) {
+                // This was a quick tap that was suppressed - send it now
+                tap_info.sent_as_normal = true;
+                processNormalKey(switch_index, true);
+                processNormalKey(switch_index, false);
+                
+                if (_combo_debug_enabled) {
+                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Sending suppressed tap for key %zu", switch_index);
                 }
             }
         }
+        return;
     }
     
-    // Only process normal key actions if:
-    // 1. No combo is currently triggered, AND
-    // 2. This key is not part of an active combo sequence
-    if (!isAnyComboTriggered() && !isKeyInActiveCombo(switch_index)) {
-        // Find the highest priority non-transparent key
-        LayerKeymapEntry action;
-        for (int i = _layer_state.active_layers.size() - 1; i >= 0; i--) {
-            uint8_t layer = _layer_state.active_layers[i];
-            if (switch_index < _layers[layer].size()) {
-                action = _layers[layer][switch_index];
-                if (action.action_type != LayerActionType::TRANSPARENT) {
-                    break;
-                }
-            }
-        }
-    
-        // Handle the action
-        switch (action.action_type) {
-            case LayerActionType::NORMAL_KEY:
-                if (_press_callback && pressed) {
-                    _press_callback(action.action.key);
-                }
-                if (_release_callback && !pressed) {
-                    _release_callback(action.action.key);
-                }
-                break;
-                
-            case LayerActionType::LAYER_MOMENTARY:
-                momentaryLayer(action.action.layer_index, pressed);
-                break;
-                
-            case LayerActionType::LAYER_TOGGLE:
-                if (pressed) toggleLayer(action.action.layer_index);
-                break;
-                
-            case LayerActionType::LAYER_ON:
-                if (pressed) layerOn(action.action.layer_index);
-                break;
-                
-            case LayerActionType::LAYER_OFF:
-                if (pressed) layerOff(action.action.layer_index);
-                break;
-                
-            case LayerActionType::LAYER_DEFAULT:
-                if (pressed) setDefaultLayer(action.action.layer_index);
-                break;
-                
-            case LayerActionType::LAYER_MOD:
-                momentaryLayer(action.action.layer_index, pressed);
-                break;
-                
-            case LayerActionType::TRANSPARENT:
-                break;
-        }
-    } else if (is_in_active_combo) {
-        // Key is part of an active combo sequence - suppress normal key action
-        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Suppressing key %zu (part of active combo)", switch_index);
+    // For key presses that are part of combos, add a small delay
+    if (is_part_of_combo && pressed) {
+        // Add a small delay (e.g., 30ms) to see if this becomes part of a combo
+        _delayed_key_events.emplace_back(switch_index, pressed, now + 30);
+        return;
     }
+    
+    // Process normal keys immediately
+    processNormalKey(switch_index, pressed);
 }
 
-void SQUIDKEYMAP::update() {
+void SQUIDKEYMAP::updateCombos() {
+    uint32_t now = millis();
+    
+    // Process any delayed key events
+    processDelayedEvents();
+    
     // Check for combo timeouts (both regular and early)
     if (!_key_combos.empty()) {
-        uint32_t now = millis();
-        
         for (size_t i = 0; i < _key_combos.size(); i++) {
             auto& state = _combo_states[i];
             
@@ -493,6 +145,70 @@ void SQUIDKEYMAP::update() {
                     // Early timeout already logged in shouldEarlyTimeout
                 }
             }
+            // If combo is triggered, cancel any delayed events for its keys
+            else if (state.triggered) {
+                const auto& combo = _key_combos[i];
+                for (const auto& key_spec : combo.key_specs) {
+                    if (key_spec.type == ComboKeySpec::Type::POSITION) {
+                        // Cancel delayed events for this key
+                        auto it = std::remove_if(_delayed_key_events.begin(), _delayed_key_events.end(),
+                            [&key_spec](const DelayedKeyEvent& event) {
+                                return event.switch_index == key_spec.value.position && event.pressed;
+                            });
+                        _delayed_key_events.erase(it, _delayed_key_events.end());
+                    }
+                }
+            }
+        }
+    }
+}
+
+void SQUIDKEYMAP::update() {
+    uint32_t now = millis();
+    
+    // Process delayed key events
+    processDelayedEvents();
+    
+    // Check for tap/hold timeouts
+    for (size_t i = 0; i < _tap_hold_states.size(); i++) {
+        auto& tap_hold = _tap_hold_states[i];
+        
+        if (tap_hold.is_tap_hold_key && tap_hold.pending_tap) {
+            if (now > tap_hold.tap_timeout && !tap_hold.is_held) {
+                // Tap timed out - this becomes a hold
+                tap_hold.is_held = true;
+                tap_hold.pending_tap = false;
+                
+                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - switched to HOLD action", i);
+                
+                // Send hold action press
+                if (_press_callback) {
+                    _press_callback(tap_hold.hold_action);
+                    tap_hold.hold_action_sent = true;
+                }
+            }
+        }
+    }
+    
+    // Update combos
+    updateCombos();
+}
+
+void SQUIDKEYMAP::processDelayedEvents() {
+    uint32_t now = millis();
+    
+    // Process delayed key events in order
+    auto it = _delayed_key_events.begin();
+    while (it != _delayed_key_events.end()) {
+        if (now >= it->scheduled_time) {
+            // Time to process this event
+            // Check if this key is still part of an active combo
+            if (!isKeyInActiveCombo(it->switch_index)) {
+                processNormalKey(it->switch_index, it->pressed);
+            }
+            it = _delayed_key_events.erase(it);
+        } else {
+            ++it;
         }
     }
 }
@@ -640,6 +356,23 @@ void SQUIDKEYMAP::addCombo(const KeyComboConfig& combo) {
     
     // Initialize early timeout tracking for this combo
     _early_timeout_info.emplace_back();
+    
+    // Initialize tap/hold info for this combo
+    _combo_tap_hold_info.emplace_back();
+    auto& tap_hold_info = _combo_tap_hold_info.back();
+    
+    // Track which keys are part of this combo
+    for (const auto& key_spec : combo.key_specs) {
+        if (key_spec.type == ComboKeySpec::Type::POSITION) {
+            tap_hold_info.combo_keys.push_back(key_spec.value.position);
+        }
+    }
+    
+    // Resize tap_hold_states if needed
+    size_t max_key = getKeyCount();
+    if (_tap_hold_states.size() < max_key) {
+        _tap_hold_states.resize(max_key);
+    }
 }
 
 void SQUIDKEYMAP::setCombos(const std::vector<KeyComboConfig>& combos) {
@@ -654,6 +387,17 @@ void SQUIDKEYMAP::clearCombos() {
     _combo_key_to_combo_idx.clear();
     _combo_states.clear();
     _early_timeout_info.clear();
+    _combo_tap_hold_info.clear();
+    
+    // Reset all tap info
+    for (auto& tap_info : _key_tap_info) {
+        tap_info = KeyTapInfo();
+    }
+    
+    // Reset tap/hold states
+    for (auto& tap_hold : _tap_hold_states) {
+        tap_hold = TapHoldState();
+    }
 }
 
 void SQUIDKEYMAP::updateComboForKey(size_t switch_index, bool pressed) {
@@ -669,6 +413,16 @@ void SQUIDKEYMAP::updateComboForKey(size_t switch_index, bool pressed) {
         
         auto& combo = _key_combos[combo_idx];
         auto& state = _combo_states[combo_idx];
+        
+        // If this is a key release and it was a quick tap, don't update combo state
+        // (let it be processed as a normal key)
+        if (!pressed && isKeyTap(switch_index)) {
+            if (_combo_debug_enabled) {
+                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Key %zu was a tap - not updating combo %zu", 
+                              switch_index, combo_idx);
+            }
+            continue;
+        }
         
         // Update early timeout tracking
         updateEarlyTimeoutInfo(combo_idx, pressed);
@@ -777,7 +531,7 @@ void SQUIDKEYMAP::checkCombo(size_t combo_idx) {
     // Check if combo should trigger
     uint32_t now = millis();
     if (state.start_time == 0 || now - state.start_time > combo.timeout_ms) {
-        // Timeout - reset
+        // Timeout - reset (but DON'T send delayed keys here)
         resetComboState(combo_idx);
         return;
     }
@@ -963,7 +717,13 @@ void SQUIDKEYMAP::resetComboState(size_t combo_idx) {
     // Clear any pending key events that were suppressed
     for (size_t i = 0; i < combo.key_specs.size(); i++) {
         if (combo.key_specs[i].type == ComboKeySpec::Type::POSITION) {
-            _keys_in_active_combos.erase(combo.key_specs[i].value.position);
+            size_t pos = combo.key_specs[i].value.position;
+            _keys_in_active_combos.erase(pos);
+            
+            // Reset tap info for this key
+            if (pos < _key_tap_info.size()) {
+                _key_tap_info[pos].reset();
+            }
         }
     }
     
@@ -1028,6 +788,524 @@ bool SQUIDKEYMAP::shouldEarlyTimeout(size_t combo_idx) const {
                 SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu: Early timeout after %ums", 
                               combo_idx, time_since_last_release);
             }
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+void SQUIDKEYMAP::updateKeyTapInfo(size_t switch_index, bool pressed) {
+    if (switch_index >= _key_tap_info.size()) return;
+    
+    auto& tap_info = _key_tap_info[switch_index];
+    uint32_t now = millis();
+    
+    if (pressed) {
+        // Reset if it's been a while since last activity
+        if (now - tap_info.release_time > ROLLOVER_THRESHOLD_MS * 2) {
+            tap_info.tap_count = 0;
+        }
+        
+        // Reset tracking for new press
+        tap_info.press_time = now;
+        tap_info.release_time = 0;
+        tap_info.is_tap = false;
+        tap_info.sent_as_normal = false;
+        tap_info.press_sent = false;
+        tap_info.release_sent = false;
+        
+        if (_combo_debug_enabled) {
+            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Key %zu pressed at %u (tap count: %u)", 
+                          switch_index, now, tap_info.tap_count);
+        }
+    } else {
+        tap_info.release_time = now;
+        
+        // Determine if this was a tap (quick press-release)
+        if (tap_info.press_time > 0) {
+            uint32_t press_duration = now - tap_info.press_time;
+            
+            if (press_duration <= TAP_TIMEOUT_MS) {
+                tap_info.is_tap = true;
+                tap_info.tap_count++;
+                
+                if (_combo_debug_enabled) {
+                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Key %zu was a tap (%ums, count: %u)", 
+                                  switch_index, press_duration, tap_info.tap_count);
+                }
+            } else {
+                tap_info.is_tap = false;
+                
+                if (_combo_debug_enabled) {
+                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Key %zu was a hold (%ums)", 
+                                  switch_index, press_duration);
+                }
+            }
+        }
+    }
+}
+
+bool SQUIDKEYMAP::isKeyTap(size_t switch_index) const {
+    if (switch_index >= _key_tap_info.size()) return false;
+    return _key_tap_info[switch_index].is_tap;
+}
+
+bool SQUIDKEYMAP::isTypingPattern(size_t switch_index, bool pressed) const {
+    if (!pressed) return false;
+    
+    uint32_t now = millis();
+    
+    // If this is the first key press in a while, it might be typing
+    if (now - _last_any_key_press_time > ROLLOVER_THRESHOLD_MS) {
+        return true;
+    }
+    
+    // If we're pressing the same key repeatedly, it's definitely typing
+    if (_last_key_pressed == switch_index) {
+        return true;
+    }
+    
+    // If we just sent a normal key and now pressing another key quickly, it's typing
+    if (now - _last_normal_key_time < ROLLOVER_THRESHOLD_MS) {
+        return true;
+    }
+    
+    return false;
+}
+
+void SQUIDKEYMAP::setComboTapHold(size_t combo_idx, bool enabled, uint16_t tap_timeout) {
+    if (combo_idx >= _combo_tap_hold_info.size()) return;
+    
+    auto& tap_hold_info = _combo_tap_hold_info[combo_idx];
+    tap_hold_info.is_dual_function = enabled;
+    tap_hold_info.tap_timeout_ms = tap_timeout;
+    
+    // Mark the keys involved as having tap/hold behavior
+    for (size_t key_idx : tap_hold_info.combo_keys) {
+        if (key_idx < _tap_hold_states.size()) {
+            _tap_hold_states[key_idx].is_tap_hold_key = enabled;
+        }
+    }
+    
+    if (_combo_debug_enabled) {
+        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu tap/hold %s (timeout: %ums)", 
+                      combo_idx, enabled ? "enabled" : "disabled", tap_timeout);
+    }
+}
+
+bool SQUIDKEYMAP::shouldSuppressForCombo(size_t switch_index, bool pressed) const {
+    if (!pressed) {
+        // Never suppress key releases
+        return false;
+    }
+    
+    // Check if this key is part of any combo
+    auto it = _combo_key_to_combo_idx.find(switch_index);
+    if (it == _combo_key_to_combo_idx.end()) {
+        return false; // Not part of any combo
+    }
+    
+    // If this looks like a typing pattern, don't suppress
+    if (isTypingPattern(switch_index, pressed)) {
+        return false;
+    }
+    
+    // Check if any combo involving this key is currently "active" (timing)
+    for (size_t combo_idx : it->second) {
+        if (combo_idx < _combo_states.size() && 
+            _combo_states[combo_idx].start_time > 0) {
+            
+            // Only suppress if we're past the tap threshold
+            uint32_t now = millis();
+            if (switch_index < _key_tap_info.size() && 
+                _key_tap_info[switch_index].press_time > 0) {
+                uint32_t press_duration = now - _key_tap_info[switch_index].press_time;
+                
+                // Don't suppress for the first 50ms - allow quick taps
+                if (press_duration < 50) {
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+bool SQUIDKEYMAP::shouldProcessAsNormalKey(size_t switch_index) const {
+    if (switch_index >= _key_tap_info.size()) return true;
+    
+    const auto& tap_info = _key_tap_info[switch_index];
+    
+    // If this key was a tap (quick press-release), process it as normal
+    if (tap_info.is_tap) {
+        return true;
+    }
+    
+    // If this key is currently pressed but hasn't been held long enough to be part of a combo
+    uint32_t now = millis();
+    if (tap_info.press_time > 0 && tap_info.release_time == 0) {
+        // Key is still pressed - check if it's part of any active combo sequence
+        auto it = _combo_key_to_combo_idx.find(switch_index);
+        if (it != _combo_key_to_combo_idx.end()) {
+            for (size_t combo_idx : it->second) {
+                if (combo_idx < _combo_states.size() && 
+                    _combo_states[combo_idx].start_time > 0) {
+                    // This key is part of an active combo sequence
+                    // Only process as normal if it's a very quick press
+                    if ((now - tap_info.press_time) < 30) { // 30ms grace period
+                        return true;
+                    }
+                    return false;
+                }
+            }
+        }
+    }
+    
+    return true;
+}
+
+void SQUIDKEYMAP::processNormalKey(size_t switch_index, bool pressed) {
+    // Check if this is a tap/hold key
+    LayerKeymapEntry action = getKeyAt(switch_index);
+    
+    if (action.action_type == LayerActionType::TAP_HOLD_KEY) {
+        processTapHoldKey(switch_index, pressed, action);
+        return;
+    }
+    
+    // Check if we've already sent this event
+    if (switch_index < _key_tap_info.size()) {
+        auto& tap_info = _key_tap_info[switch_index];
+        
+        if (pressed && tap_info.press_sent) {
+            if (_combo_debug_enabled) {
+                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Skipping duplicate press for key %zu", switch_index);
+            }
+            return;
+        }
+        
+        if (!pressed && tap_info.release_sent) {
+            if (_combo_debug_enabled) {
+                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Skipping duplicate release for key %zu", switch_index);
+            }
+            return;
+        }
+    }
+    
+    // Find the highest priority non-transparent key
+    for (int i = _layer_state.active_layers.size() - 1; i >= 0; i--) {
+        uint8_t layer = _layer_state.active_layers[i];
+        if (switch_index < _layers[layer].size()) {
+            action = _layers[layer][switch_index];
+            if (action.action_type != LayerActionType::TRANSPARENT) {
+                break;
+            }
+        }
+    }
+    
+    // Mark that we sent this as a normal key
+    if (switch_index < _key_tap_info.size()) {
+        auto& tap_info = _key_tap_info[switch_index];
+        tap_info.sent_as_normal = true;
+        
+        if (pressed) {
+            tap_info.press_sent = true;
+        } else {
+            tap_info.release_sent = true;
+        }
+    }
+    
+    // Handle the action
+    switch (action.action_type) {
+        case LayerActionType::NORMAL_KEY:
+            if (_press_callback && pressed) {
+                _press_callback(action.action.key);
+            }
+            if (_release_callback && !pressed) {
+                _release_callback(action.action.key);
+            }
+            break;
+            
+        case LayerActionType::LAYER_MOMENTARY:
+            momentaryLayer(action.action.layer_index, pressed);
+            break;
+            
+        case LayerActionType::LAYER_TOGGLE:
+            if (pressed) toggleLayer(action.action.layer_index);
+            break;
+            
+        case LayerActionType::LAYER_ON:
+            if (pressed) layerOn(action.action.layer_index);
+            break;
+            
+        case LayerActionType::LAYER_OFF:
+            if (pressed) layerOff(action.action.layer_index);
+            break;
+            
+        case LayerActionType::LAYER_DEFAULT:
+            if (pressed) setDefaultLayer(action.action.layer_index);
+            break;
+            
+        case LayerActionType::LAYER_MOD:
+            momentaryLayer(action.action.layer_index, pressed);
+            break;
+            
+        case LayerActionType::TRANSPARENT:
+            break;
+    }
+}
+
+void SQUIDKEYMAP::processDelayedNormalKey(size_t switch_index) {
+    if (switch_index >= _key_tap_info.size()) return;
+    
+    auto& tap_info = _key_tap_info[switch_index];
+    
+    // Don't send if we've already sent a normal key for this press
+    if (tap_info.sent_as_normal) {
+        return;
+    }
+    
+    // Don't send if this key is currently part of an active combo
+    if (isKeyInActiveCombo(switch_index)) {
+        return;
+    }
+    
+    // Only send if this was actually a tap (quick press-release)
+    if (!tap_info.is_tap) {
+        return;
+    }
+    
+    // Mark as sent
+    tap_info.sent_as_normal = true;
+    
+    // Send both press and release events
+    processNormalKey(switch_index, true);
+    processNormalKey(switch_index, false);
+    
+    if (_combo_debug_enabled) {
+        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Sent delayed normal key for tap %zu", switch_index);
+    }
+}
+
+void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const LayerKeymapEntry& action) {
+    if (switch_index >= _tap_hold_states.size()) return;
+    
+    auto& tap_hold = _tap_hold_states[switch_index];
+    uint32_t now = millis();
+    
+    // Check if this key actually has tap/hold behavior in current layer
+    if (!isTapHoldKey(switch_index)) {
+        // Fall back to normal key processing
+        processNormalKey(switch_index, pressed);
+        return;
+    }
+    
+    if (pressed) {
+        // Key pressed - start tap/hold detection
+        tap_hold.press_time = now;
+        tap_hold.pending_tap = true;
+        tap_hold.is_held = false;
+        tap_hold.hold_action_sent = false;
+        tap_hold.tap_timeout = now + tap_hold.tap_timeout_ms;
+        
+        // Store actions from current layer's keymap entry
+        tap_hold.tap_action = action.action.key;
+        tap_hold.hold_action = action.action.hold_action;
+        
+        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu pressed - tap timeout: %u (now: %u)", 
+                       switch_index, tap_hold.tap_timeout, now);
+    } else {
+        // Key released - CRITICAL: Check if we've passed the tap timeout
+        uint32_t press_duration = now - tap_hold.press_time;
+        
+        // FIRST: Check if the hold action was already sent (timeout occurred while key was pressed)
+        if (tap_hold.is_held && tap_hold.hold_action_sent) {
+            // This was a hold - release the hold action
+            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - releasing HOLD action (press duration: %ums)", 
+                           switch_index, press_duration);
+            if (_release_callback) {
+                _release_callback(tap_hold.hold_action);
+            }
+        } 
+        // SECOND: Check if this is still within tap window
+        else if (tap_hold.pending_tap && !tap_hold.is_held) {
+            // Check if enough time has passed to be considered a hold
+            if (press_duration >= tap_hold.tap_timeout_ms) {
+                // Actually, this should have been a hold but hold action wasn't sent yet
+                // This can happen if update() hasn't run since the timeout
+                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - LATE HOLD detected (duration: %ums)", 
+                               switch_index, press_duration);
+                
+                // Send hold press and release
+                if (_press_callback) {
+                    _press_callback(tap_hold.hold_action);
+                }
+                if (_release_callback) {
+                    _release_callback(tap_hold.hold_action);
+                }
+            } else {
+                // This was a genuine tap
+                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - sending TAP action (duration: %ums)", 
+                               switch_index, press_duration);
+                if (_press_callback) {
+                    _press_callback(tap_hold.tap_action);
+                }
+                if (_release_callback) {
+                    _release_callback(tap_hold.tap_action);
+                }
+            }
+        }
+        
+        tap_hold.reset();
+    }
+}
+
+void SQUIDKEYMAP::updateTapHoldState(size_t switch_index, bool pressed) {
+    if (switch_index >= _tap_hold_states.size()) return;
+    
+    auto& tap_hold = _tap_hold_states[switch_index];
+    uint32_t now = millis();
+    
+    if (pressed) {
+        tap_hold.pending_tap = true;
+        tap_hold.tap_timeout = now + 200; // Default 200ms tap timeout
+    } else {
+        if (tap_hold.pending_tap && now <= tap_hold.tap_timeout) {
+            // Send tap action
+            sendTapAction(switch_index);
+        }
+        tap_hold.reset();
+    }
+}
+
+bool SQUIDKEYMAP::isTapHoldKey(size_t switch_index) const {
+    if (switch_index >= getKeyCount()) return false;
+    
+    // Check current active layers for tap/hold behavior
+    for (int i = _layer_state.active_layers.size() - 1; i >= 0; i--) {
+        uint8_t layer = _layer_state.active_layers[i];
+        if (switch_index < _layers[layer].size()) {
+            const auto& entry = _layers[layer][switch_index];
+            if (entry.action_type == LayerActionType::TAP_HOLD_KEY) {
+                return true;
+            }
+            if (entry.action_type != LayerActionType::TRANSPARENT) {
+                // Found a non-transparent, non-taphold key
+                return false;
+            }
+        }
+    }
+    return false;
+}
+
+void SQUIDKEYMAP::sendTapAction(size_t switch_index) {
+    if (switch_index >= _tap_hold_states.size()) return;
+    
+    auto& tap_hold = _tap_hold_states[switch_index];
+    
+    // Find the normal key action for this position
+    LayerKeymapEntry action = getKeyAt(switch_index);
+    
+    if (action.action_type == LayerActionType::NORMAL_KEY) {
+        // Send the normal key action
+        if (_press_callback) {
+            _press_callback(action.action.key);
+        }
+        if (_release_callback) {
+            // Small delay for realistic typing
+            delay(10);
+            _release_callback(action.action.key);
+        }
+        
+        if (_combo_debug_enabled) {
+            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Sent tap action for key %zu", switch_index);
+        }
+    }
+}
+
+void SQUIDKEYMAP::cancelPendingTap(size_t switch_index) {
+    if (switch_index >= _tap_hold_states.size()) return;
+    _tap_hold_states[switch_index].reset();
+}
+
+bool SQUIDKEYMAP::areComboKeysBeingHeld(size_t combo_idx) const {
+    if (combo_idx >= _combo_tap_hold_info.size()) return false;
+    
+    const auto& tap_hold_info = _combo_tap_hold_info[combo_idx];
+    uint32_t now = millis();
+    
+    for (size_t key_idx : tap_hold_info.combo_keys) {
+        if (key_idx < _key_tap_info.size()) {
+            const auto& tap_info = _key_tap_info[key_idx];
+            
+            // Key is considered "held" if it's been pressed for > 50ms
+            if (tap_info.press_time > 0 && tap_info.release_time == 0) {
+                if ((now - tap_info.press_time) > 50) {
+                    return true;
+                }
+            }
+        }
+    }
+    
+    return false;
+}
+
+bool SQUIDKEYMAP::areComboKeysBeingTapped(size_t combo_idx) const {
+    if (combo_idx >= _combo_tap_hold_info.size()) return false;
+    
+    const auto& tap_hold_info = _combo_tap_hold_info[combo_idx];
+    
+    for (size_t key_idx : tap_hold_info.combo_keys) {
+        if (key_idx < _key_tap_info.size()) {
+            const auto& tap_info = _key_tap_info[key_idx];
+            
+            // Key is considered "tapped" if it was a quick press-release
+            if (!tap_info.is_tap) {
+                return false;
+            }
+        }
+    }
+    
+    return true;
+}
+
+bool SQUIDKEYMAP::detectTypingFlow(size_t switch_index, bool pressed) {
+    if (!pressed) {
+        // Releases don't affect typing flow
+        return _in_typing_flow;
+    }
+    
+    uint32_t now = millis();
+    
+    // If we're already in typing flow, check if we should stay in it
+    if (_in_typing_flow) {
+        if (now - _typing_flow_start > 1000) {
+            // Typing flow expired (1 second of inactivity)
+            _in_typing_flow = false;
+        } else {
+            // Still in typing flow
+            _typing_flow_start = now;
+            return true;
+        }
+    }
+    
+    // Check if this looks like typing
+    if (_last_any_key_press_time > 0) {
+        uint32_t time_since_last_key = now - _last_any_key_press_time;
+        
+        if (time_since_last_key < TYPING_FLOW_THRESHOLD) {
+            // Rapid keypresses - enter typing flow
+            _in_typing_flow = true;
+            _typing_flow_start = now;
+            
+            if (_combo_debug_enabled) {
+                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Entered typing flow (gap: %ums)", time_since_last_key);
+            }
+            
             return true;
         }
     }
