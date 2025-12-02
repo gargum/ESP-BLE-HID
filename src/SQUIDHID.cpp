@@ -82,54 +82,45 @@ public:
     HIDDescriptorInitializer() {
         uint8_t* current = _hidReportDescriptor;
         
-        // Basic keyboard descriptor
         memcpy(current, _basicReportDescriptor, sizeof(_basicReportDescriptor));
         current += sizeof(_basicReportDescriptor);
         
         #if KEYBOARD_ENABLE
-        // NKRO descriptor
         memcpy(current, _nkroReportDescriptor, sizeof(_nkroReportDescriptor));
         current += sizeof(_nkroReportDescriptor);
         #endif
         
         #if MEDIA_ENABLE
-        // Media keys descriptor
         memcpy(current, _mediakeyReportDescriptor, sizeof(_mediakeyReportDescriptor));
         current += sizeof(_mediakeyReportDescriptor);
         #endif
         
         #if SPACEMOUSE_ENABLE
-        // Spacemouse descriptor
         memcpy(current, _spacemouseReportDescriptor, sizeof(_spacemouseReportDescriptor));
         current += sizeof(_spacemouseReportDescriptor);
         #else
         
         #if MOUSE_ENABLE
-        // Mouse descriptor
         memcpy(current, _mouseReportDescriptor, sizeof(_mouseReportDescriptor));
         current += sizeof(_mouseReportDescriptor);
         #endif
         
         #if DIGITIZER_ENABLE
-        // Digitizer descriptor
         memcpy(current, _digitizerReportDescriptor, sizeof(_digitizerReportDescriptor));
         current += sizeof(_digitizerReportDescriptor);
         #endif
         
         #if GAMEPAD_ENABLE
-        // Gamepad descriptor
         memcpy(current, _gamepadReportDescriptor, sizeof(_gamepadReportDescriptor));
         current += sizeof(_gamepadReportDescriptor);
         #endif
         #endif
         
         #if STENO_ENABLE
-        // Plover HID descriptor
         memcpy(current, _stenoReportDescriptor, sizeof(_stenoReportDescriptor));
         current += sizeof(_stenoReportDescriptor);
         #endif
         
-        // Debug: Print the complete descriptor
         SQUID_LOG_DEBUG("HID", "Complete HID descriptor built - Total size: %zu", descriptorSize);
     }
 };
