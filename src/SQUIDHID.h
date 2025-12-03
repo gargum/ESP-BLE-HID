@@ -12,6 +12,7 @@
 #include "drivers/Software/Event/Types.h"
 #include "drivers/Software/HID/SquidHIDTypes.h"
 #include "drivers/Software/Transport/Transport.h"
+#include "drivers/Software/Basic/Keymap/Keymap.h"
 
 #if TRANSPORT == USB
   #include "drivers/Software/Transport/USB/USBTransport.h"
