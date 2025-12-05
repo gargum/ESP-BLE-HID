@@ -6,15 +6,7 @@
 #ifndef KEYMAP_H
 #define KEYMAP_H
 
-#include <cstdint>
-#include <vector>
-#include <functional>
-#include <initializer_list>
-#include <unordered_map>
 #include <unordered_set>
-#include <algorithm>
-#include <string>
-
 #include "drivers/Software/Log/Log.h"
 #include "drivers/Software/Event/Types.h"
 #include "drivers/Software/Basic/Matrix/Matrix.h"
@@ -517,7 +509,8 @@ private:
     // Combo timing
     uint16_t _combo_timeout_ms                      = 200;
     static constexpr uint32_t TAP_TIMEOUT_MS        = 150;  // Max time for a tap
-    static constexpr uint32_t HOLD_THRESHOLD_MS     = 151;  // Min time for a hold
+    static constexpr uint32_t HOLD_THRESHOLD_MS     = 50;   // Min time for a hold
+    static constexpr uint32_t TAP_GRACE_PERIOD      = 30;   // Tap/Combo timeout
     static constexpr uint32_t ROLLOVER_THRESHOLD_MS = 50;   // Max time between keys for roll
     static constexpr uint32_t TYPING_FLOW_THRESHOLD = 50;   // ms between keys
     
