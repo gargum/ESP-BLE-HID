@@ -6,15 +6,6 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#include <cstdint>
-#include <vector>
-#include <functional>
-#include <initializer_list>
-#include <unordered_map>
-#include <unordered_set>
-#include <algorithm>
-#include <string>
-
 #include "drivers/Software/Log/Log.h"
 
 // ============================================================================
