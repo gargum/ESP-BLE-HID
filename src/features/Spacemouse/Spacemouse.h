@@ -34,7 +34,7 @@ typedef struct {
 } SpaceRotationReport;
 
 typedef struct {
-    uint32_t buttons;  // 32 bits for button bitmask
+    uint32_t buttons[2];  // 64 bits for button bitmask
 } SpaceButtonReport;
 
 static const uint8_t _spacemouseReportDescriptor[] = {
@@ -58,9 +58,9 @@ static const uint8_t _spacemouseReportDescriptor[] = {
   // Spacemouse/3DConnexion Buttons (I added 32 of them)
   COLLECTION(1),       0x00,                      REPORT_ID(1),        SPACECLICK_ID,
   LOGICAL_MINIMUM(1),  0x00,                      LOGICAL_MAXIMUM(1),  0x01,                  
-  REPORT_SIZE(1),      0x01,                      REPORT_COUNT(1),     0x20,                    
+  REPORT_SIZE(1),      0x01,                      REPORT_COUNT(1),     0x40,                    
   USAGE_PAGE(1),       0x09,                      USAGE_MINIMUM(1),    0x01,                    
-  USAGE_MAXIMUM(1),    0x20,                      HIDINPUT(1),         0x02,                    
+  USAGE_MAXIMUM(1),    0x40,                      HIDINPUT(1),         0x02,                    
   END_COLLECTION(0),                              END_COLLECTION(0),
 };
 
@@ -83,38 +83,70 @@ MK(SpacemouseAnalogue, SM_RY, SPACEMOUSE_RY);
 MK(SpacemouseAnalogue, SM_RZ, SPACEMOUSE_RZ);
 
 enum class SpacemouseKeys : uint32_t {
-  SPACEMOUSE_1  = 0x00000001,
-  SPACEMOUSE_2  = 0x00000002,
-  SPACEMOUSE_3  = 0x00000004,
-  SPACEMOUSE_4  = 0x00000008,
-  SPACEMOUSE_5  = 0x00000010,
-  SPACEMOUSE_6  = 0x00000020,
-  SPACEMOUSE_7  = 0x00000040,
-  SPACEMOUSE_8  = 0x00000080,
-  SPACEMOUSE_9  = 0x00000100,
-  SPACEMOUSE_10 = 0x00000200,
-  SPACEMOUSE_11 = 0x00000400,
-  SPACEMOUSE_12 = 0x00000800,
-  SPACEMOUSE_13 = 0x00001000,
-  SPACEMOUSE_14 = 0x00002000,
-  SPACEMOUSE_15 = 0x00004000,
-  SPACEMOUSE_16 = 0x00008000,
-  SPACEMOUSE_17 = 0x00010000,
-  SPACEMOUSE_18 = 0x00020000,
-  SPACEMOUSE_19 = 0x00040000,
-  SPACEMOUSE_20 = 0x00080000,
-  SPACEMOUSE_21 = 0x00100000,
-  SPACEMOUSE_22 = 0x00200000,
-  SPACEMOUSE_23 = 0x00400000,
-  SPACEMOUSE_24 = 0x00800000,
-  SPACEMOUSE_25 = 0x01000000,
-  SPACEMOUSE_26 = 0x02000000,
-  SPACEMOUSE_27 = 0x04000000,
-  SPACEMOUSE_28 = 0x08000000,
-  SPACEMOUSE_29 = 0x10000000,
-  SPACEMOUSE_30 = 0x20000000,
-  SPACEMOUSE_31 = 0x40000000,
-  SPACEMOUSE_32 = 0x80000000
+  SPACEMOUSE_1  = 1,
+  SPACEMOUSE_2  = 2,
+  SPACEMOUSE_3  = 3,
+  SPACEMOUSE_4  = 4,
+  SPACEMOUSE_5  = 5,
+  SPACEMOUSE_6  = 6,
+  SPACEMOUSE_7  = 7,
+  SPACEMOUSE_8  = 8,
+  SPACEMOUSE_9  = 9,
+  SPACEMOUSE_10 = 10,
+  SPACEMOUSE_11 = 11,
+  SPACEMOUSE_12 = 12,
+  SPACEMOUSE_13 = 13,
+  SPACEMOUSE_14 = 14,
+  SPACEMOUSE_15 = 15,
+  SPACEMOUSE_16 = 16,
+  SPACEMOUSE_17 = 17,
+  SPACEMOUSE_18 = 18,
+  SPACEMOUSE_19 = 19,
+  SPACEMOUSE_20 = 20,
+  SPACEMOUSE_21 = 21,
+  SPACEMOUSE_22 = 22,
+  SPACEMOUSE_23 = 23,
+  SPACEMOUSE_24 = 24,
+  SPACEMOUSE_25 = 25,
+  SPACEMOUSE_26 = 26,
+  SPACEMOUSE_27 = 27,
+  SPACEMOUSE_28 = 28,
+  SPACEMOUSE_29 = 29,
+  SPACEMOUSE_30 = 30,
+  SPACEMOUSE_31 = 31,
+  SPACEMOUSE_32 = 32,
+  SPACEMOUSE_33 = 33,
+  SPACEMOUSE_34 = 34,
+  SPACEMOUSE_35 = 35,
+  SPACEMOUSE_36 = 36,
+  SPACEMOUSE_37 = 37,
+  SPACEMOUSE_38 = 38,
+  SPACEMOUSE_39 = 39,
+  SPACEMOUSE_40 = 40,
+  SPACEMOUSE_41 = 41,
+  SPACEMOUSE_42 = 42,
+  SPACEMOUSE_43 = 43,
+  SPACEMOUSE_44 = 44,
+  SPACEMOUSE_45 = 45,
+  SPACEMOUSE_46 = 46,
+  SPACEMOUSE_47 = 47,
+  SPACEMOUSE_48 = 48,
+  SPACEMOUSE_49 = 49,
+  SPACEMOUSE_50 = 50,
+  SPACEMOUSE_51 = 51,
+  SPACEMOUSE_52 = 52,
+  SPACEMOUSE_53 = 53,
+  SPACEMOUSE_54 = 54,
+  SPACEMOUSE_55 = 55,
+  SPACEMOUSE_56 = 56,
+  SPACEMOUSE_57 = 57,
+  SPACEMOUSE_58 = 58,
+  SPACEMOUSE_59 = 59,
+  SPACEMOUSE_60 = 60,
+  SPACEMOUSE_61 = 61,
+  SPACEMOUSE_62 = 62,
+  SPACEMOUSE_63 = 63,
+  SPACEMOUSE_64 = 64
 };
 
 MK(SpacemouseKey, SM_01, SPACEMOUSE_1);
@@ -149,6 +181,38 @@ MK(SpacemouseKey, SM_29, SPACEMOUSE_29);
 MK(SpacemouseKey, SM_30, SPACEMOUSE_30);
 MK(SpacemouseKey, SM_31, SPACEMOUSE_31);
 MK(SpacemouseKey, SM_32, SPACEMOUSE_32);
+MK(SpacemouseKey, SM_33, SPACEMOUSE_33);
+MK(SpacemouseKey, SM_34, SPACEMOUSE_34);
+MK(SpacemouseKey, SM_35, SPACEMOUSE_35);
+MK(SpacemouseKey, SM_36, SPACEMOUSE_36);
+MK(SpacemouseKey, SM_37, SPACEMOUSE_37);
+MK(SpacemouseKey, SM_38, SPACEMOUSE_38);
+MK(SpacemouseKey, SM_39, SPACEMOUSE_39);
+MK(SpacemouseKey, SM_40, SPACEMOUSE_40);
+MK(SpacemouseKey, SM_41, SPACEMOUSE_41);
+MK(SpacemouseKey, SM_42, SPACEMOUSE_42);
+MK(SpacemouseKey, SM_43, SPACEMOUSE_43);
+MK(SpacemouseKey, SM_44, SPACEMOUSE_44);
+MK(SpacemouseKey, SM_45, SPACEMOUSE_45);
+MK(SpacemouseKey, SM_46, SPACEMOUSE_46);
+MK(SpacemouseKey, SM_47, SPACEMOUSE_47);
+MK(SpacemouseKey, SM_48, SPACEMOUSE_48);
+MK(SpacemouseKey, SM_49, SPACEMOUSE_49);
+MK(SpacemouseKey, SM_50, SPACEMOUSE_50);
+MK(SpacemouseKey, SM_51, SPACEMOUSE_51);
+MK(SpacemouseKey, SM_52, SPACEMOUSE_52);
+MK(SpacemouseKey, SM_53, SPACEMOUSE_53);
+MK(SpacemouseKey, SM_54, SPACEMOUSE_54);
+MK(SpacemouseKey, SM_55, SPACEMOUSE_55);
+MK(SpacemouseKey, SM_56, SPACEMOUSE_56);
+MK(SpacemouseKey, SM_57, SPACEMOUSE_57);
+MK(SpacemouseKey, SM_58, SPACEMOUSE_58);
+MK(SpacemouseKey, SM_59, SPACEMOUSE_59);
+MK(SpacemouseKey, SM_60, SPACEMOUSE_60);
+MK(SpacemouseKey, SM_61, SPACEMOUSE_61);
+MK(SpacemouseKey, SM_62, SPACEMOUSE_62);
+MK(SpacemouseKey, SM_63, SPACEMOUSE_63);
+MK(SpacemouseKey, SM_64, SPACEMOUSE_64);
 
 #if MOUSE_ENABLE || DIGITIZER_ENABLE
 MK(SpacemouseKey, MO_BTN1, SPACEMOUSE_1);
@@ -168,6 +232,86 @@ MK(SpacemouseAnalogue, GA_RX, SPACEMOUSE_TZ);
 MK(SpacemouseAnalogue, GA_RY, SPACEMOUSE_RX);
 MK(SpacemouseAnalogue, GA_LT, SPACEMOUSE_RY);
 MK(SpacemouseAnalogue, GA_RT, SPACEMOUSE_RZ);
+
+MK(SpacemouseKey, GB_00, SPACEMOUSE_1);
+MK(SpacemouseKey, GB_SO, SPACEMOUSE_1); // "South" like the bottom face button. So 'Cross' on a Playstation controller or 'A' on an Xbox controller.
+MK(SpacemouseKey, GB_01, SPACEMOUSE_2);
+MK(SpacemouseKey, GB_EA, SPACEMOUSE_2);  // "East" like the right face button. So 'Circle' on a Playstation controller or 'B' on an Xbox controller.
+MK(SpacemouseKey, GB_02, SPACEMOUSE_3);
+MK(SpacemouseKey, GB_03, SPACEMOUSE_4);
+MK(SpacemouseKey, GB_WE, SPACEMOUSE_4);  // "West" like the left face button. So 'Square' on a Playstation controller or 'X' on an Xbox controller.
+MK(SpacemouseKey, GB_04, SPACEMOUSE_5);
+MK(SpacemouseKey, GB_NO, SPACEMOUSE_5); // "North" like the top face button. So 'Triangle' on a Playstation controller or 'Y' on an Xbox controller.
+MK(SpacemouseKey, GB_05, SPACEMOUSE_6);
+MK(SpacemouseKey, GB_06, SPACEMOUSE_7);
+MK(SpacemouseKey, GB_L1, SPACEMOUSE_7);
+MK(SpacemouseKey, GB_07, SPACEMOUSE_8);
+MK(SpacemouseKey, GB_R1, SPACEMOUSE_8);
+MK(SpacemouseKey, GB_08, SPACEMOUSE_9);
+MK(SpacemouseKey, GB_09, SPACEMOUSE_10);
+MK(SpacemouseKey, GB_10, SPACEMOUSE_11);
+MK(SpacemouseKey, GB_BA, SPACEMOUSE_11);
+MK(SpacemouseKey, GB_11, SPACEMOUSE_12);
+MK(SpacemouseKey, GB_ST, SPACEMOUSE_12);
+MK(SpacemouseKey, GB_12, SPACEMOUSE_13);
+MK(SpacemouseKey, GB_GU, SPACEMOUSE_13);
+MK(SpacemouseKey, GB_13, SPACEMOUSE_14);
+MK(SpacemouseKey, GB_L3, SPACEMOUSE_14);
+MK(SpacemouseKey, GB_14, SPACEMOUSE_15);
+MK(SpacemouseKey, GB_R3, SPACEMOUSE_15);
+MK(SpacemouseKey, GB_15, SPACEMOUSE_16);
+MK(SpacemouseKey, GB_16, SPACEMOUSE_17);
+MK(SpacemouseKey, GB_17, SPACEMOUSE_18);
+MK(SpacemouseKey, GB_18, SPACEMOUSE_19);
+MK(SpacemouseKey, GB_19, SPACEMOUSE_20);
+MK(SpacemouseKey, GB_20, SPACEMOUSE_21);
+MK(SpacemouseKey, GB_21, SPACEMOUSE_22);
+MK(SpacemouseKey, GB_22, SPACEMOUSE_23);
+MK(SpacemouseKey, GB_23, SPACEMOUSE_24);
+MK(SpacemouseKey, GB_24, SPACEMOUSE_25);
+MK(SpacemouseKey, GB_25, SPACEMOUSE_26);
+MK(SpacemouseKey, GB_26, SPACEMOUSE_27);
+MK(SpacemouseKey, GB_27, SPACEMOUSE_28);
+MK(SpacemouseKey, GB_28, SPACEMOUSE_29);
+MK(SpacemouseKey, GB_29, SPACEMOUSE_30);
+MK(SpacemouseKey, GB_30, SPACEMOUSE_31);
+MK(SpacemouseKey, GB_31, SPACEMOUSE_32);
+MK(SpacemouseKey, GB_32, SPACEMOUSE_33);
+MK(SpacemouseKey, GB_33, SPACEMOUSE_34);
+MK(SpacemouseKey, GB_34, SPACEMOUSE_35);
+MK(SpacemouseKey, GB_35, SPACEMOUSE_36);
+MK(SpacemouseKey, GB_36, SPACEMOUSE_37);
+MK(SpacemouseKey, GB_37, SPACEMOUSE_38);
+MK(SpacemouseKey, GB_38, SPACEMOUSE_39);
+MK(SpacemouseKey, GB_39, SPACEMOUSE_40);
+MK(SpacemouseKey, GB_40, SPACEMOUSE_41);
+MK(SpacemouseKey, GB_41, SPACEMOUSE_42);
+MK(SpacemouseKey, GB_42, SPACEMOUSE_43);
+MK(SpacemouseKey, GB_43, SPACEMOUSE_44);
+MK(SpacemouseKey, GB_44, SPACEMOUSE_45);
+MK(SpacemouseKey, GB_45, SPACEMOUSE_46);
+MK(SpacemouseKey, GB_46, SPACEMOUSE_47);
+MK(SpacemouseKey, GB_47, SPACEMOUSE_48);
+MK(SpacemouseKey, GB_48, SPACEMOUSE_49);
+MK(SpacemouseKey, GB_49, SPACEMOUSE_50);
+MK(SpacemouseKey, GB_50, SPACEMOUSE_51);
+MK(SpacemouseKey, GB_51, SPACEMOUSE_52);
+MK(SpacemouseKey, GB_52, SPACEMOUSE_53);
+MK(SpacemouseKey, GB_53, SPACEMOUSE_54);
+MK(SpacemouseKey, GB_54, SPACEMOUSE_55);
+MK(SpacemouseKey, GB_55, SPACEMOUSE_56);
+MK(SpacemouseKey, GB_56, SPACEMOUSE_57);
+MK(SpacemouseKey, GB_57, SPACEMOUSE_58);
+MK(SpacemouseKey, GB_58, SPACEMOUSE_59);
+MK(SpacemouseKey, GB_59, SPACEMOUSE_60);
+MK(SpacemouseKey, GB_60, SPACEMOUSE_61);
+MK(SpacemouseKey, GB_61, SPACEMOUSE_62);
+MK(SpacemouseKey, GB_62, SPACEMOUSE_63);
+MK(SpacemouseKey, GB_63, SPACEMOUSE_64);
+MK(SpacemouseKey, GB_UP, SPACEMOUSE_61);
+MK(SpacemouseKey, GB_RI, SPACEMOUSE_62);
+MK(SpacemouseKey, GB_DO, SPACEMOUSE_63);
+MK(SpacemouseKey, GB_LE, SPACEMOUSE_64);
 #endif
 
 class SQUIDSPACEMOUSE {
@@ -206,7 +350,7 @@ public:
     void   press(SpacemouseKey button);
     void   release(SpacemouseKey button);
     bool   isPressed(SpacemouseKey button);
-    void   setAllButtons(uint32_t buttons);
+    void   setAllButtons(uint32_t lowButtons, uint32_t highButtons = 0);
     void   sendReport();
     void   releaseAll();
     
