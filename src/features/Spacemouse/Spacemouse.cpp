@@ -7,11 +7,8 @@
 
 static const char* SPACEMOUSE_TAG = "SQUID6DOF";
 
-#if MOUSE_ENABLE
+#if MOUSE_ENABLE || DIGITIZER_ENABLE
 static const char* MOUSE_TAG = "SQUIDMOUSE";
-#endif
-
-#if DIGITIZER_ENABLE
 static const char* DIGI_TAG = "SQUIDTABLET";
 #endif
 
@@ -21,18 +18,9 @@ static const char* GAMEPAD_TAG = "SQUIDGAMEPAD";
 
 SQUIDSPACEMOUSE::SQUIDSPACEMOUSE() 
     : 
-    #if MOUSE_ENABLE
-    
-    #endif
-    
     #if DIGITIZER_ENABLE
     _screenWidth(DEFAULT_WIDTH), _screenHeight(DEFAULT_HEIGHT),
     #endif
-    
-    #if GAMEPAD_ENABLE
-    
-    #endif
-    
     transport(nullptr), _delay_ms(7)
     {
     memset(&_transReport, 0, sizeof(_transReport));
@@ -118,76 +106,89 @@ void SQUIDSPACEMOUSE::rotate(int16_t rx, int16_t ry, int16_t rz) {
 }
 
 void SQUIDSPACEMOUSE::press(SpacemouseKey button) {
-    if (button < 1 || button > 32) {
-        SQUID_LOG_WARN(SPACEMOUSE_TAG, "Invalid button number: %d (must be 1-32)", button);
+    if (button < 1 || button > 64) {
+        SQUID_LOG_WARN(SPACEMOUSE_TAG, "Invalid button number: %d (must be 1-64)", button);
         return;
     }
     
-    uint32_t buttonMask = (1UL << (button - 1));
-    _buttonReport.buttons |= buttonMask;
+    uint32_t buttonMask = (1UL << ((button - 1) % 32));
+    uint8_t arrayIndex = (button - 1) / 32;
+    _buttonReport.buttons[arrayIndex] |= buttonMask;
     
-    SQUID_LOG_DEBUG(SPACEMOUSE_TAG, "Spacemouse button %d pressed - button state: 0x%08lX", 
-                 button, _buttonReport.buttons);
+    SQUID_LOG_DEBUG(SPACEMOUSE_TAG, "Spacemouse button %d pressed - button state[%d]: 0x%08lX", 
+                 button, arrayIndex, _buttonReport.buttons[arrayIndex]);
     sendReport();
 }
 
 void SQUIDSPACEMOUSE::release(SpacemouseKey button) {
-    if (button < 1 || button > 32) {
-        SQUID_LOG_WARN(SPACEMOUSE_TAG, "Invalid button number: %d (must be 1-32)", button);
+    if (button < 1 || button > 64) {
+        SQUID_LOG_WARN(SPACEMOUSE_TAG, "Invalid button number: %d (must be 1-64)", button);
         return;
     }
     
-    uint32_t buttonMask = (1UL << (button - 1));
-    _buttonReport.buttons &= ~buttonMask;
+    uint32_t buttonMask = (1UL << ((button - 1) % 32));
+    uint8_t arrayIndex = (button - 1) / 32;
+    _buttonReport.buttons[arrayIndex] &= ~buttonMask;
     
-    SQUID_LOG_DEBUG(SPACEMOUSE_TAG, "Spacemouse button %d released - button state: 0x%08lX", 
-                 button, _buttonReport.buttons);
+    SQUID_LOG_DEBUG(SPACEMOUSE_TAG, "Spacemouse button %d released - button state[%d]: 0x%08lX", 
+                 button, arrayIndex, _buttonReport.buttons[arrayIndex]);
     sendReport();
 }
 
 bool SQUIDSPACEMOUSE::isPressed(SpacemouseKey button) {
-    if (button < 1 || button > 32) {
+    if (button < 1 || button > 64) {
         return false;
     }
     
-    uint32_t buttonMask = (1UL << (button - 1));
-    bool pressed = (_buttonReport.buttons & buttonMask) != 0;
+    uint32_t buttonMask = (1UL << ((button - 1) % 32));
+    uint8_t arrayIndex = (button - 1) / 32;
+    bool pressed = (_buttonReport.buttons[arrayIndex] & buttonMask) != 0;
     
     SQUID_LOG_DEBUG(SPACEMOUSE_TAG, "Spacemouse button %d check - Pressed: %s", 
                  button, pressed ? "true" : "false");
     return pressed;
 }
 
-void SQUIDSPACEMOUSE::setAllButtons(uint32_t buttons) {
-    uint32_t previousButtons = _buttonReport.buttons;
-    _buttonReport.buttons = buttons;
+void SQUIDSPACEMOUSE::setAllButtons(uint32_t lowButtons, uint32_t highButtons) {
+    uint32_t previousLow = _buttonReport.buttons[0];
+    uint32_t previousHigh = _buttonReport.buttons[1];
     
-    SQUID_LOG_DEBUG(SPACEMOUSE_TAG, "Spacemouse buttons set - previous: 0x%08lX, new: 0x%08lX", 
-                 previousButtons, buttons);
+    _buttonReport.buttons[0] = lowButtons;
+    _buttonReport.buttons[1] = highButtons;
+    
+    SQUID_LOG_DEBUG(SPACEMOUSE_TAG, "Spacemouse buttons set - previous: [0x%08lX, 0x%08lX], new: [0x%08lX, 0x%08lX]", 
+                 previousLow, previousHigh, lowButtons, highButtons);
     sendReport();
 }
 
 void SQUIDSPACEMOUSE::releaseAll() {
-    SQUID_LOG_DEBUG(SPACEMOUSE_TAG, "Releasing all Spacemouse buttons - previous state: 0x%08lX", 
-                 _buttonReport.buttons);
-    _buttonReport.buttons = 0;
+    SQUID_LOG_DEBUG(SPACEMOUSE_TAG, "Releasing all Spacemouse buttons - previous state: Low=0x%08lX, High=0x%08lX", 
+                 _buttonReport.buttons[0], _buttonReport.buttons[1]);
+    
+    _buttonReport.buttons[0] = 0;
+    _buttonReport.buttons[1] = 0;
+    
     sendReport();
     SQUID_LOG_DEBUG(SPACEMOUSE_TAG, "All Spacemouse buttons released");
 }
 
-#if MOUSE_ENABLE
+#if MOUSE_ENABLE || DIGITIZER_ENABLE
 void SQUIDSPACEMOUSE::click(SpacemouseKey b) {
-    
-    uint8_t mouseButtons = static_cast<uint8_t>(b);
-    
-    SQUID_LOG_DEBUG(DIGI_TAG, "Mouse click, buttons: 0x%02X", mouseButtons);
-    
-    _buttonReport.buttons = b;
-    sendReport();
-    delay(_delay_ms);
-    releaseAll(); // Release
-    
-    SQUID_LOG_DEBUG(DIGI_TAG, "Mouse click completed");
+    uint8_t button = static_cast<uint8_t>(b);
+    if (button >= 1 && button <= 64) {
+        uint8_t arrayIndex = (button - 1) / 32;
+        uint32_t buttonMask = (1UL << ((button - 1) % 32));
+        
+        SQUID_LOG_DEBUG(MOUSE_TAG, "Mouse click, button: %d", button);
+        
+        _buttonReport.buttons[arrayIndex] |= buttonMask;
+        sendReport();
+        delay(_delay_ms);
+        _buttonReport.buttons[arrayIndex] &= ~buttonMask; // Release
+        sendReport();
+        
+        SQUID_LOG_DEBUG(DIGI_TAG, "Mouse click completed");
+    }
 }
 
 void SQUIDSPACEMOUSE::move(int16_t x, int16_t y, int16_t wheel, int16_t hWheel) {
@@ -230,21 +231,31 @@ void SQUIDSPACEMOUSE::moveRelative(int16_t relX, int16_t relY, bool sendImmediat
 void SQUIDSPACEMOUSE::sendMouseReport() {
   sendReport();
 }
-#endif
 
-#if DIGITIZER_ENABLE
 void SQUIDSPACEMOUSE::click(uint16_t x, uint16_t y, SpacemouseKey b) {
+    uint8_t button = static_cast<uint8_t>(b);
     
-    uint8_t digitizerButtons = static_cast<uint8_t>(b);
+    if (button < 1 || button > 64) {
+        SQUID_LOG_WARN(DIGI_TAG, "Invalid button number: %d (must be 1-64)", button);
+        return;
+    }
     
-    SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer click at X:%u, Y:%u, buttons: 0x%02X", x, y, digitizerButtons);
+    SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer click at X:%u, Y:%u, button: %d", x, y, button);
     
     _transReport.tx = x;
     _transReport.ty = y;
-    _buttonReport.buttons = b;
+    
+    // Press the button
+    uint8_t arrayIndex = (button - 1) / 32;
+    uint32_t buttonMask = (1UL << ((button - 1) % 32));
+    _buttonReport.buttons[arrayIndex] |= buttonMask;
+    
     sendReport();
     delay(_delay_ms);
-    releaseAll(); // Release
+    
+    // Release just this button
+    _buttonReport.buttons[arrayIndex] &= ~buttonMask;
+    sendReport();
     
     SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer click completed");
 }
@@ -255,23 +266,33 @@ void SQUIDSPACEMOUSE::moveTo(uint16_t x, uint16_t y, uint8_t pressure, Spacemous
         uint16_t scaledX = (x * 32767ULL) / _screenWidth;
         uint16_t scaledY = (y * 32767ULL) / _screenHeight;
         uint16_t truePressure = pressure * 10;
-        uint8_t  buttonValue = static_cast<uint8_t>(buttons);
+        uint8_t buttonValue = static_cast<uint8_t>(buttons);
         
         _transReport.tx = scaledX;
         _transReport.ty = scaledY;
         _transReport.tz = truePressure;
-        _buttonReport.buttons = buttons;
+        
+        // Clear all buttons first
+        _buttonReport.buttons[0] = 0;
+        _buttonReport.buttons[1] = 0;
+        
+        // Set the specified button(s) if any
+        if (buttonValue >= 1 && buttonValue <= 64) {
+            uint8_t arrayIndex = (buttonValue - 1) / 32;
+            uint32_t buttonMask = (1UL << ((buttonValue - 1) % 32));
+            _buttonReport.buttons[arrayIndex] |= buttonMask;
+        }
         
         sendReport();
         
-        SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer move - X:%u->%u, Y:%u->%u, Pressure:%u, Buttons:0x%02X",
+        SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer move - X:%u->%u, Y:%u->%u, Pressure:%u, Button:%u",
                      x, scaledX, y, scaledY, pressure, buttonValue);
     } else {
         SQUID_LOG_DEBUG(DIGI_TAG, "Digitizer movement ignored - %s%s", 
                      !isConnected() ? "not connected" : "",
                      !transport ? "no input characteristic" : "");
     }
-} 
+}
 
 void SQUIDSPACEMOUSE::beginStroke(uint16_t x, uint16_t y, uint16_t initialPressure) {
     SQUID_LOG_DEBUG(DIGI_TAG, "Beginning stroke at X:%u, Y:%u, initial pressure:%u", x, y, initialPressure);
