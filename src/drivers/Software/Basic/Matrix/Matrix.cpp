@@ -5,10 +5,6 @@
 
 #include "Matrix.h"
 
-// ============================================================================
-// Matrix Implementation
-// ============================================================================
-
 static const char* MATRIX_TAG = "SQUIDMATRIX";
 
 SQUIDMATRIX::SQUIDMATRIX() 
@@ -57,7 +53,7 @@ void SQUIDMATRIX::extractUniquePins() {
     _unique_to_pins.clear();
     _pin_needs_pullup.clear();
     
-    // Extract ALL unique pins
+    // Extract all unique pins
     for (size_t switch_idx = 0; switch_idx < _matrix.size(); ++switch_idx) {
         const auto& pin_pair = _matrix[switch_idx];
         
@@ -248,10 +244,9 @@ void SQUIDMATRIX::scanMatrix() {
 void SQUIDMATRIX::scanWithTimeDivision() {
     int current_to_pin = _unique_to_pins[_current_active_to_pin];
     
-    // Reduce stabilization delay
     unifiedPinMode(current_to_pin, OUTPUT);
     unifiedDigitalWrite(current_to_pin, LOW);
-    delayMicroseconds(3); // Reduced from 10μs
+    delayMicroseconds(3);
     
     for (size_t switch_idx = 0; switch_idx < _matrix.size(); ++switch_idx) {
         const auto& pin_pair = _matrix[switch_idx];
