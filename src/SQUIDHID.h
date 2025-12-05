@@ -196,7 +196,6 @@ public:
 
   void        setAppearance(uint16_t newAppearance);
   
-  size_t      write(const uint8_t *buffer, size_t size);
   void        releaseAll();
   
   // BLE helper functions
