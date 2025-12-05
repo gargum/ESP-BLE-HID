@@ -611,12 +611,6 @@ void SQUIDHID::onDisconnect() {
 
 }
 
-size_t SQUIDHID::write(const uint8_t *buf, size_t len) {
-    size_t n = 0;
-    while (len--) n += write(*buf++);
-    return n;
-}
-
 void SQUIDHID::addCombo(const KeyComboConfig& combo) { keymap.addCombo(combo); }
 
 void SQUIDHID::setCombos(const std::vector<KeyComboConfig>& combos) { keymap.setCombos(combos); }
