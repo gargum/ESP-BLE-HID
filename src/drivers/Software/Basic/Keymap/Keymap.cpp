@@ -5,10 +5,6 @@
 
 #include "Keymap.h"
 
-// ============================================================================
-// Keymap Implementation
-// ============================================================================
-
 static const char* LAYER_KEYMAP_TAG = "SQUIDKEYMAP";
 
 SQUIDKEYMAP::SQUIDKEYMAP() 
@@ -90,8 +86,8 @@ void SQUIDKEYMAP::handleKeyEvent(size_t switch_index, bool pressed) {
         updateComboForKey(switch_index, pressed);
     }
     
-    // CRITICAL CHANGE: For keys that are part of combos, delay processing
-    // to see if they form a combo. Only process immediately if we're in typing flow
+    // For keys that are part of combos, delay processing to see if they form a combo.
+    // Only process immediately if we're in typing flow
     if (is_part_of_combo && !pressed) {
         // Key release - check if we need to send delayed press/release
         if (switch_index < _key_tap_info.size()) {
@@ -112,7 +108,7 @@ void SQUIDKEYMAP::handleKeyEvent(size_t switch_index, bool pressed) {
     
     // For key presses that are part of combos, add a small delay
     if (is_part_of_combo && pressed) {
-        // Add a small delay (e.g., 30ms) to see if this becomes part of a combo
+        // Add a small delay (magic number of 30ms here currently) to see if this becomes part of a combo
         _delayed_key_events.emplace_back(switch_index, pressed, now + 30);
         return;
     }
@@ -467,7 +463,7 @@ void SQUIDKEYMAP::updateComboForKey(size_t switch_index, bool pressed) {
                     break;
                 }
             }
-            // ANY_POSITION types will need different handling
+            // ANY_POSITION types handling hasn't been added yet
         }
     }
 }
@@ -781,9 +777,9 @@ bool SQUIDKEYMAP::shouldEarlyTimeout(size_t combo_idx) const {
         uint32_t now = millis();
         uint32_t time_since_last_release = now - info.last_key_release_time;
         
-        // Early timeout: if it's been more than 50ms since the last key release
+        // Early timeout: if it's been more than ~50ms since the last key release
         // and we haven't triggered the combo yet, it's not going to happen
-        if (time_since_last_release > 50) { // 50ms is enough time for a combo
+        if (time_since_last_release > TYPING_FLOW_THRESHOLD) { // 50ms is enough time for a combo
             if (_combo_debug_enabled) {
                 SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu: Early timeout after %ums", 
                               combo_idx, time_since_last_release);
@@ -922,8 +918,8 @@ bool SQUIDKEYMAP::shouldSuppressForCombo(size_t switch_index, bool pressed) cons
                 _key_tap_info[switch_index].press_time > 0) {
                 uint32_t press_duration = now - _key_tap_info[switch_index].press_time;
                 
-                // Don't suppress for the first 50ms - allow quick taps
-                if (press_duration < 50) {
+                // Don't suppress for the first ~50ms - allow quick taps
+                if (press_duration < TYPING_FLOW_THRESHOLD) {
                     return false;
                 }
             }
@@ -956,7 +952,7 @@ bool SQUIDKEYMAP::shouldProcessAsNormalKey(size_t switch_index) const {
                     _combo_states[combo_idx].start_time > 0) {
                     // This key is part of an active combo sequence
                     // Only process as normal if it's a very quick press
-                    if ((now - tap_info.press_time) < 30) { // 30ms grace period
+                    if ((now - tap_info.press_time) < TAP_GRACE_PERIOD) { // 30ms grace period
                         return true;
                     }
                     return false;
@@ -1119,7 +1115,7 @@ void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const Lay
         SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu pressed - tap timeout: %u (now: %u)", 
                        switch_index, tap_hold.tap_timeout, now);
     } else {
-        // Key released - CRITICAL: Check if we've passed the tap timeout
+        // Key released - Check if we've passed the tap timeout
         uint32_t press_duration = now - tap_hold.press_time;
         
         // FIRST: Check if the hold action was already sent (timeout occurred while key was pressed)
@@ -1172,7 +1168,7 @@ void SQUIDKEYMAP::updateTapHoldState(size_t switch_index, bool pressed) {
     
     if (pressed) {
         tap_hold.pending_tap = true;
-        tap_hold.tap_timeout = now + 200; // Default 200ms tap timeout
+        tap_hold.tap_timeout = now + TAP_TIMEOUT_MS;
     } else {
         if (tap_hold.pending_tap && now <= tap_hold.tap_timeout) {
             // Send tap action
@@ -1244,7 +1240,7 @@ bool SQUIDKEYMAP::areComboKeysBeingHeld(size_t combo_idx) const {
             
             // Key is considered "held" if it's been pressed for > 50ms
             if (tap_info.press_time > 0 && tap_info.release_time == 0) {
-                if ((now - tap_info.press_time) > 50) {
+                if ((now - tap_info.press_time) > HOLD_THRESHOLD_MS) {
                     return true;
                 }
             }
