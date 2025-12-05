@@ -6,9 +6,9 @@
 #ifndef SPACEMOUSE_H
 #define SPACEMOUSE_H
 
-#include "drivers/Software/HID/SquidHIDTypes.h"
 #include "drivers/Software/Log/Log.h"
 #include "drivers/Software/Event/Types.h"
+#include "drivers/Software/HID/SquidHIDTypes.h"
 #include "drivers/Software/Transport/Transport.h"
 
 #define SPACETRANS_ID 0x04 // 3DConnexion, why tf did you give one thing 3 report IDs?!?!
