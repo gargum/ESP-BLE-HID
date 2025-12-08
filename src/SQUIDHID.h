@@ -231,10 +231,13 @@ public:
   #if KEYBOARD_ENABLE
     size_t    press(NKROKey k);
     size_t    press(ModKey modifier);
+    size_t    press(ShiftedKey shiftedKey);
     size_t    release(NKROKey k);
     size_t    release(ModKey modifier);
+    size_t    release(ShiftedKey shiftedKey);
     size_t    write(uint8_t c);
     size_t    write(ModKey modifier);
+    size_t    write(ShiftedKey shiftedKey);
     void      useNKRO(bool state = enabled);
     void      use6KRO(bool state = enabled);
     bool      isNKROEnabled();
