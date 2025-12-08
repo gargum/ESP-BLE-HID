@@ -906,8 +906,6 @@ void SQUIDHID::release(SpacemouseKey button) { spacemouse.release(button); }
 
 bool SQUIDHID::spacemouseIsPressed(SpacemouseKey button) { return spacemouse.isPressed(button); }
 
-void SQUIDHID::spacemouseSetAllButtons(uint32_t buttons) { spacemouse.setAllButtons(buttons); }
-
 void SQUIDHID::sendSpacemouseReport() { spacemouse.sendReport(); }
 
 
@@ -937,11 +935,11 @@ void SQUIDHID::sendDigitizerReport() { spacemouse.sendReport(); }
 #endif
 
 #if GAMEPAD_ENABLE
-void SQUIDHID::gamepadSetLeftStick(int16_t x, int16_t y) { spacemouse.gamepadSetLeftStick(x, y); }
+void SQUIDHID::setLeftStick(int16_t x, int16_t y) { spacemouse.gamepadSetLeftStick(x, y); }
 
-void SQUIDHID::gamepadSetRightStick(int16_t x, int16_t y) { spacemouse.gamepadSetRightStick(x, y); }
+void SQUIDHID::setRightStick(int16_t x, int16_t y) { spacemouse.gamepadSetRightStick(x, y); }
 
-void SQUIDHID::gamepadSetTriggers(int16_t left, int16_t right) { spacemouse.gamepadSetTriggers(left, right); }
+void SQUIDHID::setTriggers(int16_t left, int16_t right) { spacemouse.gamepadSetTriggers(left, right); }
 
 void SQUIDHID::gamepadSetAxis(SpacemouseAnalogue axis, int16_t value) { spacemouse.gamepadSetAxis(axis, value); }
 
@@ -1002,15 +1000,15 @@ size_t SQUIDHID::release(GamepadButton button) { return gamepad.release(button);
 
 bool SQUIDHID::gamepadIsPressed(GamepadButton button) { return gamepad.gamepadIsPressed(button); }
 
-void SQUIDHID::gamepadSetLeftStick(int16_t x, int16_t y) { gamepad.gamepadSetLeftStick(x, y); }
+void SQUIDHID::setLeftStick(int16_t x, int16_t y) { gamepad.gamepadSetLeftStick(x, y); }
 
-void SQUIDHID::gamepadSetRightStick(int16_t x, int16_t y) { gamepad.gamepadSetRightStick(x, y); }
+void SQUIDHID::setRightStick(int16_t x, int16_t y) { gamepad.gamepadSetRightStick(x, y); }
 
-void SQUIDHID::gamepadSetTriggers(int16_t left, int16_t right) { gamepad.gamepadSetTriggers(left, right); }
+void SQUIDHID::setTriggers(int16_t left, int16_t right) { gamepad.gamepadSetTriggers(left, right); }
 
-void SQUIDHID::gamepadGetLeftStick(int16_t &x, int16_t &y) { gamepad.gamepadGetLeftStick(x, y); }
+void SQUIDHID::getLeftStick(int16_t &x, int16_t &y) { gamepad.gamepadGetLeftStick(x, y); }
 
-void SQUIDHID::gamepadGetRightStick(int16_t &x, int16_t &y) { gamepad.gamepadGetRightStick(x, y); }
+void SQUIDHID::getRightStick(int16_t &x, int16_t &y) { gamepad.gamepadGetRightStick(x, y); }
 
 void SQUIDHID::gamepadSetAxis(GamepadAnalogue axis, int16_t value) { gamepad.gamepadSetAxis(axis, value); }
 
