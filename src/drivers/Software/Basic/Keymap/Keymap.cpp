@@ -43,10 +43,22 @@ void SQUIDKEYMAP::begin(
         _key_tap_info.resize(getKeyCount());
     }
     
-    // Initialize tap/hold tracking - FIX: Scan layers for tap-hold keys
+    // Initialize tap/hold tracking
     _tap_hold_states.clear();
     if (getKeyCount() > 0) {
         _tap_hold_states.resize(getKeyCount());
+        
+        // Initialize tap/hold states based on default layer
+        for (size_t i = 0; i < getKeyCount(); i++) {
+            if (i < _layers[0].size()) {
+                const auto& entry = _layers[0][i];
+                if (entry.action_type == LayerActionType::TAP_HOLD_KEY) {
+                    _tap_hold_states[i].is_tap_hold_key = true;
+                    _tap_hold_states[i].tap_action = entry.action.key;
+                    _tap_hold_states[i].hold_action = entry.action.hold_action;
+                }
+            }
+        }
     }
     
     // Initialize typing flow
@@ -162,6 +174,13 @@ void SQUIDKEYMAP::updateCombos() {
 void SQUIDKEYMAP::update() {
     uint32_t now = millis();
     
+     // DEBUG: Checking to see if update() is even being called
+     static uint32_t last_log = 0;
+     if (now - last_log > 1000) {
+         last_log = now;
+         SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "update() called");
+     }
+    
     // Process delayed key events
     processDelayedEvents();
     
@@ -178,9 +197,12 @@ void SQUIDKEYMAP::update() {
                 SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - switched to HOLD action", i);
                 
                 // Send hold action press
-                if (_press_callback) {
+                if (_press_callback && !tap_hold.hold_action_sent) {
                     _press_callback(tap_hold.hold_action);
                     tap_hold.hold_action_sent = true;
+                    
+                    // DEBUG: Log that hold action was sent
+                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Hold action SENT for key %zu", i);
                 }
             }
         }
@@ -968,14 +990,16 @@ bool SQUIDKEYMAP::shouldProcessAsNormalKey(size_t switch_index) const {
 }
 
 void SQUIDKEYMAP::processNormalKey(size_t switch_index, bool pressed) {
-    // Check if this is a tap/hold key
+    // FIRST, check if this is a tap/hold key
     LayerKeymapEntry action = getKeyAt(switch_index);
     
+    // Check if the action at this position (considering layers) is TAP_HOLD_KEY
     if (action.action_type == LayerActionType::TAP_HOLD_KEY) {
         processTapHoldKey(switch_index, pressed, action);
         return;
     }
     
+    // If not tap/hold, continue with normal processing
     // Check if we've already sent this event
     if (switch_index < _key_tap_info.size()) {
         auto& tap_info = _key_tap_info[switch_index];
@@ -992,17 +1016,6 @@ void SQUIDKEYMAP::processNormalKey(size_t switch_index, bool pressed) {
                 SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Skipping duplicate release for key %zu", switch_index);
             }
             return;
-        }
-    }
-    
-    // Find the highest priority non-transparent key
-    for (int i = _layer_state.active_layers.size() - 1; i >= 0; i--) {
-        uint8_t layer = _layer_state.active_layers[i];
-        if (switch_index < _layers[layer].size()) {
-            action = _layers[layer][switch_index];
-            if (action.action_type != LayerActionType::TRANSPARENT) {
-                break;
-            }
         }
     }
     
@@ -1054,6 +1067,7 @@ void SQUIDKEYMAP::processNormalKey(size_t switch_index, bool pressed) {
             break;
             
         case LayerActionType::TRANSPARENT:
+            // Should have been handled by getKeyAt() returning a non-transparent key
             break;
     }
 }
@@ -1091,17 +1105,17 @@ void SQUIDKEYMAP::processDelayedNormalKey(size_t switch_index) {
 }
 
 void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const LayerKeymapEntry& action) {
-    if (switch_index >= _tap_hold_states.size()) return;
+    if (switch_index >= _tap_hold_states.size()) {
+        // Safety check
+        SQUID_LOG_WARN(LAYER_KEYMAP_TAG, "Switch index %zu out of bounds for tap/hold states", switch_index);
+        return;
+    }
     
     auto& tap_hold = _tap_hold_states[switch_index];
     uint32_t now = millis();
     
-    // Check if this key actually has tap/hold behavior in current layer
-    if (!isTapHoldKey(switch_index)) {
-        // Fall back to normal key processing
-        processNormalKey(switch_index, pressed);
-        return;
-    }
+    // Make sure this is marked as a tap/hold key
+    tap_hold.is_tap_hold_key = true;
     
     if (pressed) {
         // Key pressed - start tap/hold detection
@@ -1109,58 +1123,83 @@ void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const Lay
         tap_hold.pending_tap = true;
         tap_hold.is_held = false;
         tap_hold.hold_action_sent = false;
+        tap_hold.tap_action_sent = false; // Reset tap sent flag
         tap_hold.tap_timeout = now + tap_hold.tap_timeout_ms;
         
-        // Store actions from current layer's keymap entry
+        // Always update actions from current layer (in case layer changed)
         tap_hold.tap_action = action.action.key;
         tap_hold.hold_action = action.action.hold_action;
         
         SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu pressed - tap timeout: %u (now: %u)", 
                        switch_index, tap_hold.tap_timeout, now);
     } else {
-        // Key released - Check if we've passed the tap timeout
+        // Key released
         uint32_t press_duration = now - tap_hold.press_time;
         
-        // FIRST: Check if the hold action was already sent (timeout occurred while key was pressed)
-        if (tap_hold.is_held && tap_hold.hold_action_sent) {
-            // This was a hold - release the hold action
-            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - releasing HOLD action (press duration: %ums)", 
-                           switch_index, press_duration);
-            if (_release_callback) {
-                _release_callback(tap_hold.hold_action);
-            }
-        } 
-        // SECOND: Check if this is still within tap window
-        else if (tap_hold.pending_tap && !tap_hold.is_held) {
-            // Check if enough time has passed to be considered a hold
-            if (press_duration >= tap_hold.tap_timeout_ms) {
-                // Actually, this should have been a hold but hold action wasn't sent yet
-                // This can happen if update() hasn't run since the timeout
-                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - LATE HOLD detected (duration: %ums)", 
+        // DEBUG LOG: Print state before processing release
+        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu released - is_held: %d, pending_tap: %d, hold_action_sent: %d (duration: %ums)", 
+                       switch_index, tap_hold.is_held, tap_hold.pending_tap, tap_hold.hold_action_sent, press_duration);
+        
+        // Check if this was a hold (key held past timeout)
+        if (tap_hold.is_held) {
+            // This was definitely a hold
+            if (tap_hold.hold_action_sent) {
+                // Hold action was already sent by update() - just release it
+                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - releasing HOLD action (duration: %ums)", 
                                switch_index, press_duration);
-                
-                // Send hold press and release
+                if (_release_callback) {
+                    _release_callback(tap_hold.hold_action);
+                }
+            } else {
+                // Hold action wasn't sent yet (edge case) - send press and release
+                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - LATE HOLD (duration: %ums)", 
+                               switch_index, press_duration);
                 if (_press_callback) {
                     _press_callback(tap_hold.hold_action);
                 }
                 if (_release_callback) {
                     _release_callback(tap_hold.hold_action);
                 }
-            } else {
-                // This was a genuine tap
-                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - sending TAP action (duration: %ums)", 
-                               switch_index, press_duration);
-                if (_press_callback) {
-                    _press_callback(tap_hold.tap_action);
-                }
-                if (_release_callback) {
-                    _release_callback(tap_hold.tap_action);
-                }
             }
+        } 
+        // Check if this was a tap (released before timeout)
+        else if (tap_hold.pending_tap) {
+            // This was a tap (released before timeout)
+            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - sending TAP action (duration: %ums)", 
+                           switch_index, press_duration);
+            
+            // Send tap action (press and release)
+            if (_press_callback) {
+                _press_callback(tap_hold.tap_action);
+            }
+            if (_release_callback) {
+                // Small delay for realistic typing
+                delay(10);
+                _release_callback(tap_hold.tap_action);
+            }
+        }
+        // If neither is_held nor pending_tap are true, something went wrong
+        else {
+            SQUID_LOG_WARN(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - unknown state on release (duration: %ums)", 
+                          switch_index, press_duration);
         }
         
         tap_hold.reset();
     }
+}
+
+bool SQUIDKEYMAP::isKeyBeingHeld(size_t switch_index) const {
+    if (switch_index >= _tap_hold_states.size()) return false;
+    
+    const auto& tap_hold = _tap_hold_states[switch_index];
+    if (!tap_hold.is_tap_hold_key) return false;
+    
+    uint32_t now = millis();
+    
+    // Check if key is pressed and held past the tap timeout
+    return (tap_hold.pending_tap && 
+            tap_hold.press_time > 0 && 
+            (now - tap_hold.press_time) > tap_hold.tap_timeout_ms);
 }
 
 void SQUIDKEYMAP::updateTapHoldState(size_t switch_index, bool pressed) {
@@ -1185,6 +1224,7 @@ bool SQUIDKEYMAP::isTapHoldKey(size_t switch_index) const {
     if (switch_index >= getKeyCount()) return false;
     
     // Check current active layers for tap/hold behavior
+    // We need to check ALL layers in the active stack, not stop at the first non-transparent
     for (int i = _layer_state.active_layers.size() - 1; i >= 0; i--) {
         uint8_t layer = _layer_state.active_layers[i];
         if (switch_index < _layers[layer].size()) {
@@ -1192,8 +1232,13 @@ bool SQUIDKEYMAP::isTapHoldKey(size_t switch_index) const {
             if (entry.action_type == LayerActionType::TAP_HOLD_KEY) {
                 return true;
             }
+            // Don't return false here - keep checking lower layers
+            // Only return false if we find a non-transparent key that's not tap/hold
             if (entry.action_type != LayerActionType::TRANSPARENT) {
                 // Found a non-transparent, non-taphold key
+                // But we should still check if it's tap/hold in a higher layer
+                // Actually, we should continue checking because we're checking from highest to lowest
+                // If we found a non-taphold key at this layer, that's what should be used
                 return false;
             }
         }
