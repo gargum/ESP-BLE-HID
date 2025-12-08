@@ -31,6 +31,12 @@ void SQUIDNKRO::onDisconnect() {
     SQUID_LOG_DEBUG(NKRO_TAG, "NKRO disconnected");
 }
 
+void SQUIDNKRO::splitShiftedKey(ShiftedKey shiftedKey, uint8_t* keycode, uint8_t* modifier) {
+    uint16_t value = static_cast<uint16_t>(shiftedKey);
+    *keycode = value & 0xFF;
+    *modifier = (value >> 8) & 0xFF;
+}
+
 size_t SQUIDNKRO::press(NKROKey k) {
     // Convert to underlying type for arithmetic operations
     uint8_t keyValue = static_cast<uint8_t>(k);
@@ -70,6 +76,19 @@ size_t SQUIDNKRO::press(ModKey modifier) {
   return 1;
 }
 
+size_t SQUIDNKRO::press(ShiftedKey shiftedKey) {
+    uint8_t keycode, modifier;
+    splitShiftedKey(shiftedKey, &keycode, &modifier);
+    
+    // Apply the modifier first
+    if (modifier != 0) {
+        press(ModKey{modifier << 8});
+    }
+    
+    // Then press the key
+    return press(NKROKey{keycode});
+}
+
 size_t SQUIDNKRO::release(NKROKey k) {
   // Convert to underlying type for arithmetic operations
   uint8_t keyValue = static_cast<uint8_t>(k);
@@ -102,6 +121,21 @@ size_t SQUIDNKRO::release(ModKey modifier) {
   SQUID_LOG_DEBUG(NKRO_TAG, "Modifier released: 0x%02X", hidModifier);
   sendNKROReport();
   return 1;
+}
+
+size_t SQUIDNKRO::release(ShiftedKey shiftedKey) {
+    uint8_t keycode, modifier;
+    splitShiftedKey(shiftedKey, &keycode, &modifier);
+    
+    // Release the key first
+    release(NKROKey{keycode});
+    
+    // Then release the modifier
+    if (modifier != 0) {
+        release(ModKey{modifier << 8});
+    }
+    
+    return 1;
 }
 
 void SQUIDNKRO::releaseAll() {
@@ -137,6 +171,12 @@ size_t SQUIDNKRO::write(ModKey modifier) {
   size_t p = press(modifier);  // Modifier down
   release(modifier);           // Modifier up
   return p;
+}
+
+size_t SQUIDNKRO::write(ShiftedKey shiftedKey) {
+    size_t result = press(shiftedKey);
+    release(shiftedKey);
+    return result;
 }
 
 void SQUIDNKRO::useNKRO(bool state) {
@@ -216,7 +256,7 @@ uint8_t SQUIDNKRO::charToKeyCode(char c, bool *needShift) {
     if (c == '*')  { *needShift = true;  return 0x25; }            // shift-8
     if (c == '(')  { *needShift = true;  return 0x26; }            // shift-9
 
-    if (c >= 'a' && c <= 'z')            return (c - 'a') + 0x04;   // 0x04…0x1D
+    if (c >= 'a' && c <= 'z') {           return (c - 'a') + 0x04; }  // 0x04…0x1D
     if (c >= 'A' && c <= 'Z') { *needShift = true;  return (c - 'A') + 0x04; }
 
     switch (c)
