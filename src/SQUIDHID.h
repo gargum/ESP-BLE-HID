@@ -257,7 +257,6 @@ public:
     void      press(SpacemouseKey button);
     void      release(SpacemouseKey button);
     bool      spacemouseIsPressed(SpacemouseKey button);
-    void      spacemouseSetAllButtons(uint32_t buttons);
     void      sendSpacemouseReport();
     
     #if MOUSE_ENABLE
@@ -277,9 +276,9 @@ public:
     #endif
     
     #if GAMEPAD_ENABLE
-    void      gamepadSetLeftStick(int16_t x, int16_t y);
-    void      gamepadSetRightStick(int16_t x, int16_t y);
-    void      gamepadSetTriggers(int16_t left, int16_t right);
+    void      setLeftStick(int16_t x, int16_t y);
+    void      setRightStick(int16_t x, int16_t y);
+    void      setTriggers(int16_t left, int16_t right);
     void      gamepadSetAxis(SpacemouseAnalogue axis, int16_t value);
     int16_t   gamepadGetAxis(SpacemouseAnalogue axis);
     void      gamepadSetAllAxes(int16_t values[6]);
@@ -310,11 +309,11 @@ public:
     size_t    press(GamepadButton button);
     size_t    release(GamepadButton button);
     bool      gamepadIsPressed(GamepadButton button);
-    void      gamepadSetLeftStick(int16_t x, int16_t y);
-    void      gamepadSetRightStick(int16_t x, int16_t y);
-    void      gamepadSetTriggers(int16_t left, int16_t right);
-    void      gamepadGetLeftStick(int16_t &x, int16_t &y);
-    void      gamepadGetRightStick(int16_t &x, int16_t &y);
+    void      setLeftStick(int16_t x, int16_t y);
+    void      setRightStick(int16_t x, int16_t y);
+    void      setTriggers(int16_t left, int16_t right);
+    void      getLeftStick(int16_t &x, int16_t &y);
+    void      getRightStick(int16_t &x, int16_t &y);
     void      gamepadSetAxis(GamepadAnalogue axis, int16_t value);
     int16_t   gamepadGetAxis(GamepadAnalogue axis);
     void      gamepadSetAllAxes(int16_t values[GAMEPAD_ANALOGUE_COUNT]);
