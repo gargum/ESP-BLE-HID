@@ -656,6 +656,9 @@ bool SQUIDKEYMAP::checkComboKeyPressed(const ComboKeySpec& spec, const std::vect
                             case KeypressType::MOD_KEY:
                                 if (key.key.mod_key == spec.value.keycode.key.mod_key) return true;
                                 break;
+                            case KeypressType::SHIFTED_KEY:
+                                if (key.key.shifted_key == spec.value.keycode.key.shifted_key) return true;
+                                break;
                             case KeypressType::MEDIA_KEY:
                                 if (key.key.media_key == spec.value.keycode.key.media_key) return true;
                                 break;
