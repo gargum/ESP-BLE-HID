@@ -854,13 +854,19 @@ size_t SQUIDHID::press(NKROKey k) { return nkro.press(k); }
 
 size_t SQUIDHID::press(ModKey modifier) { return nkro.press(modifier); }
 
+size_t SQUIDHID::press(ShiftedKey shiftedKey) { return nkro.press(shiftedKey); }
+
 size_t SQUIDHID::release(NKROKey k) { return nkro.release(k); }
 
 size_t SQUIDHID::release(ModKey modifier) { return nkro.release(modifier); }
 
+size_t SQUIDHID::release(ShiftedKey shiftedKey) { return nkro.release(shiftedKey); }
+
 size_t SQUIDHID::write(uint8_t c) { return nkro.write(c); }
 
 size_t SQUIDHID::write(ModKey modifier) { return nkro.write(modifier); }
+
+size_t SQUIDHID::write(ShiftedKey shiftedKey) { return nkro.write(shiftedKey); }
 
 void SQUIDHID::useNKRO(bool state) { nkro.useNKRO(state); }
 
