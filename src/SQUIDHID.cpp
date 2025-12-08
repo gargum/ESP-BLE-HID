@@ -386,6 +386,8 @@ void SQUIDHID::update() {
         }
     }
     
+    keymap.update();
+    
     if (currentTime - lastPollTime >= POLL_INTERVAL) {
         lastPollTime = currentTime;
         pollConnection();
@@ -737,6 +739,9 @@ void SQUIDHID::setupKeymap(const std::vector<std::vector<LayerKeymapEntry>>& lay
             case KeypressType::MOD_KEY:
                 this->nkro.press(key_entry.key.mod_key);
                 break;
+            case KeypressType::SHIFTED_KEY:
+                this->nkro.press(key_entry.key.shifted_key);
+                break;
             case KeypressType::MEDIA_KEY:
                 #if MEDIA_ENABLE
                 this->media.press(key_entry.key.media_key);
@@ -775,6 +780,9 @@ void SQUIDHID::setupKeymap(const std::vector<std::vector<LayerKeymapEntry>>& lay
                 break;
             case KeypressType::MOD_KEY:
                 this->nkro.release(key_entry.key.mod_key);
+                break;
+            case KeypressType::SHIFTED_KEY:
+                this->nkro.release(key_entry.key.shifted_key);
                 break;
             case KeypressType::MEDIA_KEY:
                 #if MEDIA_ENABLE
