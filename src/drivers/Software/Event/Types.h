@@ -19,6 +19,7 @@ struct KeyTag {};
 struct ModKeyTag             : KeyTag {};
 struct MediaKeyTag           : KeyTag {};
 struct NKROKeyTag            : KeyTag {};
+struct ShiftedKeyTag         : KeyTag {};
 struct StenoKeyTag           : KeyTag {};
 struct GamepadKeyTag         : KeyTag {};
 struct GamepadHatTag         : KeyTag {};
@@ -61,6 +62,7 @@ public:
 using ModKey             = KeyType<ModKeyTag>;
 using MediaKey           = KeyType<MediaKeyTag>;
 using NKROKey            = KeyType<NKROKeyTag>;
+using ShiftedKey         = KeyType<ShiftedKeyTag>;
 using StenoKey           = KeyType<StenoKeyTag>;
 using GamepadButton      = KeyType<GamepadKeyTag>;
 using GamepadHat         = KeyType<GamepadHatTag>;
@@ -84,6 +86,10 @@ constexpr MediaKey operator"" _media(unsigned long long value) {
 
 constexpr NKROKey operator"" _nkro(unsigned long long value) {
     return NKROKey(static_cast<int32_t>(value));
+}
+
+constexpr ShiftedKey operator"" _shifted(unsigned long long value) {
+    return ShiftedKey(static_cast<int32_t>(value));
 }
 
 constexpr StenoKey operator"" _steno(unsigned long long value) {
