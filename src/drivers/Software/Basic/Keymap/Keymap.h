@@ -19,6 +19,7 @@
 union KeymapValue {
     NKROKey            nkro_key;
     ModKey             mod_key;
+    ShiftedKey         shifted_key;
     MediaKey           media_key;
     StenoKey           steno_key;
     GamepadButton      gamepad_button;
@@ -35,6 +36,7 @@ union KeymapValue {
     KeymapValue() : nkro_key(NKROKey{0}) {}
     KeymapValue(NKROKey k) : nkro_key(k) {}
     KeymapValue(ModKey k) : mod_key(k) {}
+    KeymapValue(ShiftedKey k) : shifted_key(k) {}
     KeymapValue(MediaKey k) : media_key(k) {}
     KeymapValue(StenoKey k) : steno_key(k) {}
     KeymapValue(GamepadButton k) : gamepad_button(k) {}
@@ -53,6 +55,7 @@ union KeymapValue {
 enum class KeypressType {
     NKRO_KEY,
     MOD_KEY,
+    SHIFTED_KEY,
     MEDIA_KEY,
     STENO_KEY,
     GAMEPAD_BUTTON,
@@ -75,6 +78,7 @@ struct KeymapEntry {
     // Constructors for each key type
     KeymapEntry(NKROKey k) : type(KeypressType::NKRO_KEY), key(k) {}
     KeymapEntry(ModKey k) : type(KeypressType::MOD_KEY), key(k) {}
+    KeymapEntry(ShiftedKey k) : type(KeypressType::SHIFTED_KEY), key(k) {}
     KeymapEntry(MediaKey k) : type(KeypressType::MEDIA_KEY), key(k) {}
     KeymapEntry(StenoKey k) : type(KeypressType::STENO_KEY), key(k) {}
     KeymapEntry(GamepadButton k) : type(KeypressType::GAMEPAD_BUTTON), key(k) {}
@@ -128,9 +132,32 @@ inline bool operator==(const KeymapEntry& lhs, const KeymapEntry& rhs) {
             return lhs.key.nkro_key == rhs.key.nkro_key;
         case KeypressType::MOD_KEY:
             return lhs.key.mod_key == rhs.key.mod_key;
+        case KeypressType::SHIFTED_KEY:
+            return lhs.key.shifted_key == rhs.key.shifted_key;
         case KeypressType::MEDIA_KEY:
             return lhs.key.media_key == rhs.key.media_key;
-        // ... add cases for other key types
+        case KeypressType::STENO_KEY:
+            return lhs.key.steno_key == rhs.key.steno_key;
+        case KeypressType::GAMEPAD_BUTTON:
+            return lhs.key.gamepad_button == rhs.key.gamepad_button;
+        case KeypressType::GAMEPAD_HAT:
+            return lhs.key.gamepad_hat == rhs.key.gamepad_hat;
+        case KeypressType::GAMEPAD_ANALOGUE:
+            return lhs.key.gamepad_analogue == rhs.key.gamepad_analogue;
+        case KeypressType::MOUSE_KEY:
+            return lhs.key.mouse_key == rhs.key.mouse_key;
+        case KeypressType::MOUSE_ANALOGUE:
+            return lhs.key.mouse_analogue == rhs.key.mouse_analogue;
+        case KeypressType::DIGITIZER_KEY:
+            return lhs.key.digitizer_key == rhs.key.digitizer_key;
+        case KeypressType::DIGITIZER_ANALOGUE:
+            return lhs.key.digitizer_analogue == rhs.key.digitizer_analogue;
+        case KeypressType::SPACEMOUSE_KEY:
+            return lhs.key.spacemouse_key == rhs.key.spacemouse_key;
+        case KeypressType::SPACEMOUSE_ANALOGUE:
+            return lhs.key.spacemouse_analogue == rhs.key.spacemouse_analogue;
+        case KeypressType::HAPTIC_KEY:
+            return lhs.key.haptic_key == rhs.key.haptic_key;
         default:
             return memcmp(&lhs.key, &rhs.key, sizeof(KeymapValue)) == 0;
     }
@@ -314,6 +341,11 @@ struct LayerKeymapEntry {
     }
     
     LayerKeymapEntry(ModKey k) 
+        : action_type(LayerActionType::NORMAL_KEY) { 
+        action.key = KeymapEntry(k);
+    }
+    
+    LayerKeymapEntry(ShiftedKey k) 
         : action_type(LayerActionType::NORMAL_KEY) { 
         action.key = KeymapEntry(k);
     }
