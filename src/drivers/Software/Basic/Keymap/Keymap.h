@@ -482,11 +482,12 @@ struct TapHoldState {
     uint16_t tap_timeout_ms;        // Configurable tap timeout
     uint16_t hold_threshold_ms;     // Configurable hold threshold
     bool hold_action_sent;          // Whether the hold action has been sent
+    bool tap_action_sent;           // Whether the tap action was sent (for cleanup)
     
     TapHoldState() : is_tap_hold_key(false), pending_tap(false), is_held(false),
                      press_time(0), tap_timeout(0), tap_action(), hold_action(),
                      tap_timeout_ms(200), hold_threshold_ms(150),
-                     hold_action_sent(false) {}
+                     hold_action_sent(false), tap_action_sent(false) {}
     
     void reset() {
         pending_tap = false;
@@ -494,6 +495,7 @@ struct TapHoldState {
         tap_timeout = 0;
         press_time = 0;
         hold_action_sent = false;
+        tap_action_sent = false;
     }
 };
 
@@ -567,9 +569,9 @@ private:
     void sendComboAction(const KeymapEntry& action, bool pressed);
     
     // Tap/Hold methods
-    // Methods for tap/hold handling
     void updateTapHoldState(size_t switch_index, bool pressed);
     bool isTapHoldKey(size_t switch_index) const;
+    bool isKeyBeingHeld(size_t switch_index) const;
     void sendTapAction(size_t switch_index);
     void cancelPendingTap(size_t switch_index);
     void processDelayedEvents();
