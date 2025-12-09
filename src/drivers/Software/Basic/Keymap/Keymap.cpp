@@ -253,6 +253,12 @@ void SQUIDKEYMAP::update() {
     // Process delayed key events
     processDelayedEvents();
     
+    static uint32_t last_cleanup = 0;
+    if (now - last_cleanup > HOLD_THRESHOLD_MS) {
+        last_cleanup = now;
+        cleanupStuckCombos();
+    }
+    
     // Check for tap/hold timeouts
     for (size_t i = 0; i < _tap_hold_states.size(); i++) {
         auto& tap_hold = _tap_hold_states[i];
@@ -603,7 +609,18 @@ void SQUIDKEYMAP::checkCombo(size_t combo_idx) {
     }
     
     if (state.triggered) {
-        // Combo already triggered, check for release
+        uint32_t now = millis();
+        
+        // NEW: Add a timeout for triggered combos
+        // If combo has been triggered for too long, force release it
+        if (now - state.start_time > combo.timeout_ms * 3) { // 3x the combo timeout
+            sendComboAction(combo.action, false);
+            resetComboState(combo_idx);
+            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu force-released after timeout", combo_idx);
+            return;
+        }
+        
+        // Check if all keys are released (ORIGINAL LOGIC)
         bool all_released = true;
         for (bool pressed : state.pressed_keys) {
             if (pressed) {
@@ -612,7 +629,28 @@ void SQUIDKEYMAP::checkCombo(size_t combo_idx) {
             }
         }
         
-        if (all_released) {
+        // NEW: Also release if ANY key is released (more user-friendly)
+        bool any_just_released = false;
+        for (size_t i = 0; i < state.pressed_keys.size(); i++) {
+            // Check if this key was pressed before but is now released
+            if (!state.pressed_keys[i]) {
+                // Look at the actual key to see if it's been released for a while
+                if (combo.key_specs[i].type == ComboKeySpec::Type::POSITION) {
+                    size_t pos = combo.key_specs[i].value.position;
+                    if (pos < _key_tap_info.size()) {
+                        auto& tap_info = _key_tap_info[pos];
+                        // If key was released more than 50ms ago, consider it "done"
+                        if (tap_info.release_time > 0 && 
+                            (now - tap_info.release_time) > 50) {
+                            any_just_released = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (all_released || any_just_released) {
             // Send release event for combo action
             sendComboAction(combo.action, false);
             state.triggered = false;
@@ -631,7 +669,11 @@ void SQUIDKEYMAP::checkCombo(size_t combo_idx) {
                 _early_timeout_info[combo_idx] = EarlyTimeoutInfo();
             }
             
-            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu released", combo_idx);
+            // IMPORTANT: Reset tap/hold states for combo keys
+            resetTapHoldForCombo(combo_idx);
+            
+            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu released (all_released: %d, any_just_released: %d)", 
+                          combo_idx, all_released, any_just_released);
         }
         return;
     }
@@ -665,6 +707,26 @@ void SQUIDKEYMAP::triggerCombo(size_t combo_idx, bool pressed) {
     auto& state = _combo_states[combo_idx];
     
     state.triggered = pressed;
+    
+    // If combo is being triggered, reset tap/hold states for all keys in the combo
+    if (pressed) {
+        resetTapHoldForCombo(combo_idx);
+        
+        // Also cancel any pending delayed events for these keys
+        for (const auto& key_spec : combo.key_specs) {
+            if (key_spec.type == ComboKeySpec::Type::POSITION) {
+                size_t pos = key_spec.value.position;
+                
+                // Remove delayed events for this key
+                auto it = std::remove_if(_delayed_key_events.begin(), _delayed_key_events.end(),
+                    [pos](const DelayedKeyEvent& event) {
+                        return event.switch_index == pos;
+                    });
+                _delayed_key_events.erase(it, _delayed_key_events.end());
+            }
+        }
+    }
+    
     sendComboAction(combo.action, pressed);
     
     SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu %s", combo_idx, 
@@ -847,13 +909,11 @@ void SQUIDKEYMAP::resetComboState(size_t combo_idx) {
         if (combo.key_specs[i].type == ComboKeySpec::Type::POSITION) {
             size_t pos = combo.key_specs[i].value.position;
             _keys_in_active_combos.erase(pos);
-            
-            // Reset tap info for this key
-            if (pos < _key_tap_info.size()) {
-                _key_tap_info[pos].reset();
-            }
         }
     }
+    
+    // Reset tap/hold for this combo's keys
+    resetTapHoldForCombo(combo_idx);
     
     // Reset state
     state.start_time = 0;
@@ -867,6 +927,24 @@ void SQUIDKEYMAP::resetComboState(size_t combo_idx) {
     }
     
     SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu reset", combo_idx);
+}
+
+void SQUIDKEYMAP::resetTapHoldForCombo(size_t combo_idx) {
+    if (combo_idx >= _combo_tap_hold_info.size()) return;
+    
+    const auto& tap_hold_info = _combo_tap_hold_info[combo_idx];
+    
+    // Reset tap/hold state for all keys in this combo
+    for (size_t key_idx : tap_hold_info.combo_keys) {
+        if (key_idx < _tap_hold_states.size()) {
+            _tap_hold_states[key_idx].reset();
+            
+            // Also reset the key's tap info
+            if (key_idx < _key_tap_info.size()) {
+                _key_tap_info[key_idx].reset();
+            }
+        }
+    }
 }
 
 void SQUIDKEYMAP::updateEarlyTimeoutInfo(size_t combo_idx, bool key_pressed) {
@@ -1213,7 +1291,6 @@ void SQUIDKEYMAP::processDelayedNormalKey(size_t switch_index) {
 
 void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const LayerKeymapEntry& action) {
     if (switch_index >= _tap_hold_states.size()) {
-        // Safety check
         SQUID_LOG_WARN(LAYER_KEYMAP_TAG, "Switch index %zu out of bounds for tap/hold states", switch_index);
         return;
     }
@@ -1221,19 +1298,64 @@ void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const Lay
     auto& tap_hold = _tap_hold_states[switch_index];
     uint32_t now = millis();
     
-    // Make sure this is marked as a tap/hold key
-    tap_hold.is_tap_hold_key = true;
+    // Check if this key is part of an active combo that has already triggered
+    bool is_in_triggered_combo = false;
+    uint32_t combo_trigger_time = 0;
+    auto combo_it = _combo_key_to_combo_idx.find(switch_index);
+    if (combo_it != _combo_key_to_combo_idx.end()) {
+        for (size_t combo_idx : combo_it->second) {
+            if (combo_idx < _combo_states.size() && _combo_states[combo_idx].triggered) {
+                is_in_triggered_combo = true;
+                combo_trigger_time = _combo_states[combo_idx].start_time;
+                break;
+            }
+        }
+    }
     
-    // Check if this key is part of an active combo sequence
+    // Only suppress if combo was triggered VERY recently (last 200ms)
+    // This prevents long-term suppression
+    if (is_in_triggered_combo && combo_trigger_time > 0) {
+        uint32_t time_since_trigger = now - combo_trigger_time;
+        if (time_since_trigger < 200) { // Only suppress for 200ms after combo trigger
+            if (pressed) {
+                // Don't start tap/hold tracking for keys in recently triggered combos
+                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, 
+                    "Tap/Hold key %zu suppressed - part of recently triggered combo (%ums ago)", 
+                    switch_index, time_since_trigger);
+                tap_hold.reset();
+            } else {
+                // Just reset on release
+                tap_hold.reset();
+            }
+            return;
+        } else {
+            // Combo was triggered a while ago, allow normal tap/hold
+            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, 
+                "Tap/Hold key %zu allowed - combo was triggered %ums ago", 
+                switch_index, time_since_trigger);
+            // Fall through to normal processing
+        }
+    }
+    
+    // Make sure this is marked as a tap/hold key (unless we're resetting it)
+    if (!tap_hold.is_tap_hold_key) {
+        tap_hold.is_tap_hold_key = true;
+    }
+    
+    // Check if this key is part of an active combo sequence (timing but not triggered yet)
     bool in_combo_sequence = isKeyInComboSequence(switch_index);
     
     if (pressed) {
+        // Reset tap/hold state completely for new press
+        tap_hold.reset();
+        tap_hold.is_tap_hold_key = true;
+        
         // Key pressed - start tap/hold detection
         tap_hold.press_time = now;
         tap_hold.pending_tap = true;
         tap_hold.is_held = false;
         tap_hold.hold_action_sent = false;
-        tap_hold.tap_action_sent = false; // Reset tap sent flag
+        tap_hold.tap_action_sent = false;
         tap_hold.tap_timeout = now + tap_hold.tap_timeout_ms;
         
         // Always update actions from current layer (in case layer changed)
@@ -1253,28 +1375,6 @@ void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const Lay
     } else {
         // Key released
         uint32_t press_duration = now - tap_hold.press_time;
-        
-        // DEBUG LOG: Print state before processing release
-        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu released - is_held: %d, pending_tap: %d, hold_action_sent: %d, in_combo: %d (duration: %ums)", 
-                       switch_index, tap_hold.is_held, tap_hold.pending_tap, tap_hold.hold_action_sent, in_combo_sequence, press_duration);
-        
-        // Special case: If this key is part of an active combo that triggered,
-        // we might need to suppress the tap/hold action
-        if (in_combo_sequence) {
-            // Check if any combo involving this key has triggered
-            auto it = _combo_key_to_combo_idx.find(switch_index);
-            if (it != _combo_key_to_combo_idx.end()) {
-                for (size_t combo_idx : it->second) {
-                    if (combo_idx < _combo_states.size() && _combo_states[combo_idx].triggered) {
-                        // Combo has triggered - suppress tap/hold action
-                        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - combo triggered, suppressing tap/hold", 
-                                       switch_index);
-                        tap_hold.reset();
-                        return;
-                    }
-                }
-            }
-        }
         
         // Check if this was a hold (key held past timeout)
         if (tap_hold.is_held) {
@@ -1314,12 +1414,8 @@ void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const Lay
                 _release_callback(tap_hold.tap_action);
             }
         }
-        // If neither is_held nor pending_tap are true, something went wrong
-        else {
-            SQUID_LOG_WARN(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - unknown state on release (duration: %ums)", 
-                          switch_index, press_duration);
-        }
         
+        // Always reset tap/hold state on release
         tap_hold.reset();
     }
 }
@@ -1451,6 +1547,34 @@ bool SQUIDKEYMAP::areComboKeysBeingTapped(size_t combo_idx) const {
     }
     
     return true;
+}
+
+void SQUIDKEYMAP::cleanupStuckCombos() {
+    uint32_t now = millis();
+    
+    for (size_t i = 0; i < _combo_states.size(); i++) {
+        auto& state = _combo_states[i];
+        
+        if (state.triggered) {
+            uint32_t trigger_duration = now - state.start_time;
+            
+            // If combo has been triggered for more than 1 second, force release it
+            if (trigger_duration > 1000) {
+                SQUID_LOG_WARN(LAYER_KEYMAP_TAG, 
+                    "Combo %zu stuck in triggered state for %ums - force releasing", 
+                    i, trigger_duration);
+                
+                // Send release event
+                sendComboAction(_key_combos[i].action, false);
+                
+                // Reset the state
+                resetComboState(i);
+                
+                // Also log which keys might be causing the issue
+                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo keys reset");
+            }
+        }
+    }
 }
 
 bool SQUIDKEYMAP::detectTypingFlow(size_t switch_index, bool pressed) {
