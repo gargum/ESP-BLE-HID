@@ -490,12 +490,15 @@ struct TapHoldState {
                      hold_action_sent(false), tap_action_sent(false) {}
     
     void reset() {
+        is_tap_hold_key = false;
         pending_tap = false;
         is_held = false;
         tap_timeout = 0;
         press_time = 0;
         hold_action_sent = false;
         tap_action_sent = false;
+        tap_action = KeymapEntry();
+        hold_action = KeymapEntry();
     }
 };
 
@@ -562,6 +565,7 @@ private:
     void updateComboForKey(size_t switch_index, bool pressed);
     void updateKeycodeMappings();
     void checkCombo(size_t combo_idx);
+    void cleanupStuckCombos();
     bool checkComboKeyPressed(const ComboKeySpec& spec, const std::vector<bool>& key_states);
     bool isKeyInActiveCombo(size_t switch_index) const;
     bool isKeyInComboSequence(size_t switch_index) const;
@@ -639,6 +643,7 @@ public:
     void processNormalKey(size_t switch_index, bool pressed);
     void processDelayedNormalKey(size_t switch_index);
     void setComboTapHold(size_t combo_idx, bool enabled, uint16_t tap_timeout = 150);
+    void resetTapHoldForCombo(size_t combo_idx);
     
     // Debugging helpers
     void enableComboDebug(bool enabled) { _combo_debug_enabled = enabled; }
