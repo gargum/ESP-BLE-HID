@@ -564,6 +564,7 @@ private:
     void checkCombo(size_t combo_idx);
     bool checkComboKeyPressed(const ComboKeySpec& spec, const std::vector<bool>& key_states);
     bool isKeyInActiveCombo(size_t switch_index) const;
+    bool isKeyInComboSequence(size_t switch_index) const;
     bool isAnyComboTriggered() const;
     void triggerCombo(size_t combo_idx, bool pressed);
     void sendComboAction(const KeymapEntry& action, bool pressed);
