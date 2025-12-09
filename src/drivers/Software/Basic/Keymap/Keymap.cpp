@@ -90,43 +90,112 @@ void SQUIDKEYMAP::handleKeyEvent(size_t switch_index, bool pressed) {
     // Update tap tracking FIRST
     updateKeyTapInfo(switch_index, pressed);
     
-    // Check if this key is part of any combo
+    // Check if this key's position was mapped to any combos
     bool is_part_of_combo = (_combo_key_to_combo_idx.find(switch_index) != _combo_key_to_combo_idx.end());
     
-    // Update combo states if this key is part of a combo
-    if (is_part_of_combo) {
-        updateComboForKey(switch_index, pressed);
-    }
-    
-    // For keys that are part of combos, delay processing to see if they form a combo.
-    // Only process immediately if we're in typing flow
-    if (is_part_of_combo && !pressed) {
-        // Key release - check if we need to send delayed press/release
-        if (switch_index < _key_tap_info.size()) {
-            auto& tap_info = _key_tap_info[switch_index];
-            if (!tap_info.sent_as_normal && tap_info.is_tap) {
-                // This was a quick tap that was suppressed - send it now
-                tap_info.sent_as_normal = true;
-                processNormalKey(switch_index, true);
-                processNormalKey(switch_index, false);
-                
-                if (_combo_debug_enabled) {
-                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Sending suppressed tap for key %zu", switch_index);
+    // Also check if this key's keycode is part of any combo
+    if (!is_part_of_combo) {
+        KeymapEntry current_key = getEffectiveKeyAt(switch_index);
+        auto keycode_it = _combo_keycode_to_combo_idx.find(current_key);
+        if (keycode_it != _combo_keycode_to_combo_idx.end()) {
+            is_part_of_combo = true;
+            // Also ensure this position is mapped
+            if (_combo_key_to_combo_idx.find(switch_index) == _combo_key_to_combo_idx.end()) {
+                for (size_t combo_idx : keycode_it->second) {
+                    _combo_key_to_combo_idx[switch_index].push_back(combo_idx);
                 }
             }
+        }
+    }
+    
+    // Check if this key is a tap/hold key
+    LayerKeymapEntry action = getKeyAt(switch_index);
+    bool is_tap_hold_key = (action.action_type == LayerActionType::TAP_HOLD_KEY);
+    
+    // If this key is BOTH a tap/hold key AND part of a combo, we need special handling
+    if (is_tap_hold_key && is_part_of_combo) {
+        // For tap/hold keys that are also in combos, we need to process them immediately
+        // to detect tap/hold, but also track them for combos
+        if (pressed) {
+            // Process tap/hold immediately
+            processTapHoldKey(switch_index, pressed, action);
+            
+            // Also update combo tracking
+            updateComboForKey(switch_index, pressed);
+        } else {
+            // On release, we need to check if this was a tap or hold
+            // before deciding whether to update combo state
+            
+            // First, check if this key is currently considered a tap
+            bool was_tap = isKeyTap(switch_index);
+            
+            if (was_tap) {
+                // If it was a tap, update combo state (taps can form combos)
+                updateComboForKey(switch_index, pressed);
+            } else {
+                // If it was a hold, don't update combo state
+                // (holds shouldn't interfere with combo detection)
+                if (_combo_debug_enabled) {
+                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Key %zu was a hold, skipping combo update", switch_index);
+                }
+            }
+            
+            // Process tap/hold release
+            processTapHoldKey(switch_index, pressed, action);
         }
         return;
     }
     
-    // For key presses that are part of combos, add a small delay
-    if (is_part_of_combo && pressed) {
-        // Add a small delay (magic number of 30ms here currently) to see if this becomes part of a combo
-        _delayed_key_events.emplace_back(switch_index, pressed, now + 30);
-        return;
+    // If it's just a combo key (not tap/hold), use existing logic
+    if (is_part_of_combo) {
+        updateComboForKey(switch_index, pressed);
+        
+        // For keys that are part of combos, delay processing to see if they form a combo.
+        // Only process immediately if we're in typing flow
+        if (!pressed) {
+            // Key release - check if we need to send delayed press/release
+            if (switch_index < _key_tap_info.size()) {
+                auto& tap_info = _key_tap_info[switch_index];
+                if (!tap_info.sent_as_normal && tap_info.is_tap) {
+                    // This was a quick tap that was suppressed - send it now
+                    tap_info.sent_as_normal = true;
+                    processNormalKey(switch_index, true);
+                    processNormalKey(switch_index, false);
+                    
+                    if (_combo_debug_enabled) {
+                        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Sending suppressed tap for key %zu", switch_index);
+                    }
+                }
+            }
+            return;
+        }
+        
+        // For key presses that are part of combos, add a small delay
+        if (pressed) {
+            // Add a small delay (magic number of 30ms here currently) to see if this becomes part of a combo
+            _delayed_key_events.emplace_back(switch_index, pressed, now + 30);
+            return;
+        }
     }
     
-    // Process normal keys immediately
+    // Process normal keys immediately (including tap/hold keys that aren't in combos)
     processNormalKey(switch_index, pressed);
+}
+
+bool SQUIDKEYMAP::isKeyInComboSequence(size_t switch_index) const {
+    auto it = _combo_key_to_combo_idx.find(switch_index);
+    if (it == _combo_key_to_combo_idx.end()) {
+        return false;
+    }
+    
+    // Check if this key is part of any combo that's currently timing
+    for (size_t combo_idx : it->second) {
+        if (combo_idx < _combo_states.size() && _combo_states[combo_idx].start_time > 0) {
+            return true;
+        }
+    }
+    
+    return false;
 }
 
 void SQUIDKEYMAP::updateCombos() {
@@ -189,20 +258,41 @@ void SQUIDKEYMAP::update() {
         auto& tap_hold = _tap_hold_states[i];
         
         if (tap_hold.is_tap_hold_key && tap_hold.pending_tap) {
+            // Check if this key is part of an active combo sequence
+            bool in_combo_sequence = isKeyInComboSequence(i);
+            
             if (now > tap_hold.tap_timeout && !tap_hold.is_held) {
                 // Tap timed out - this becomes a hold
                 tap_hold.is_held = true;
                 tap_hold.pending_tap = false;
                 
-                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - switched to HOLD action", i);
+                // Check if we should send hold action
+                // Don't send if this key is part of a triggered combo
+                bool should_send_hold = true;
+                auto it = _combo_key_to_combo_idx.find(i);
+                if (it != _combo_key_to_combo_idx.end()) {
+                    for (size_t combo_idx : it->second) {
+                        if (combo_idx < _combo_states.size() && _combo_states[combo_idx].triggered) {
+                            should_send_hold = false;
+                            break;
+                        }
+                    }
+                }
                 
-                // Send hold action press
-                if (_press_callback && !tap_hold.hold_action_sent) {
-                    _press_callback(tap_hold.hold_action);
-                    tap_hold.hold_action_sent = true;
+                if (should_send_hold) {
+                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - switched to HOLD action (in combo: %d)", 
+                                   i, in_combo_sequence);
                     
-                    // DEBUG: Log that hold action was sent
-                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Hold action SENT for key %zu", i);
+                    // Send hold action press
+                    if (_press_callback && !tap_hold.hold_action_sent) {
+                        _press_callback(tap_hold.hold_action);
+                        tap_hold.hold_action_sent = true;
+                        
+                        // DEBUG: Log that hold action was sent
+                        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Hold action SENT for key %zu", i);
+                    }
+                } else {
+                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - hold suppressed due to triggered combo", i);
                 }
             }
         }
@@ -612,12 +702,26 @@ bool SQUIDKEYMAP::isComboActive(size_t combo_idx) const {
 void SQUIDKEYMAP::updateKeycodeMappings() {
     _keycode_to_positions.clear();
     
-    for (size_t pos = 0; pos < getKeyCount(); pos++) {
-        KeymapEntry key = getEffectiveKeyAt(pos);
-        if (key.type != KeypressType::NKRO_KEY || key.key.nkro_key.get() != 0) {
-            _keycode_to_positions[key].push_back(pos);
+    for (size_t layer_idx = 0; layer_idx < _layers.size(); layer_idx++) {
+        for (size_t pos = 0; pos < _layers[layer_idx].size(); pos++) {
+            const auto& layer_entry = _layers[layer_idx][pos];
+            
+            // Only map NORMAL_KEY actions (tap/hold tap actions handled separately)
+            if (layer_entry.action_type == LayerActionType::NORMAL_KEY) {
+                _keycode_to_positions[layer_entry.action.key].push_back(pos);
+            }
+            // Also map TAP_HOLD_KEY tap actions
+            else if (layer_entry.action_type == LayerActionType::TAP_HOLD_KEY) {
+                _keycode_to_positions[layer_entry.action.key].push_back(pos);
+                // Optionally map hold actions too if needed
+                _keycode_to_positions[layer_entry.action.hold_action].push_back(pos);
+            }
         }
     }
+    
+    // Log for debugging
+    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Keycode mappings updated - %zu unique keycodes", 
+                   _keycode_to_positions.size());
 }
 
 std::vector<size_t> SQUIDKEYMAP::getPositionsForComboKey(const ComboKeySpec& spec) {
@@ -670,33 +774,36 @@ bool SQUIDKEYMAP::checkComboKeyPressed(const ComboKeySpec& spec, const std::vect
                 if (key_states[pos]) {
                     KeymapEntry key = getEffectiveKeyAt(pos);
                     if (key.type == spec.value.keycode.type) {
+                        bool match = false;
                         // Compare based on type
                         switch (key.type) {
                             case KeypressType::NKRO_KEY:
-                                if (key.key.nkro_key == spec.value.keycode.key.nkro_key) return true;
+                                match = (key.key.nkro_key == spec.value.keycode.key.nkro_key);
                                 break;
                             case KeypressType::MOD_KEY:
-                                if (key.key.mod_key == spec.value.keycode.key.mod_key) return true;
+                                match = (key.key.mod_key == spec.value.keycode.key.mod_key);
                                 break;
                             case KeypressType::SHIFTED_KEY:
-                                if (key.key.shifted_key == spec.value.keycode.key.shifted_key) return true;
+                                match = (key.key.shifted_key == spec.value.keycode.key.shifted_key);
                                 break;
                             case KeypressType::MEDIA_KEY:
-                                if (key.key.media_key == spec.value.keycode.key.media_key) return true;
+                                match = (key.key.media_key == spec.value.keycode.key.media_key);
                                 break;
                             case KeypressType::MOUSE_KEY:
-                                if (key.key.mouse_key == spec.value.keycode.key.mouse_key) return true;
+                                match = (key.key.mouse_key == spec.value.keycode.key.mouse_key);
                                 break;
                             case KeypressType::GAMEPAD_BUTTON:
-                                if (key.key.gamepad_button == spec.value.keycode.key.gamepad_button) return true;
+                                match = (key.key.gamepad_button == spec.value.keycode.key.gamepad_button);
                                 break;
                             case KeypressType::STENO_KEY:
-                                if (key.key.steno_key == spec.value.keycode.key.steno_key) return true;
+                                match = (key.key.steno_key == spec.value.keycode.key.steno_key);
                                 break;
                             default:
-                                if (memcmp(&key.key, &spec.value.keycode.key, sizeof(KeymapValue)) == 0) {
-                                    return true;
-                                }
+                                 match = (memcmp(&key.key, &spec.value.keycode.key, sizeof(KeymapValue)) == 0);
+                        }
+                        
+                        if (match) {
+                            return true;
                         }
                     }
                 }
@@ -1117,6 +1224,9 @@ void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const Lay
     // Make sure this is marked as a tap/hold key
     tap_hold.is_tap_hold_key = true;
     
+    // Check if this key is part of an active combo sequence
+    bool in_combo_sequence = isKeyInComboSequence(switch_index);
+    
     if (pressed) {
         // Key pressed - start tap/hold detection
         tap_hold.press_time = now;
@@ -1130,15 +1240,41 @@ void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const Lay
         tap_hold.tap_action = action.action.key;
         tap_hold.hold_action = action.action.hold_action;
         
-        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu pressed - tap timeout: %u (now: %u)", 
-                       switch_index, tap_hold.tap_timeout, now);
+        if (in_combo_sequence) {
+            // If we're in a combo sequence, adjust tap timeout to be shorter
+            // This allows combos to form while still allowing tap/hold
+            tap_hold.tap_timeout = now + (tap_hold.tap_timeout_ms / 2);
+            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu pressed - in combo sequence, shortened timeout: %u", 
+                           switch_index, tap_hold.tap_timeout);
+        } else {
+            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu pressed - tap timeout: %u", 
+                           switch_index, tap_hold.tap_timeout);
+        }
     } else {
         // Key released
         uint32_t press_duration = now - tap_hold.press_time;
         
         // DEBUG LOG: Print state before processing release
-        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu released - is_held: %d, pending_tap: %d, hold_action_sent: %d (duration: %ums)", 
-                       switch_index, tap_hold.is_held, tap_hold.pending_tap, tap_hold.hold_action_sent, press_duration);
+        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu released - is_held: %d, pending_tap: %d, hold_action_sent: %d, in_combo: %d (duration: %ums)", 
+                       switch_index, tap_hold.is_held, tap_hold.pending_tap, tap_hold.hold_action_sent, in_combo_sequence, press_duration);
+        
+        // Special case: If this key is part of an active combo that triggered,
+        // we might need to suppress the tap/hold action
+        if (in_combo_sequence) {
+            // Check if any combo involving this key has triggered
+            auto it = _combo_key_to_combo_idx.find(switch_index);
+            if (it != _combo_key_to_combo_idx.end()) {
+                for (size_t combo_idx : it->second) {
+                    if (combo_idx < _combo_states.size() && _combo_states[combo_idx].triggered) {
+                        // Combo has triggered - suppress tap/hold action
+                        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - combo triggered, suppressing tap/hold", 
+                                       switch_index);
+                        tap_hold.reset();
+                        return;
+                    }
+                }
+            }
+        }
         
         // Check if this was a hold (key held past timeout)
         if (tap_hold.is_held) {
