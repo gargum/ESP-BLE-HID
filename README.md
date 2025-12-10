@@ -90,8 +90,6 @@ void loop() {
   delay(2000);
   esp.write(KC_SLSH);      // You can also simply output any keyboard key one time in one command using 'write'.
   delay(2000);             // Please note that 'write' is NOT compatible with gamepad or mouse inputs at this time.
-  esp.print("You can print text strings using SQUIDHID as well!");
-  delay(2000);
 
   esp.press(MO_BTN1);  // The press function allows supports mouse buttons. 
   delay(2000);  
