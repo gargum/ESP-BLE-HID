@@ -38,6 +38,13 @@ NimBLE, USB, and PS/2 are the available transport methods supported by SquidHID 
 
  Some systems support older forms of Bluetooth like Bluedroid, but not the more modern NimBLE stack. Contemporary hardware in general and any hardware with support for things like BLE Audio will work with this library however.
 
+ - [x] Tested and working on the ESP32-C3
+ - [x] Tested and working on the ESP32-C6
+ - [x] Tested and working on the ESP32-S3
+ - [x] Tested and working on the ESP32-H2
+
+ This list of supported microcontrollers will be expanded as SquidHID devices are created and tested on different platforms and as SquidHID's capabilities are extended
+
 ## Features Currently in Development
 
 - [ ] Split communication - Figuring out BLE mesh wireless support for the full 32,767 board maximum
