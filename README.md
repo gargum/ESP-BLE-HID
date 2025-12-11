@@ -47,11 +47,13 @@ NimBLE, USB, and PS/2 are the available transport methods supported by SquidHID 
 
 ## Features Currently in Development
 
-- [ ] Split communication - Figuring out BLE mesh wireless support for the full 32,767 board maximum
-- [ ] Documentation - Writing the docs for SquidHID
-- [ ] Migrating from Arduino IDE/PlatformIO to Standalone - I enjoy making life harder for myself unneccesarily
-- [ ] Hardware Abstraction Layer - Need to get the HAL system setup so I can add support for 10+ different platforms en masse
-- [ ] Keymap advanced functions - Tap Dance, Dynamic Macros, Leaders, Alt-Mod, Mouse keys, Digitizer keys, and Joystick keys all still need to be added
+| FEATURE                       | DETAILS                                                                                                           | PURPOSE / RATIONALE                                                                               |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Advanced Keymap Functions     | Leader keys, Alt-Mod, Macros, Mouse keys, Digitizer keys, and my own take on BOXX-style controls are not finished | To maximize SquidHID's utility across as many different unrelated use-cases as possible           |
+| Split Communication           | BLE Mesh, UART, & OpenThread split communication protocols in development (TWAI communication planned for after)  | To allow more people to create more complex distributed systems more easily                       |
+| Hardware Abstraction Layer    | The first version of the HAL system for the standalone version of SquidHID is nearly finished development         | To make it as easy as possible to port SquidHID to as many architectures as possible              |
+| Full SquidHID Documentation   | Hugo + Docura is being used to create a simple docs website to be hosted on GitHub Pages upon completion          | To ensure new users have an easier time learning how to create devices using SquidHID             | 
+| Porting to Standalone (CMake) | Standalone version of SquidHID is approximately 60% complete                                                      | To hopefully make SquidHID easier for novices to use than any firmware that came before it        |
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
