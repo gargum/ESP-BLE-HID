@@ -57,6 +57,8 @@ NimBLE, USB, and PS/2 are the available transport methods supported by SquidHID 
 
 ## Installation
 - (Make sure you can use the ESP32 with the Arduino IDE. [Instructions can be found here.](https://github.com/espressif/arduino-esp32#installation-instructions))
+- Open Arduino IDE and go to "Tools" -> "Manage Libraries".
+- After the newly opened pop-up window has finished loading, click "Filter your search" and type "NimBLE-Arduino" before scrolling down to the "NimBLE-Arduino" library and clicking the "Install" button. 
 - Download the .ZIP file of this repo
 - In the Arduino IDE go to "Sketch" -> "Include Library" -> "Add .ZIP Library..." and select the file you just downloaded.
 - You can now go to "File" -> "Examples" -> "SquidHID" and select any of the examples to get started.
