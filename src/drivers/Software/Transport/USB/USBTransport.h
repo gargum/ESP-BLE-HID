@@ -17,6 +17,10 @@
 #include <USBHID.h>
 #endif
 
+#if __has_include(<HID.h>)
+#include <HID.h>
+#endif
+
 class USBTransport : public Transport {
 private:
     TransportCallbacks* callbacks;
@@ -25,7 +29,6 @@ private:
     uint16_t vid;
     uint16_t pid;
     uint16_t version;
-    bool connected;
     uint8_t batteryLevel;
     uint16_t appearance;
     
@@ -36,6 +39,38 @@ private:
     const uint8_t* reportMap;
     size_t reportMapLength;
     bool hidDeviceInitialized;
+    
+    #if KEYBOARD_ENABLE
+    uint8_t* inputNKRO;
+    #endif
+    #if MEDIA_ENABLE
+    uint8_t* inputMediaKeys;
+    #endif
+    #if SPACEMOUSE_ENABLE
+    uint8_t* inputSpacetrans;
+    uint8_t* inputSpacerotat;
+    uint8_t* inputSpaceclick;
+    #else
+    #if MOUSE_ENABLE
+    uint8_t* inputMouse;
+    #endif
+    #if DIGITIZER_ENABLE
+    uint8_t* inputDigitizer;
+    #endif
+    #if GAMEPAD_ENABLE
+    uint8_t* inputGamepad;
+    #endif
+    #endif
+    #if STENO_ENABLE
+    uint8_t* inputSteno;
+    #endif
+    uint8_t* outputKeyboard;
+    
+    bool initialized;
+    bool connected;
+    
+    void createHIDService();
+    bool setupHIDEndpoints();
 
 public:
     USBTransport();
