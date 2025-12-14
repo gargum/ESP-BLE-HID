@@ -7,23 +7,25 @@
 
 static const char* USB_TAG = "USBTransport";
 
-USBTransport::USBTransport() 
+USBTransport::USBTransport()
     : callbacks(nullptr)
     , deviceName("SquidHID")
     , deviceManufacturer("SquidHID")
     , vid(0x046D)
     , pid(0xC52B)
     , version(0x0310)
-    , connected(false)
     , batteryLevel(100)
     , appearance(KEYBOARD)
-    #if __has_include(<USBHID.h>)
-    , hidDevice(nullptr)
-    #endif
     , reportMap(nullptr)
     , reportMapLength(0)
-    , hidDeviceInitialized(false)
+    , initialized(false)
+    , connected(false)
 {
+    static bool deviceAdded = false;
+    if (!deviceAdded && reportMap && reportMapLength > 0) {
+        deviceAdded = true;
+        hid.addDevice(this, reportMapLength);
+    }
 }
 
 USBTransport::~USBTransport() {
@@ -35,334 +37,169 @@ bool USBTransport::begin() {
         return true;
     }
     
-    SQUID_LOG_INFO(USB_TAG, "Initializing USB HID transport");
-    
-    #ifdef USB_HID_AVAILABLE
-    // Initialize USB
-    USB.begin();
-    
-    // Wait for USB to stabilize
-    delay(100);
-    
-    // Create HID device with the report descriptor
-    createHIDService();
-    
-    // Start USB HID
-    if (hidDevice && hidDevice->begin()) {
-        initialized = true;
-        connected = USB.connected();
-        
-        if (connected) {
-            SQUID_LOG_INFO(USB_TAG, "USB HID initialized and connected");
-            if (transportCallbacks) {
-                transportCallbacks->onConnect();
-            }
-        } else {
-            SQUID_LOG_INFO(USB_TAG, "USB HID initialized - waiting for host connection");
-        }
-        
-        return true;
+    if (!reportMap || reportMapLength == 0) {
+        SQUID_LOG_ERROR(USB_TAG, "No report map configured");
+        return false;
     }
-    #endif
     
-    SQUID_LOG_ERROR(USB_TAG, "Failed to initialize USB HID");
-    return false;
+    SQUID_LOG_INFO(USB_TAG, "Initializing USB Transport");
+    
+    // Configure USB settings
+    USB.VID(vid);
+    USB.PID(pid);
+    USB.firmwareVersion(version);
+    USB.productName(deviceName.c_str());
+    USB.manufacturerName(deviceManufacturer.c_str());
+    USB.serialNumber("SQUID001");
+    
+    // USB configuration matching the working reference
+    USB.usbAttributes(TUSB_DESC_CONFIG_ATT_SELF_POWERED);
+    USB.usbPower(500);
+    USB.usbClass(TUSB_CLASS_MISC);
+    USB.usbSubClass(MISC_SUBCLASS_COMMON);
+    USB.usbProtocol(MISC_PROTOCOL_IAD);
+    USB.usbVersion(0x0200);
+    
+    // Add device to HID if not already added
+    hid.addDevice(this, reportMapLength);
+    
+    // Start HID
+    hid.begin();
+    
+    // Start USB (this should hopefully include our HID interface please work)
+    if (!USB.begin()) {
+        SQUID_LOG_ERROR(USB_TAG, "Failed to start USB");
+        return false;
+    }
+    
+    SQUID_LOG_INFO(USB_TAG, "USBHID initialized with report descriptor: %zu bytes", reportMapLength);
+    
+    initialized = true;
+    
+    SQUID_LOG_INFO(USB_TAG, "USB Transport initialized");
+    
+    return true;
 }
 
 void USBTransport::end() {
-    SQUID_LOG_INFO(USB_TAG, "Shutting down USB HID transport");
-    
-    #if __has_include(<USBHID.h>)
-    // Clean up HID device
-      if (hidDevice) {
-        delete hidDevice;
-        hidDevice = nullptr;
-      }
-    
-      USB.end();
-    #endif
-    bool wasConnected = connected;
-    connected = false;
-    
-    if (wasConnected && callbacks) {
-        callbacks->onDisconnect();
+    if (initialized) {
+        SQUID_LOG_INFO(USB_TAG, "Ending USB Transport");
+        
+        if (callbacks && connected) {
+            callbacks->onDisconnect();
+        }
+        
+        connected = false;
+        initialized = false;
+        
+        SQUID_LOG_INFO(USB_TAG, "USB Transport ended");
     }
-    
-    SQUID_LOG_INFO(USB_TAG, "USB HID transport shut down");
 }
 
 void USBTransport::update() {
-    #ifdef USB_HID_AVAILABLE
+    if (!initialized) return;
+    
     static uint32_t lastCheck = 0;
     uint32_t now = millis();
     
-    // Check connection state periodically
-    if (now - lastCheck >= 100) { // Check every 100ms
+    if (now - lastCheck >= 500) {
         lastCheck = now;
         
-        bool currentState = USB.connected();
-        if (currentState != connected) {
-            connected = currentState;
+        bool currentlyConnected = (bool)USB && hid.ready();
+        
+        if (currentlyConnected != connected) {
+            connected = currentlyConnected;
             
-            if (connected && transportCallbacks) {
-                SQUID_LOG_INFO(USB_TAG, "USB connected");
-                transportCallbacks->onConnect();
-            } else if (!connected && transportCallbacks) {
-                SQUID_LOG_INFO(USB_TAG, "USB disconnected");
-                transportCallbacks->onDisconnect();
+            if (connected) {
+                SQUID_LOG_INFO(USB_TAG, "USB connected and HID ready");
+                if (callbacks) callbacks->onConnect();
+            } else {
+                SQUID_LOG_INFO(USB_TAG, "USB disconnected or HID not ready");
+                if (callbacks) callbacks->onDisconnect();
             }
         }
     }
-    #endif
-}
-
-void USBTransport::createHIDService() {
-    #ifdef USB_HID_AVAILABLE
-    if (hidDevice) {
-        delete hidDevice;
-    }
-    
-    // Create USB HID device with custom report descriptor
-    if (reportMap && reportMapLength > 0) {
-        hidDevice = new USBHID();
-        
-        // Set the report map (descriptor)
-        hidDevice->setReportMap(const_cast<uint8_t*>(reportMap), reportMapLength);
-        
-        SQUID_LOG_INFO(USB_TAG, "USB HID created with custom report descriptor - Length: %zu", 
-                       reportMapLength);
-    } else {
-        // Fall back to default keyboard descriptor
-        hidDevice = new USBHID();
-        SQUID_LOG_WARN(USB_TAG, "No report map available, using default USB HID descriptor");
-    }
-    
-    // Setup HID endpoints
-    if (!setupHIDEndpoints()) {
-        SQUID_LOG_ERROR(USB_TAG, "Failed to setup USB HID endpoints");
-    }
-    #endif
-}
-
-bool USBTransport::setupHIDEndpoints() {
-    // For USB, endpoints are configured automatically by the HID stack
-    // We just need to ensure the report IDs match what the feature modules expect
-    #ifdef USB_HID_AVAILABLE
-    if (!hidDevice) {
-        return false;
-    }
-    
-    SQUID_LOG_DEBUG(USB_TAG, "USB HID endpoints configured");
-    
-    // Note: USB HID doesn't need explicit endpoint setup like BLE characteristics
-    // The report descriptor defines all the reports, and USB HID stack handles the rest
-    
-    return true;
-    #else
-    return false;
-    #endif
 }
 
 bool USBTransport::isConnected() {
-    #if __has_include(<USBHID.h>)
-    return USB.connected();
-    #else
-    return false;
-    #endif
+    return initialized && (bool)USB && hid.ready();
 }
 
 bool USBTransport::connect() {
-    // USB connection is established during begin()
-    if (!connected) {
-        SQUID_LOG_WARN(USB_TAG, "USB not initialized - call begin() first");
-        return false;
-    }
-    return true;
+    return isConnected();
 }
 
 void USBTransport::disconnect() {
-    SQUID_LOG_DEBUG(USB_TAG, "USB disconnect requested - calling end()");
-    end();
+    SQUID_LOG_WARN(USB_TAG, "Manual USB disconnect not supported");
+}
+
+bool USBTransport::sendReport(uint8_t reportId, const uint8_t* data, size_t length) {
+    if (!isConnected()) {
+        SQUID_LOG_DEBUG(USB_TAG, "Cannot send report - USB not connected or HID not ready");
+        return false;
+    }
+    
+    SQUID_LOG_DEBUG(USB_TAG, "Sending USB HID report ID: 0x%02X, length: %zu", reportId, length);
+    
+    bool result = hid.SendReport(reportId, data, (uint8_t)length);
+    
+    if (result) {
+        SQUID_LOG_DEBUG(USB_TAG, "USB HID report %d sent: %zu bytes", reportId, length);
+    } else {
+        SQUID_LOG_ERROR(USB_TAG, "Failed to send USB HID report %d", reportId);
+    }
+    
+    return result;
 }
 
 bool USBTransport::sendData(const uint8_t* data, size_t length) {
     return sendReport(0, data, length);
 }
 
-bool USBTransport::sendReport(uint8_t reportId, const uint8_t* data, size_t length) {
-#if __has_include(<USBHID.h>)
-    if (!connected || !hidDevice || !hidDeviceInitialized) {
-        SQUID_LOG_DEBUG(USB_TAG, "Cannot send report - USB not connected or HID not initialized");
-        return false;
+// USBHIDDevice interface implementation
+uint16_t USBTransport::_onGetDescriptor(uint8_t* buffer) {
+    if (buffer && reportMap && reportMapLength > 0) {
+        memcpy(buffer, reportMap, reportMapLength);
+        return reportMapLength;
     }
-    
-    // USB HID requires the report ID to be prepended to the data
-    uint8_t* usbBuffer = new uint8_t[length + 1];
-    usbBuffer[0] = reportId;
-    memcpy(usbBuffer + 1, data, length);
-    
-    // Map report IDs to appropriate USB HID report types
-    bool result = false;
-    
-    switch (reportId) {
-        case 0x01:     
-//            result = hidDevice->keyboardReport(reportId, usbBuffer, length + 1);
-            break;
-        #if KEYBOARD_ENABLE
-        case 0x02:
-            result = hidDevice->NKROReport(reportId, usbBuffer, length + 1);
-            break;
-        #endif
-        #if MEDIA_ENABLE
-        case 0x03:     
-            result = hidDevice->MediaReport(reportId, usbBuffer, length + 1);
-            break;
-        #endif
-        #if SPACEMOUSE_ENABLE
-        case 0x04:
-            result = hidDevice->SpaceTranslationReport(reportId, usbBuffer, length + 1);
-            break;
-        case 0x05:
-            result = hidDevice->SpaceRotationReport(reportId, usbBuffer, length + 1);
-            break;
-        case 0x06:
-            result = hidDevice->SpaceButtonReport(reportId, usbBuffer, length + 1);
-            break;
-        #else
-        #if MOUSE_ENABLE
-        case 0x07:     
-            result = hidDevice->MouseReport(reportId, usbBuffer, length + 1);
-            break;
-        #endif
-        #if DIGITIZER_ENABLE
-        case 0x08:
-            result = hidDevice->DigitizerReport(reportId, usbBuffer, length + 1);
-            break;
-        #endif
-        #if GAMEPAD_ENABLE
-        case 0x09:     
-            result = hidDevice->GamepadReport(reportId, usbBuffer, length + 1);
-            break;
-        #endif
-        #endif
-        #if STENO_ENABLE
-        case 0x50:
-            result = hidDevice->StenoReport(reportId, usbBuffer, length + 1);
-            break;
-        #endif
-        default:
-            // Generic HID report for other types
-            result = hidDevice->sendReport(reportId, usbBuffer, length + 1);
-            break;
-    }
-    
-    delete[] usbBuffer;
-    
-    if (result) {
-        SQUID_LOG_DEBUG(USB_TAG, "USB HID report sent - ID: 0x%02X, Length: %zu", reportId, length);
-    } else {
-        SQUID_LOG_ERROR(USB_TAG, "Failed to send USB HID report - ID: 0x%02X", reportId);
-    }
-    return result;
-#else
-    SQUID_LOG_DEBUG(USB_TAG, "USB HID not available for report 0x%02X", reportId);
-    return false;
-#endif
+    return 0;
 }
 
-void USBTransport::setDeviceInfo(const char* name, const char* manufacturer, uint16_t vid, uint16_t pid, uint16_t version) {
-    this->deviceName = name;
-    this->deviceManufacturer = manufacturer;
+void USBTransport::_onOutput(uint8_t report_id, const uint8_t* buffer, uint16_t len) {
+    // Handle HID output reports (like LED status, haptics, other things I haven't properly implemented)
+    if (callbacks) {
+        callbacks->onDataReceived(buffer, len);
+    }
+}
+
+void USBTransport::setDeviceInfo(const char* name, const char* manufacturer, 
+                                uint16_t vid, uint16_t pid, uint16_t version) {
+    this->deviceName = name ? name : "";
+    this->deviceManufacturer = manufacturer ? manufacturer : "";
     this->vid = vid;
     this->pid = pid;
     this->version = version;
     
-    SQUID_LOG_DEBUG(USB_TAG, "Device info set - Name: %s, Manufacturer: %s, VID: 0x%04X, PID: 0x%04X", 
-                   name, manufacturer, vid, pid);
+    SQUID_LOG_INFO(USB_TAG, "Device info set: %s by %s (VID: 0x%04X, PID: 0x%04X)", 
+                  deviceName.c_str(), deviceManufacturer.c_str(), vid, pid);
 }
 
 void USBTransport::setBatteryLevel(uint8_t level) {
-    this->batteryLevel = level;
-    SQUID_LOG_DEBUG(USB_TAG, "Battery level set to %d%% (USB HID)", level);
+    batteryLevel = level;
+    SQUID_LOG_DEBUG(USB_TAG, "Battery level: %d%%", batteryLevel);
 }
 
 void USBTransport::setAppearance(uint16_t appearance) {
     this->appearance = appearance;
-    SQUID_LOG_DEBUG(USB_TAG, "Appearance set to 0x%04X", appearance);
+    SQUID_LOG_DEBUG(USB_TAG, "Appearance: 0x%04X", appearance);
 }
 
 void USBTransport::setCallbacks(TransportCallbacks* callbacks) {
     this->callbacks = callbacks;
-    SQUID_LOG_DEBUG(USB_TAG, "Callbacks set");
 }
 
 void USBTransport::setReportMap(const uint8_t* descriptor, size_t length) {
-    this->reportMap = descriptor;
-    this->reportMapLength = length;
-    hidDeviceInitialized = false;
-    
-    SQUID_LOG_DEBUG(USB_TAG, "Report map set - length: %zu", length);
-    
-    // For USB, we might need to process the descriptor differently
-    #if __has_include(<USBHID.h>)
-    if (USB && isConnected()) {
-        SQUID_LOG_INFO(USB_TAG, "Reinitializing USB HID with new report descriptor");
-        reinitializeHID();
-    }
-    #endif
-}
-
-bool USBTransport::supportsHID() {
-    return true;
-}
-
-bool USBTransport::reinitializeHID() {
-    #if __has_include(<USBHID.h>)
-    // Clean up existing HID device if any
-    if (hidDevice) {
-        delete hidDevice;
-        hidDevice = nullptr;
-    }
-    
-    // Create new HID device with the current report descriptor
-    #if defined(ARDUINO_ARCH_ESP32)
-        // ESP32-S2/S3 allows dynamic HID descriptors
-        hidDevice = new USBHID();
-        if (hidDevice) {
-            // Set the report map
-            if (reportMap && reportMapLength > 0) {
-                hidDevice->setReportMap(const_cast<uint8_t*>(reportMap), reportMapLength);
-                SQUID_LOG_INFO(USB_TAG, "USB HID initialized with dynamic report descriptor, size: %zu", reportMapLength);
-            } else {
-                SQUID_LOG_ERROR(USB_TAG, "No report map available for USB HID initialization");
-                return false;
-            }
-            
-            if (hidDevice->begin()) {
-                hidDeviceInitialized = true;
-                SQUID_LOG_INFO(USB_TAG, "USB HID initialized successfully");
-                return true;
-            }
-        }
-    #else
-        // For other platforms, we may need a different approach
-        SQUID_LOG_WARN(USB_TAG, "Dynamic HID descriptors may not be supported on this platform");
-        // Fall back to a basic keyboard descriptor
-        hidDevice = new USBHID();
-        if (hidDevice && hidDevice->begin()) {
-            hidDeviceInitialized = true;
-            SQUID_LOG_INFO(USB_TAG, "USB HID initialized with default descriptor");
-            return true;
-        }
-    #endif
-    
-    SQUID_LOG_ERROR(USB_TAG, "Failed to initialize USB HID device");
-    if (hidDevice) {
-        delete hidDevice;
-        hidDevice = nullptr;
-    }
-    return false;
-    #else
-    return false;
-    #endif
+    reportMap = descriptor;
+    reportMapLength = length;
+    SQUID_LOG_INFO(USB_TAG, "Report map set: %zu bytes", length);
 }
