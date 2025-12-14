@@ -147,52 +147,44 @@ SQUIDHID::SQUIDHID(std::string deviceName, std::string deviceManufacturer,
     #endif
     , lastPollTime(0) 
 {
-    // Create appropriate transport based on type and config
-    switch (type) {
-        #if TRANSPORT == USB
-        case TransportType::USB:
-            transport = std::make_unique<USBTransport>();
-            break;
-        #endif
-        
-        #if TRANSPORT == PS2  
-        case TransportType::PS2:
-            transport = std::make_unique<PS2Transport>();
-            break;
-        #endif
-        
-        #if TRANSPORT == BLE
-        case TransportType::BLE:
-            transport = std::make_unique<BLETransport>();
-            break;
-        #endif
-        
-        default:
-            // Use the transport type defined in config.h
+    // Factory method for creating transport
+    auto createTransport = [this, type]() -> std::unique_ptr<Transport> {
+        switch (type) {
             #if TRANSPORT == USB
-                transport = std::make_unique<USBTransport>();
-            #elif TRANSPORT == PS2
-                transport = std::make_unique<PS2Transport>();
-            #elif TRANSPORT == BLE
-                transport = std::make_unique<BLETransport>();
-            #else
-                #error "No valid transport configured"
+            case TransportType::USB:
+                return std::make_unique<USBTransport>();
             #endif
-            break;
+                
+            #if TRANSPORT == BLE
+            case TransportType::BLE:
+                return std::make_unique<BLETransport>();
+            #endif
+                
+            default:
+                #if TRANSPORT == USB
+                    return std::make_unique<USBTransport>();
+                #elif TRANSPORT == BLE
+                    return std::make_unique<BLETransport>();
+                #else
+                    #error "No valid transport configured"
+                #endif
+        }
+    };
+    
+    transport = createTransport();
+    
+    // Common transport setup
+    if (transport) {
+        transport->setDeviceInfo(deviceName.c_str(), deviceManufacturer.c_str(), vid, pid, version);
+        transport->setBatteryLevel(batteryLevel);
+        transport->setAppearance(appearance);
+        transport->setCallbacks(this);
     }
-    
-    // Set device info and callbacks
-    transport->setDeviceInfo(deviceName.c_str(), deviceManufacturer.c_str(), vid, pid, version);
-    transport->setBatteryLevel(batteryLevel);
-    transport->setAppearance(appearance);
-    
-    transport->setCallbacks(this);
     
     SQUIDLOGS::getInstance().initialize(); 
     _activeSQUIDHIDInstance = this;
     SQUID_LOG_INFO(LOG_TAG, "SQUIDHID instance created with %s transport", 
-                   type == TransportType::USB ? "USB" : 
-                   type == TransportType::BLE ? "BLE" : "PS2");
+                   type == TransportType::USB ? "USB" : "BLE");
 }
 
 SQUIDHID::~SQUIDHID() {
@@ -240,6 +232,22 @@ void SQUIDHID::begin(void) {
     }
     
     SQUID_LOG_INFO(LOG_TAG, "Starting SQUIDHID with transport...");
+    SQUID_LOG_DEBUG(LOG_TAG, "Setting HID report map...");
+    
+    // The transport needs the report map before begin() for the USB transport layer
+    if (descriptorSize > 0) {
+        transport->setReportMap((uint8_t *)_hidReportDescriptor, descriptorSize);
+    } else {
+        SQUID_LOG_ERROR(LOG_TAG, "No HID descriptor built!");
+        return;
+    }
+    
+    // Initialize transport
+    SQUID_LOG_DEBUG(LOG_TAG, "Initializing transport...");
+    if (!transport->begin()) {
+        SQUID_LOG_ERROR(LOG_TAG, "Failed to initialize transport");
+        return;
+    }
     
     // Initialize LEDs if configured
     #if LED_ENABLE
@@ -280,17 +288,6 @@ void SQUIDHID::begin(void) {
         SQUID_LOG_INFO(LOG_TAG, "OLED display initialized");
     }
     #endif
-    
-    // Set HID report map before initializing transport
-    SQUID_LOG_DEBUG(LOG_TAG, "Setting HID report map...");
-    transport->setReportMap((uint8_t *)_hidReportDescriptor, sizeof(_hidReportDescriptor));
-    
-    // Initialize transport (this will create services with the report map hopefully ffs please work)
-    SQUID_LOG_DEBUG(LOG_TAG, "Initializing transport...");
-    if (!transport->begin()) {
-        SQUID_LOG_ERROR(LOG_TAG, "Failed to initialize transport");
-        return;
-    }
     
     // Start advertising
     SQUID_LOG_DEBUG(LOG_TAG, "Starting advertising...");
