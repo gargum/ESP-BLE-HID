@@ -10,16 +10,10 @@
 #include "../../Log/Log.h"
 #include "../Transport.h"
 
-#if __has_include("NimBLE2904.h")
-#include "NimBLE2904.h"
+#include "HIDTypes.h"
 
 #if __has_include("NimBLEAdvertising.h")
 #include "NimBLEAdvertising.h"
-#endif
-
-#if __has_include("NimBLECharacteristic.h")
-#include "NimBLECharacteristic.h"
-#endif
 
 #if __has_include("NimBLEDevice.h")
 #include "NimBLEDevice.h"
@@ -31,18 +25,6 @@
 
 #if __has_include("NimBLEService.h")
 #include "NimBLEService.h"
-#endif
-
-#if __has_include("NimBLEServer.h")
-#include "NimBLEServer.h"
-#endif
-
-#if __has_include("NimBLEUUID.h")
-#include "NimBLEUUID.h"
-#endif
-
-#if __has_include("NimBLEUtils.h")
-#include "NimBLEUtils.h"
 #endif
 
 class BLETransport : public Transport, 
@@ -58,9 +40,7 @@ private:
     NimBLEHIDDevice*      hidDevice;
     NimBLEAdvertising*    advertising;
     
-    #if KEYBOARD_ENABLE
     NimBLECharacteristic* inputNKRO;
-    #endif
     #if MEDIA_ENABLE
     NimBLECharacteristic* inputMediaKeys;
     #endif
