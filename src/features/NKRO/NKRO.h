@@ -13,7 +13,7 @@
 
 #define NKRO_KEY_COUNT 252 // Surprise! "N" in "N-Key Rollover" stands for "252" in my implementation.
 
-#define NKRO_ID       0x02
+#define NKRO_ID       0x01
 
 static const bool enabled = true;
 static const bool disabled = false;
@@ -25,22 +25,52 @@ typedef struct {
 } NKROReport;
 
 static const uint8_t _nkroReportDescriptor[] = {
-  // NKRO Extended Report (6KRO is emulated)
-  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x06,
-  COLLECTION(1),      0x01,                      REPORT_ID(1),       NKRO_ID,                
-  // Modifiers (8 bits)
-  USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0xE0,
-  USAGE_MAXIMUM(1),   0xE7,                      LOGICAL_MINIMUM(1), 0x00,
-  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,
-  REPORT_COUNT(1),    0x08,                      HIDINPUT(1),        0x02,
-  // Reserved byte
-  REPORT_COUNT(1),    0x01,                      REPORT_SIZE(1),     0x08,
-  HIDINPUT(1),        0x01,
-  // 252-key bitmap
-  USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0x00,
-  USAGE_MAXIMUM(2),   0xFC, 0x00,                LOGICAL_MINIMUM(1), 0x00,
-  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,
-  REPORT_COUNT(2),    0xFC, 0x00,                HIDINPUT(1),        0x02,
+  // NKRO Extended Report (6KRO is emulated) - Now serves as the basic keyboard descriptor
+  USAGE_PAGE(1),      0x01,                      // Generic Desktop
+  USAGE(1),           0x06,                      // Keyboard
+  COLLECTION(1),      0x01,                      // Application
+  REPORT_ID(1),       NKRO_ID,                   // Report ID (now 0x01)
+  
+  // Modifiers (8 bits) - Input
+  USAGE_PAGE(1),      0x07,                      // Key Codes
+  USAGE_MINIMUM(1),   0xE0,                      // Left Control
+  USAGE_MAXIMUM(1),   0xE7,                      // Right GUI
+  LOGICAL_MINIMUM(1), 0x00,
+  LOGICAL_MAXIMUM(1), 0x01,
+  REPORT_SIZE(1),     0x01,
+  REPORT_COUNT(1),    0x08,
+  HIDINPUT(1),        0x02,                      // Data,Var,Abs
+  
+  // Reserved byte - Input
+  REPORT_COUNT(1),    0x01,
+  REPORT_SIZE(1),     0x08,
+  HIDINPUT(1),        0x01,                      // Const,Arr,Abs
+  
+  // 252-key bitmap - Input
+  USAGE_PAGE(1),      0x07,                      // Key Codes
+  USAGE_MINIMUM(1),   0x00,
+  USAGE_MAXIMUM(2),   0xFC, 0x00,                // 0x00FC = 252 keys
+  LOGICAL_MINIMUM(1), 0x00,
+  LOGICAL_MAXIMUM(1), 0x01,
+  REPORT_SIZE(1),     0x01,
+  REPORT_COUNT(2),    0xFC, 0x00,                // 252 bits
+  HIDINPUT(1),        0x02,                      // Data,Var,Abs
+  
+  // LED Outputs (copied from basic descriptor) - ADD THIS SECTION
+  USAGE_PAGE(1),      0x08,                      // LEDs
+  USAGE_MINIMUM(1),   0x01,                      // Num Lock
+  USAGE_MAXIMUM(1),   0x05,                      // Kana
+  LOGICAL_MINIMUM(1), 0x00,
+  LOGICAL_MAXIMUM(1), 0x01,
+  REPORT_COUNT(1),    0x05,
+  REPORT_SIZE(1),     0x01,
+  HIDOUTPUT(1),       0x02,                      // Data,Var,Abs
+  
+  // LED Padding (3 bits) - Output
+  REPORT_COUNT(1),    0x03,
+  REPORT_SIZE(1),     0x01,
+  HIDOUTPUT(1),       0x03,                      // Const,Var,Abs
+  
   END_COLLECTION(0),
 };
 
