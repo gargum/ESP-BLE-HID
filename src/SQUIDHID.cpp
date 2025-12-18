@@ -5,45 +5,13 @@
 
 #include "SQUIDHID.h"
 
+static const char* LOG_TAG = "SQUIDHID";
+
 #define KEYBOARD_ID   0x01
 
-static const uint8_t _basicReportDescriptor[] = {
-  // ------------------------------------------------- Keyboard
-  USAGE_PAGE(1),      0x01,                      USAGE(1),           0x06,
-  COLLECTION(1),      0x01,                      REPORT_ID(1),       KEYBOARD_ID,
+#define MAX_DESCRIPTOR_SIZE 512
 
-  // Modifiers (8 bits)
-  USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0xE0,
-  USAGE_MAXIMUM(1),   0xE7,                      LOGICAL_MINIMUM(1), 0x00,
-  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_SIZE(1),     0x01,
-  REPORT_COUNT(1),    0x08,                      HIDINPUT(1),        0x02,
-
-  // Reserved byte
-  REPORT_COUNT(1),    0x01,                      REPORT_SIZE(1),     0x08,
-  HIDINPUT(1),        0x01,
-
-  // Key array (6 bytes)
-  REPORT_COUNT(1),    0x06,                      REPORT_SIZE(1),     0x08,
-  LOGICAL_MINIMUM(1), 0x00,                      LOGICAL_MAXIMUM(1), 0x65,
-  USAGE_PAGE(1),      0x07,                      USAGE_MINIMUM(1),   0x00,
-  USAGE_MAXIMUM(1),   0x65,                      HIDINPUT(1),        0x00,
-
-  // 5 LEDs
-  USAGE_PAGE(1),      0x08,                      USAGE_MINIMUM(1),   0x01,
-  USAGE_MAXIMUM(1),   0x05,                      LOGICAL_MINIMUM(1), 0x00,
-  LOGICAL_MAXIMUM(1), 0x01,                      REPORT_COUNT(1),    0x05,
-  REPORT_SIZE(1),     0x01,                      HIDOUTPUT(1),       0x02,
-
-  // 3-bit padding
-  REPORT_COUNT(1),    0x03,                      REPORT_SIZE(1),     0x01,
-  HIDOUTPUT(1),       0x03,                      END_COLLECTION(0),
-};
-
-const size_t       descriptorSize = sizeof(_basicReportDescriptor) 
-  
-#if KEYBOARD_ENABLE
-  +  sizeof(_nkroReportDescriptor)  
-#endif
+const size_t       descriptorSize = sizeof(_nkroReportDescriptor) 
 
 #if MEDIA_ENABLE
   +  sizeof(_mediakeyReportDescriptor)
@@ -70,58 +38,69 @@ const size_t       descriptorSize = sizeof(_basicReportDescriptor)
   +  sizeof(_stenoReportDescriptor)
 #endif
   ;                      
-                        
-static uint8_t     _hidReportDescriptor[descriptorSize];
-static const char* LOG_TAG = "SQUIDHID";
-bool               getInitialized = false;
 
-SQUIDHID*          _activeSQUIDHIDInstance = nullptr;
+static size_t  _hidReportDescriptorLength = 0; 
+
+#if TRANSPORT == USB
+static uint8_t _hidReportDescriptor[MAX_DESCRIPTOR_SIZE];
+#else                   
+static uint8_t _hidReportDescriptor[descriptorSize];
+#endif
+
+bool           getInitialized = false;
+
+SQUIDHID*      _activeSQUIDHIDInstance = nullptr;
 
 class HIDDescriptorInitializer {
 public:
     HIDDescriptorInitializer() {
         uint8_t* current = _hidReportDescriptor;
+        size_t total = 0;
         
-        memcpy(current, _basicReportDescriptor, sizeof(_basicReportDescriptor));
-        current += sizeof(_basicReportDescriptor);
-        
-        #if KEYBOARD_ENABLE
         memcpy(current, _nkroReportDescriptor, sizeof(_nkroReportDescriptor));
         current += sizeof(_nkroReportDescriptor);
-        #endif
+        total += sizeof(_nkroReportDescriptor);
         
         #if MEDIA_ENABLE
         memcpy(current, _mediakeyReportDescriptor, sizeof(_mediakeyReportDescriptor));
         current += sizeof(_mediakeyReportDescriptor);
+        total += sizeof(_mediakeyReportDescriptor);
         #endif
         
         #if SPACEMOUSE_ENABLE
         memcpy(current, _spacemouseReportDescriptor, sizeof(_spacemouseReportDescriptor));
         current += sizeof(_spacemouseReportDescriptor);
+        total += sizeof(_spacemouseReportDescriptor);
         #else
         
         #if MOUSE_ENABLE
         memcpy(current, _mouseReportDescriptor, sizeof(_mouseReportDescriptor));
         current += sizeof(_mouseReportDescriptor);
+        total += sizeof(_mouseReportDescriptor);
         #endif
         
         #if DIGITIZER_ENABLE
         memcpy(current, _digitizerReportDescriptor, sizeof(_digitizerReportDescriptor));
         current += sizeof(_digitizerReportDescriptor);
+        total += sizeof(_digitizerReportDescriptor);
         #endif
         
         #if GAMEPAD_ENABLE
         memcpy(current, _gamepadReportDescriptor, sizeof(_gamepadReportDescriptor));
         current += sizeof(_gamepadReportDescriptor);
+        total += sizeof(_gamepadReportDescriptor);
         #endif
         #endif
         
         #if STENO_ENABLE
         memcpy(current, _stenoReportDescriptor, sizeof(_stenoReportDescriptor));
         current += sizeof(_stenoReportDescriptor);
+        total += sizeof(_stenoReportDescriptor);
         #endif
         
-        SQUID_LOG_DEBUG("HID", "Complete HID descriptor built - Total size: %zu", descriptorSize);
+        _hidReportDescriptorLength = total;
+        
+        SQUID_LOG_DEBUG("HID", "Complete HID descriptor built - Total size: %zu", _hidReportDescriptorLength);
     }
 };
 
@@ -161,13 +140,7 @@ SQUIDHID::SQUIDHID(std::string deviceName, std::string deviceManufacturer,
             #endif
                 
             default:
-                #if TRANSPORT == USB
-                    return std::make_unique<USBTransport>();
-                #elif TRANSPORT == BLE
-                    return std::make_unique<BLETransport>();
-                #else
-                    #error "No valid transport configured"
-                #endif
+                return std::make_unique<USBTransport>();
         }
     };
     
@@ -235,8 +208,8 @@ void SQUIDHID::begin(void) {
     SQUID_LOG_DEBUG(LOG_TAG, "Setting HID report map...");
     
     // The transport needs the report map before begin() for the USB transport layer
-    if (descriptorSize > 0) {
-        transport->setReportMap((uint8_t *)_hidReportDescriptor, descriptorSize);
+    if (_hidReportDescriptorLength > 0) {
+        transport->setReportMap((uint8_t *)_hidReportDescriptor, _hidReportDescriptorLength);
     } else {
         SQUID_LOG_ERROR(LOG_TAG, "No HID descriptor built!");
         return;
@@ -311,10 +284,8 @@ void SQUIDHID::begin(void) {
     
     // Initialize features
     SQUID_LOG_DEBUG(LOG_TAG, "Initializing feature modules...");
-    #if KEYBOARD_ENABLE
     nkro.begin(transport.get(), _delay_ms);
     SQUID_LOG_DEBUG(LOG_TAG, "NKRO keyboard support enabled");
-    #endif
     
     #if MEDIA_ENABLE
     media.begin(transport.get(), _delay_ms);
@@ -529,9 +500,7 @@ void SQUIDHID::onConnect() {
     SQUID_LOG_INFO(LOG_TAG, "Transport connected");
     
     // Notify feature modules about connection
-    #if KEYBOARD_ENABLE
     nkro.onConnect();
-    #endif
     #if MEDIA_ENABLE
     media.onConnect();
     #endif
@@ -585,9 +554,7 @@ void SQUIDHID::onDisconnect() {
     SQUID_LOG_INFO(LOG_TAG, "Transport disconnected");
     
     // Notify feature modules about disconnection
-    #if KEYBOARD_ENABLE
     nkro.onDisconnect();
-    #endif
     #if MEDIA_ENABLE
     media.onDisconnect();
     #endif
@@ -619,9 +586,7 @@ void SQUIDHID::clearCombos() { keymap.clearCombos(); }
 void SQUIDHID::setComboTimeout(uint16_t timeout_ms) { keymap.setComboTimeout(timeout_ms); }
 
 void SQUIDHID::releaseAll() {
-  #if KEYBOARD_ENABLE
   nkro.releaseAll();
-  #endif
   
   #if MEDIA_ENABLE
   media.releaseAll();
@@ -854,7 +819,6 @@ void SQUIDHID::updateMatrix() {
 // ----------------------------------------- NKRO Keyboard Block
 //
 
-#if KEYBOARD_ENABLE
 size_t SQUIDHID::press(NKROKey k) { return nkro.press(k); }
 
 size_t SQUIDHID::press(ModKey modifier) { return nkro.press(modifier); }
@@ -884,7 +848,6 @@ void SQUIDHID::setModifiers(ModKey modifiers) { nkro.setModifiers(modifiers); }
 uint8_t SQUIDHID::getModifiers() { return nkro.getModifiers(); }
 
 void SQUIDHID::sendNKROReport() { nkro.sendNKROReport(); }
-#endif
 
 //
 // ----------------------------------------- Media key Block
