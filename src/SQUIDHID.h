@@ -26,9 +26,7 @@
   #include "drivers/Software/Transport/BLE/BLETransport.h"
 #endif
 
-#if KEYBOARD_ENABLE
-  #include "features/NKRO/NKRO.h"
-#endif
+#include "features/NKRO/NKRO.h"
 
 #if MEDIA_ENABLE
   #include "features/Media/Media.h"
@@ -108,9 +106,7 @@ private:
     bool                      mcpInitialized = false;
   #endif
   
-  #if KEYBOARD_ENABLE
     SQUIDNKRO                 nkro;
-  #endif
   
   #if MEDIA_ENABLE
     SQUIDMEDIA                media;
@@ -228,7 +224,6 @@ public:
   void clearCombos();
   void setComboTimeout(uint16_t timeout_ms);
   
-  #if KEYBOARD_ENABLE
     size_t    press(NKROKey k);
     size_t    press(ModKey modifier);
     size_t    press(ShiftedKey shiftedKey);
@@ -244,7 +239,6 @@ public:
     void      setModifiers(ModKey modifiers);
     uint8_t   getModifiers();
     void      sendNKROReport();
-  #endif
   
   #if MEDIA_ENABLE
     size_t    press(MediaKey mediaKey);
