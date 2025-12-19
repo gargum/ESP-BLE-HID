@@ -6,7 +6,6 @@
 #ifndef SQUIDHID_H
 #define SQUIDHID_H
 
-#include "config.h"
 #include "drivers/Software/Basic/Keymap/Keymap.h"
 
 #if TRANSPORT == USB
