@@ -22,7 +22,9 @@ USBTransport::USBTransport()
     static bool deviceAdded = false;
     if (!deviceAdded && reportMap && reportMapLength > 0) {
         deviceAdded = true;
+        #if __has_include("USBHID.h")
         hid.addDevice(this, reportMapLength);
+        #endif
     }
 }
 
@@ -42,6 +44,7 @@ bool USBTransport::begin() {
     
     SQUID_LOG_INFO(USB_TAG, "Initializing USB Transport");
     
+    #if __has_include("USBHID.h")
     // Configure USB settings
     USB.VID(vid);
     USB.PID(pid);
@@ -69,7 +72,7 @@ bool USBTransport::begin() {
         SQUID_LOG_ERROR(USB_TAG, "Failed to start USB");
         return false;
     }
-    
+    #endif
     SQUID_LOG_INFO(USB_TAG, "USBHID initialized with report descriptor: %zu bytes", reportMapLength);
     
     initialized = true;
@@ -103,8 +106,11 @@ void USBTransport::update() {
     if (now - lastCheck >= 500) {
         lastCheck = now;
         
+    #if __has_include("USBHID.h")
         bool currentlyConnected = (bool)USB && hid.ready();
-        
+    #else
+        bool currentlyConnected = false;
+    #endif
         if (currentlyConnected != connected) {
             connected = currentlyConnected;
             
@@ -120,7 +126,11 @@ void USBTransport::update() {
 }
 
 bool USBTransport::isConnected() {
+  #if __has_include("USBHID.h")
     return initialized && (bool)USB && hid.ready();
+  #else
+    return false;
+  #endif
 }
 
 bool USBTransport::connect() {
@@ -139,6 +149,7 @@ bool USBTransport::sendReport(uint8_t reportId, const uint8_t* data, size_t leng
     
     SQUID_LOG_DEBUG(USB_TAG, "Sending USB HID report ID: 0x%02X, length: %zu", reportId, length);
     
+    #if __has_include("USBHID.h")
     bool result = hid.SendReport(reportId, data, (uint8_t)length);
     
     if (result) {
@@ -148,11 +159,16 @@ bool USBTransport::sendReport(uint8_t reportId, const uint8_t* data, size_t leng
     }
     
     return result;
+    #else
+    return false;
+    #endif
 }
 
 bool USBTransport::sendData(const uint8_t* data, size_t length) {
     return sendReport(0, data, length);
 }
+
+#if __has_include("USBHIDVendor.h")
 
 // USBHIDDevice interface implementation
 uint16_t USBTransport::_onGetDescriptor(uint8_t* buffer) {
@@ -169,6 +185,8 @@ void USBTransport::_onOutput(uint8_t report_id, const uint8_t* buffer, uint16_t 
         callbacks->onDataReceived(buffer, len);
     }
 }
+
+#endif
 
 void USBTransport::setDeviceInfo(const char* name, const char* manufacturer, 
                                 uint16_t vid, uint16_t pid, uint16_t version) {
