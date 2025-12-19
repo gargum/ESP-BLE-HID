@@ -7,8 +7,6 @@
 
 #if !SPACEMOUSE_ENABLE
 
-static const char* GAMEPAD_TAG = "SQUIDGAMEPAD";
-
 SQUIDGAMEPAD::SQUIDGAMEPAD() 
     : transport(nullptr), _delay_ms(7) {
     memset(&_gamepadReport, 0, sizeof(_gamepadReport));
