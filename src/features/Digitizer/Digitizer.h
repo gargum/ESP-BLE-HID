@@ -8,12 +8,7 @@
 
 #if !SPACEMOUSE_ENABLE
 
-#include "drivers/Software/HID/SquidHIDTypes.h"
-#include "drivers/Software/Log/Log.h"
-#include "drivers/Software/Event/Types.h"
 #include "drivers/Software/Transport/Transport.h"
-
-#define DIGITIZER_ID  0x08
 
 typedef struct {
     uint8_t buttons;
