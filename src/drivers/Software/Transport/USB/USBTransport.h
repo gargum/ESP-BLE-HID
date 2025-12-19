@@ -7,13 +7,12 @@
 #define USBTRANSPORT_H
 
 #include "../Transport.h"
-#include "../../Log/Log.h"
-#include "../../../Appearance.h"
-#include <string>
 
-// Use ESP32's built-in USB HID support
+// Using ESP32's built-in USB HID support
 #include "USB.h"
 #include "USBHID.h"
+#include "USBVendor.h"
+#include "USBHIDVendor.h"
 
 class USBTransport : public Transport, public USBHIDDevice {
 private:
