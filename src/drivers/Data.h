@@ -16,6 +16,7 @@
 #include "drivers/Software/Event/Types.h"
 #include "drivers/Software/Log/Log.h"
 #include "drivers/Appearance.h"
+#include "config.h"
 
 // Report IDs
 #define NKRO_ID       0x01
