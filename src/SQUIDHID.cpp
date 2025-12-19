@@ -5,12 +5,6 @@
 
 #include "SQUIDHID.h"
 
-static const char* LOG_TAG = "SQUIDHID";
-
-#define KEYBOARD_ID   0x01
-
-#define MAX_DESCRIPTOR_SIZE 512
-
 const size_t       descriptorSize = sizeof(_nkroReportDescriptor) 
 
 #if MEDIA_ENABLE
@@ -156,7 +150,7 @@ SQUIDHID::SQUIDHID(std::string deviceName, std::string deviceManufacturer,
     
     SQUIDLOGS::getInstance().initialize(); 
     _activeSQUIDHIDInstance = this;
-    SQUID_LOG_INFO(LOG_TAG, "SQUIDHID instance created with %s transport", 
+    SQUID_LOG_INFO(MAIN_TAG, "SQUIDHID instance created with %s transport", 
                    type == TransportType::USB ? "USB" : "BLE");
 }
 
@@ -195,30 +189,30 @@ void SQUIDHID::begin(const squid_matrix& matrix, const std::vector<std::vector<L
     setupMatrix(matrix);
     setupKeymap(layers);
     
-    SQUID_LOG_INFO(LOG_TAG, "SQUIDHID started with matrix and layered keymap");
+    SQUID_LOG_INFO(MAIN_TAG, "SQUIDHID started with matrix and layered keymap");
 }
 
 void SQUIDHID::begin(void) {
     if (!transport) {
-        SQUID_LOG_ERROR(LOG_TAG, "No transport configured");
+        SQUID_LOG_ERROR(MAIN_TAG, "No transport configured");
         return;
     }
     
-    SQUID_LOG_INFO(LOG_TAG, "Starting SQUIDHID with transport...");
-    SQUID_LOG_DEBUG(LOG_TAG, "Setting HID report map...");
+    SQUID_LOG_INFO(MAIN_TAG, "Starting SQUIDHID with transport...");
+    SQUID_LOG_DEBUG(MAIN_TAG, "Setting HID report map...");
     
     // The transport needs the report map before begin() for the USB transport layer
     if (_hidReportDescriptorLength > 0) {
         transport->setReportMap((uint8_t *)_hidReportDescriptor, _hidReportDescriptorLength);
     } else {
-        SQUID_LOG_ERROR(LOG_TAG, "No HID descriptor built!");
+        SQUID_LOG_ERROR(MAIN_TAG, "No HID descriptor built!");
         return;
     }
     
     // Initialize transport
-    SQUID_LOG_DEBUG(LOG_TAG, "Initializing transport...");
+    SQUID_LOG_DEBUG(MAIN_TAG, "Initializing transport...");
     if (!transport->begin()) {
-        SQUID_LOG_ERROR(LOG_TAG, "Failed to initialize transport");
+        SQUID_LOG_ERROR(MAIN_TAG, "Failed to initialize transport");
         return;
     }
     
@@ -226,12 +220,12 @@ void SQUIDHID::begin(void) {
     #if LED_ENABLE
     if (ledCount > 0 && leds) {
         if (leds->begin()) {
-            SQUID_LOG_INFO(LOG_TAG, "LEDs initialized on pin %d with %d LEDs", ledPin, ledCount);
+            SQUID_LOG_INFO(MAIN_TAG, "LEDs initialized on pin %d with %d LEDs", ledPin, ledCount);
             // Turn off all LEDs initially
             leds->clear();
             leds->show();
         } else {
-            SQUID_LOG_ERROR(LOG_TAG, "Failed to initialize LEDs");
+            SQUID_LOG_ERROR(MAIN_TAG, "Failed to initialize LEDs");
         }
     }
     #endif
@@ -241,7 +235,7 @@ void SQUIDHID::begin(void) {
     if (!oledDisplay) {
     // Auto-initialize OLED with pins and dimensions from config.h
     initializeOLED(SDA_PIN, SCL_PIN, OLED_WIDTH, OLED_HEIGHT);
-    SQUID_LOG_INFO(LOG_TAG, "Auto-initialized OLED %dx%d with SDA:%d, SCL:%d", 
+    SQUID_LOG_INFO(MAIN_TAG, "Auto-initialized OLED %dx%d with SDA:%d, SCL:%d", 
                    OLED_WIDTH, OLED_HEIGHT, SDA_PIN, SCL_PIN);
     }
     
@@ -258,14 +252,14 @@ void SQUIDHID::begin(void) {
         
         oledClear();
         
-        SQUID_LOG_INFO(LOG_TAG, "OLED display initialized");
+        SQUID_LOG_INFO(MAIN_TAG, "OLED display initialized");
     }
     #endif
     
     // Start advertising
-    SQUID_LOG_DEBUG(LOG_TAG, "Starting advertising...");
+    SQUID_LOG_DEBUG(MAIN_TAG, "Starting advertising...");
     if (!transport->connect()) {
-        SQUID_LOG_ERROR(LOG_TAG, "Failed to start advertising");
+        SQUID_LOG_ERROR(MAIN_TAG, "Failed to start advertising");
         return;
     }
     
@@ -274,53 +268,53 @@ void SQUIDHID::begin(void) {
       if (!mcpInitialized) {
         #if defined(SDA_PIN) && defined(SCL_PIN) && I2C_ENABLE
           initializeMCP_I2C(); // Use default I2C address
-          SQUID_LOG_INFO(LOG_TAG, "Auto-initialized MCP with SDA:%d, SCL:%d", SDA_PIN, SCL_PIN);
+          SQUID_LOG_INFO(MAIN_TAG, "Auto-initialized MCP with SDA:%d, SCL:%d", SDA_PIN, SCL_PIN);
         #elif defined(CS_PIN) && SPI_ENABLE
           initializeMCP_SPI(CS_PIN);
-          SQUID_LOG_INFO(LOG_TAG, "Auto-initialized MCP with SPI CS:%d", CS_PIN);
+          SQUID_LOG_INFO(MAIN_TAG, "Auto-initialized MCP with SPI CS:%d", CS_PIN);
         #endif
       }
     #endif
     
     // Initialize features
-    SQUID_LOG_DEBUG(LOG_TAG, "Initializing feature modules...");
+    SQUID_LOG_DEBUG(MAIN_TAG, "Initializing feature modules...");
     nkro.begin(transport.get(), _delay_ms);
-    SQUID_LOG_DEBUG(LOG_TAG, "NKRO keyboard support enabled");
+    SQUID_LOG_DEBUG(MAIN_TAG, "NKRO keyboard support enabled");
     
     #if MEDIA_ENABLE
     media.begin(transport.get(), _delay_ms);
-    SQUID_LOG_DEBUG(LOG_TAG, "Media key support enabled");
+    SQUID_LOG_DEBUG(MAIN_TAG, "Media key support enabled");
     #endif
     
     #if SPACEMOUSE_ENABLE
     spacemouse.begin(transport.get(), _delay_ms);
-    SQUID_LOG_DEBUG(LOG_TAG, "Spacemouse support enabled");
+    SQUID_LOG_DEBUG(MAIN_TAG, "Spacemouse support enabled");
     #else
     
     #if MOUSE_ENABLE
     mouse.begin(transport.get(), _delay_ms);
-    SQUID_LOG_DEBUG(LOG_TAG, "Mouse support enabled");
+    SQUID_LOG_DEBUG(MAIN_TAG, "Mouse support enabled");
     #endif
     
     #if DIGITIZER_ENABLE
     digitizer.begin(transport.get(), _delay_ms);
-    SQUID_LOG_DEBUG(LOG_TAG, "Digitizer support enabled");
+    SQUID_LOG_DEBUG(MAIN_TAG, "Digitizer support enabled");
     #endif
     
     #if GAMEPAD_ENABLE
     gamepad.begin(transport.get(), _delay_ms);
-    SQUID_LOG_DEBUG(LOG_TAG, "Gamepad support enabled");
+    SQUID_LOG_DEBUG(MAIN_TAG, "Gamepad support enabled");
     
     #endif
     #endif
 
     #if STENO_ENABLE
     steno.begin(transport.get(), _delay_ms);
-    SQUID_LOG_DEBUG(LOG_TAG, "PloverHID support enabled");
+    SQUID_LOG_DEBUG(MAIN_TAG, "PloverHID support enabled");
     #endif
     
     lastPollTime = millis();
-    SQUID_LOG_INFO(LOG_TAG, "SQUIDHID started successfully - Waiting for connections...");
+    SQUID_LOG_INFO(MAIN_TAG, "SQUIDHID started successfully - Waiting for connections...");
 }
 
 // Update/polling function
@@ -382,7 +376,7 @@ void SQUIDHID::end(void) {
     if (transport) {
         transport->end();
     }
-    SQUID_LOG_INFO(LOG_TAG, "SQUIDHID stopped");
+    SQUID_LOG_INFO(MAIN_TAG, "SQUIDHID stopped");
 }
 
 //
@@ -497,7 +491,7 @@ bool SQUIDHID::initializeMCP_SPI(uint8_t cs_pin, SPIClass *theSPI, uint8_t hw_ad
 #endif
 
 void SQUIDHID::onConnect() {
-    SQUID_LOG_INFO(LOG_TAG, "Transport connected");
+    SQUID_LOG_INFO(MAIN_TAG, "Transport connected");
     
     // Notify feature modules about connection
     nkro.onConnect();
@@ -533,13 +527,13 @@ void SQUIDHID::pollConnection() {
     uint8_t cnt = transport->isConnected() ? 1 : 0;
     
     if (last_connected_count && !cnt) {   // Connection just dropped
-        SQUID_LOG_WARN(LOG_TAG, "Poller: link lost - restarting advertising");
+        SQUID_LOG_WARN(MAIN_TAG, "Poller: link lost - restarting advertising");
         
         // Over-the-top delay to ensure BLE stack is ready
         delay(100);
         
         if (isConnected()) {  // This will update the internal state (hopefully)
-            SQUID_LOG_INFO(LOG_TAG, "Poller: Connection restored");
+            SQUID_LOG_INFO(MAIN_TAG, "Poller: Connection restored");
         } else {
             // Force reconnection attempt
             transport->disconnect();
@@ -551,7 +545,7 @@ void SQUIDHID::pollConnection() {
 }
 
 void SQUIDHID::onDisconnect() {
-    SQUID_LOG_INFO(LOG_TAG, "Transport disconnected");
+    SQUID_LOG_INFO(MAIN_TAG, "Transport disconnected");
     
     // Notify feature modules about disconnection
     nkro.onDisconnect();
@@ -612,7 +606,7 @@ void SQUIDHID::releaseAll() {
 }
 
 void SQUIDHID::onDataReceived(const uint8_t* data, size_t length) {
-    SQUID_LOG_DEBUG(LOG_TAG, "Received %zu bytes from transport", length);
+    SQUID_LOG_DEBUG(MAIN_TAG, "Received %zu bytes from transport", length);
     
     // Handle HID output reports (host -> device)
     if (length > 0) {
@@ -651,7 +645,7 @@ void SQUIDHID::setBatteryLevel(uint8_t level) {
     }
     
     if (this->batteryLevel != oldLevel) {
-        SQUID_LOG_INFO(LOG_TAG, "Battery level set: %d%% -> %d%%", oldLevel, this->batteryLevel);
+        SQUID_LOG_INFO(MAIN_TAG, "Battery level set: %d%% -> %d%%", oldLevel, this->batteryLevel);
     }
 }
 
@@ -689,7 +683,7 @@ void SQUIDHID::setupMatrix(const squid_matrix& matrix) {
     
     // The unified GPIO functions are being used for matrix scanning because it makes weirder matrices easier to define
     this->matrix.begin(matrix, key_event_callback, pinModeFunc, digitalWriteFunc, digitalReadFunc);
-    SQUID_LOG_INFO(LOG_TAG, "Keyboard matrix configured with %zu switches", matrix.size());
+    SQUID_LOG_INFO(MAIN_TAG, "Keyboard matrix configured with %zu switches", matrix.size());
 }
 
 void SQUIDHID::setupKeymap(const std::vector<std::vector<LayerKeymapEntry>>& layers) {
@@ -787,7 +781,7 @@ void SQUIDHID::setupKeymap(const std::vector<std::vector<LayerKeymapEntry>>& lay
     
     keymap.begin(layers, press_callback, release_callback, layer_change_callback);
     
-    SQUID_LOG_INFO(LOG_TAG, "Layered keymap configured with %zu layers", layers.size());
+    SQUID_LOG_INFO(MAIN_TAG, "Layered keymap configured with %zu layers", layers.size());
 }
 
 void SQUIDHID::setDefaultLayer(uint8_t layer) {
@@ -1025,7 +1019,7 @@ void SQUIDHID::initializeLEDs(uint16_t count, int16_t pin, neoPixelType type) {
     
     leds = new NeoPixel(count, pin, type);
     
-    SQUID_LOG_INFO(LOG_TAG, "LED driver initialized for %d LEDs on pin %d", count, pin);
+    SQUID_LOG_INFO(MAIN_TAG, "LED driver initialized for %d LEDs on pin %d", count, pin);
 }
 
 void SQUIDHID::setLEDColor(uint16_t index, uint32_t color) {
@@ -1121,7 +1115,7 @@ void SQUIDHID::initializeOLED(uint8_t sda_pin, uint8_t scl_pin,
     oledInitialized = false;
     oledDirty = true;  // Mark as dirty on initialization
     
-    SQUID_LOG_INFO(LOG_TAG, "OLED driver initialized on SDA:%d SCL:%d, Size: %dx%d", 
+    SQUID_LOG_INFO(MAIN_TAG, "OLED driver initialized on SDA:%d SCL:%d, Size: %dx%d", 
                    sda_pin, scl_pin, displayWidth, displayHeight);
 }
 
