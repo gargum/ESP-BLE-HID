@@ -6,10 +6,6 @@
 #ifndef PS2TRANSPORT_H
 #define PS2TRANSPORT_H
 
-#include <cstring>
-#include <string>
-#include <functional>
-
 #include "../Transport.h"
 
 struct PS2Scancode {
