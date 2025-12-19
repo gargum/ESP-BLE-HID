@@ -5,8 +5,6 @@
 
 #include "NKRO.h"
 
-static const char* NKRO_TAG = "SQUIDNKRO";
-
 SQUIDNKRO::SQUIDNKRO() 
     : transport(nullptr), _useNKRO(true) {
     memset(&_nkroReport, 0, sizeof(_nkroReport));
