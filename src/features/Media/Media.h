@@ -6,12 +6,7 @@
 #ifndef MEDIA_H
 #define MEDIA_H
 
-#include "drivers/Software/HID/SquidHIDTypes.h"
-#include "drivers/Software/Log/Log.h"
-#include "drivers/Software/Event/Types.h"
 #include "drivers/Software/Transport/Transport.h"
-
-#define MEDIA_KEYS_ID 0x03
 
 typedef struct {
     uint16_t usage;
