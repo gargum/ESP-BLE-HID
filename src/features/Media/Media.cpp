@@ -5,8 +5,6 @@
 
 #include "Media.h"
 
-static const char* MEDIA_TAG = "SQUIDMEDIA";
-
 SQUIDMEDIA::SQUIDMEDIA() 
     : transport(nullptr), _currentMediaKey(MediaKey{0}), _delay_ms(7) {
     memset(&_mediaReport, 0, sizeof(_mediaReport));
