@@ -5,8 +5,6 @@
 
 #include "Matrix.h"
 
-static const char* MATRIX_TAG = "SQUIDMATRIX";
-
 SQUIDMATRIX::SQUIDMATRIX() 
     : _key_event_callback(nullptr), 
       _pinModeFunc(nullptr),
