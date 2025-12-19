@@ -6,8 +6,6 @@
 #ifndef TRANSPORT_H
 #define TRANSPORT_H
 
-#include "config.h"
-
 #include "drivers/Data.h"
 
 // Determine default transport type based on config
