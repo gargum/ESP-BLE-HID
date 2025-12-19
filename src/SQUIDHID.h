@@ -7,11 +7,6 @@
 #define SQUIDHID_H
 
 #include "config.h"
-#include "drivers/Appearance.h"
-#include "drivers/Software/Log/Log.h" 
-#include "drivers/Software/Event/Types.h"
-#include "drivers/Software/HID/SquidHIDTypes.h"
-#include "drivers/Software/Transport/Transport.h"
 #include "drivers/Software/Basic/Keymap/Keymap.h"
 
 #if TRANSPORT == USB
@@ -64,15 +59,6 @@
 #if MCP_ENABLE
   #include "drivers/Hardware/Expander/MCP/MCP23XXX.h"
 #endif
-
-#define SQUIDHID_VERSION "0.8.4"
-#define SQUIDHID_VERSION_MAJOR 0
-#define SQUIDHID_VERSION_MINOR 8
-#define SQUIDHID_VERSION_REVISION 4
-
-// Scanning/Polling interval
-#define SCAN_INTERVAL   1
-#define POLL_INTERVAL   250
 
 // These are used for the status LEDs, they aren't technically part of the NeoPixel driver
 enum LEDBits {
