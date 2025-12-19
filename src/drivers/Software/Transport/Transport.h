@@ -6,13 +6,9 @@
 #ifndef TRANSPORT_H
 #define TRANSPORT_H
 
-#include <cstdint>
-#include <vector>
-#include <functional>
-#include <memory>
-#include <map>
+#include "config.h"
 
-#include "../../../config.h"
+#include "drivers/Data.h"
 
 // Determine default transport type based on config
 #if   TRANSPORT == USB
