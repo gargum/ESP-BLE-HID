@@ -6,8 +6,6 @@
 #ifndef BLETRANSPORT_H
 #define BLETRANSPORT_H
 
-#include "../../../Appearance.h"
-#include "../../Log/Log.h"
 #include "../Transport.h"
 
 #include "HIDTypes.h"
