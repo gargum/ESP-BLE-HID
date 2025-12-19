@@ -8,15 +8,7 @@
 
 #if !SPACEMOUSE_ENABLE
 
-#include "drivers/Software/HID/SquidHIDTypes.h"
-#include "drivers/Software/Log/Log.h"
-#include "drivers/Software/Event/Types.h"
 #include "drivers/Software/Transport/Transport.h"
-
-#define GAMEPAD_BUTTON_COUNT 64
-#define GAMEPAD_ANALOGUE_COUNT 6
-
-#define GAMEPAD_ID    0x09
 
 typedef struct {
   uint32_t buttons[2];
