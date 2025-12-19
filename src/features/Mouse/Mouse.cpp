@@ -7,8 +7,6 @@
 
 #if !SPACEMOUSE_ENABLE
 
-static const char* MOUSE_TAG = "SQUIDMOUSE";
-
 SQUIDMOUSE::SQUIDMOUSE() 
     : transport(nullptr), _mouseKeys(MouseKey{0}), _delay_ms(7) {
     memset(&_mouseReport, 0, sizeof(_mouseReport));
