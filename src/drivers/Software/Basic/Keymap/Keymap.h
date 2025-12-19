@@ -6,9 +6,6 @@
 #ifndef KEYMAP_H
 #define KEYMAP_H
 
-#include <unordered_set>
-#include "drivers/Software/Log/Log.h"
-#include "drivers/Software/Event/Types.h"
 #include "drivers/Software/Basic/Matrix/Matrix.h"
 
 // ============================================================================
