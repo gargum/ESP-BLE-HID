@@ -4,9 +4,6 @@
  */
 
 #include "PS2Transport.h"
-#include "../../Log/Log.h"
-
-static const char* PS2_TAG = "PS2Transport";
 
 // PS/2 command codes
 namespace PS2Commands {
