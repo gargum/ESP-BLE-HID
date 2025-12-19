@@ -5,17 +5,6 @@
 
 #include "Spacemouse.h"
 
-static const char* SPACEMOUSE_TAG = "SQUID6DOF";
-
-#if MOUSE_ENABLE || DIGITIZER_ENABLE
-static const char* MOUSE_TAG = "SQUIDMOUSE";
-static const char* DIGI_TAG = "SQUIDTABLET";
-#endif
-
-#if GAMEPAD_ENABLE
-static const char* GAMEPAD_TAG = "SQUIDGAMEPAD";
-#endif
-
 SQUIDSPACEMOUSE::SQUIDSPACEMOUSE() 
     : 
     #if DIGITIZER_ENABLE
