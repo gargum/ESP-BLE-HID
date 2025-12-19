@@ -5,8 +5,6 @@
 
 #include "USBTransport.h"
 
-static const char* USB_TAG = "USBTransport";
-
 USBTransport::USBTransport()
     : callbacks(nullptr)
     , deviceName("SquidHID")
