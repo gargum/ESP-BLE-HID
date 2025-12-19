@@ -5,15 +5,11 @@
 
 #include "BLETransport.h"
 
-static const char* TRANSPORT_TAG = "BLETransport";
-
 BLETransport::BLETransport() 
     : server(nullptr), hidDevice(nullptr), advertising(nullptr),
       transportCallbacks(nullptr), vid(0x046D), pid(0xC52B), version(0x0310),
-      batteryLevel(100), appearance(KEYBOARD),
-      initialized(false), connected(false),
-      reportMap(nullptr), reportMapLength(0),
-      inputNKRO(nullptr), 
+      batteryLevel(100), appearance(KEYBOARD), initialized(false), connected(false),
+      reportMap(nullptr), reportMapLength(0), inputNKRO(nullptr), 
       #if MEDIA_ENABLE
       inputMediaKeys(nullptr),
       #endif
@@ -111,7 +107,7 @@ void BLETransport::update() {
         
         if (currentConnected != connected) {
             connected = currentConnected;
-            SQUID_LOG_INFO(TRANSPORT_TAG, "Connection state: %s", 
+            SQUID_LOG_INFO(BLE_TAG, "Connection state: %s", 
                           connected ? "connected" : "disconnected");
         }
     }
@@ -123,7 +119,7 @@ bool BLETransport::isConnected() {
     // Force state synchronization
     if (bleConnected != connected) {
         connected = bleConnected;
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Connection state changed to: %s", 
+        SQUID_LOG_INFO(BLE_TAG, "Connection state changed to: %s", 
                       connected ? "connected" : "disconnected");
     }
     
@@ -143,116 +139,116 @@ void BLETransport::disconnect() {
 
 void BLETransport::createHIDService() {
     if (!hidDevice) {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "HID device not initialized");
+        SQUID_LOG_ERROR(BLE_TAG, "HID device not initialized");
         return;
     }
     
-    SQUID_LOG_INFO(TRANSPORT_TAG, "Creating HID service - following working sequence");
+    SQUID_LOG_INFO(BLE_TAG, "Creating HID service - following working sequence");
     
     // Set report map first
     if (reportMap && reportMapLength > 0) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Setting HID Report Map - Length: %zu", reportMapLength);
+        SQUID_LOG_INFO(BLE_TAG, "Setting HID Report Map - Length: %zu", reportMapLength);
         hidDevice->setReportMap(const_cast<uint8_t*>(reportMap), reportMapLength);
     }
     
     // Create input reports for each HID device type
-    SQUID_LOG_DEBUG(TRANSPORT_TAG, "Creating HID input reports...");
+    SQUID_LOG_DEBUG(BLE_TAG, "Creating HID input reports...");
     
-    outputKeyboard = hidDevice->getOutputReport(0x01);     // Status LEDs
-    inputNKRO = hidDevice->getInputReport(0x01);           // NKRO keyboard  
+    outputKeyboard = hidDevice->getOutputReport(NKRO_ID);       // Status LEDs
+    inputNKRO = hidDevice->getInputReport(NKRO_ID);             // NKRO keyboard  
     #if MEDIA_ENABLE
-    inputMediaKeys = hidDevice->getInputReport(0x03);      // Media keys
+    inputMediaKeys = hidDevice->getInputReport(MEDIA_KEYS_ID);  // Media keys
     #endif
     #if SPACEMOUSE_ENABLE
-    inputSpacetrans = hidDevice->getInputReport(0x04);     // Spacemouse translations
-    inputSpacerotat = hidDevice->getInputReport(0x05);     // Spacemouse rotations
-    inputSpaceclick = hidDevice->getInputReport(0x06);     // Spacemouse buttons
+    inputSpacetrans = hidDevice->getInputReport(SPACETRANS_ID); // Spacemouse translations
+    inputSpacerotat = hidDevice->getInputReport(SPACEROTAT_ID); // Spacemouse rotations
+    inputSpaceclick = hidDevice->getInputReport(SPACECLICK_ID); // Spacemouse buttons
     #else
     #if MOUSE_ENABLE
-    inputMouse = hidDevice->getInputReport(0x07);          // Mouse
+    inputMouse = hidDevice->getInputReport(MOUSE_ID);           // Mouse
     #endif
     #if DIGITIZER_ENABLE
-    inputDigitizer = hidDevice->getInputReport(0x08);      // Digitizer
+    inputDigitizer = hidDevice->getInputReport(DIGITIZER_ID);   // Digitizer
     #endif
     #if GAMEPAD_ENABLE
-    inputGamepad = hidDevice->getInputReport(0x09);        // Gamepad
+    inputGamepad = hidDevice->getInputReport(GAMEPAD_ID);       // Gamepad
     #endif
     #endif
     #if STENO_ENABLE
-    inputSteno = hidDevice->getInputReport(0x50);          // Plover HID steno
+    inputSteno = hidDevice->getInputReport(STENO_ID);           // Plover HID steno
     #endif
     
     // Set callbacks for ALL characteristics
     if (outputKeyboard) {
         outputKeyboard->setCallbacks(this);
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Keyboard Output characteristic created");
+        SQUID_LOG_INFO(BLE_TAG, "Keyboard Output characteristic created");
     } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Keyboard Output characteristic creation failed!");
+        SQUID_LOG_ERROR(BLE_TAG, "Keyboard Output characteristic creation failed!");
     }
     
     if (inputNKRO) {
         inputNKRO->setCallbacks(this);
-        SQUID_LOG_INFO(TRANSPORT_TAG, "NKRO characteristic created");
+        SQUID_LOG_INFO(BLE_TAG, "NKRO characteristic created");
     } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "NKRO Input characteristic creation failed!");
+        SQUID_LOG_ERROR(BLE_TAG, "NKRO Input characteristic creation failed!");
     }
     
     #if MEDIA_ENABLE
     if (inputMediaKeys) {
         inputMediaKeys->setCallbacks(this);
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Media keys characteristic created");
+        SQUID_LOG_INFO(BLE_TAG, "Media keys characteristic created");
     } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Media Keys Input characteristic creation failed!");
+        SQUID_LOG_ERROR(BLE_TAG, "Media Keys Input characteristic creation failed!");
     }
     #endif
     
     #if SPACEMOUSE_ENABLE    
     if (inputSpacetrans) {
         inputSpacetrans->setCallbacks(this);
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse translations characteristic created");
+        SQUID_LOG_INFO(BLE_TAG, "Spacemouse translations characteristic created");
     } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Spacemouse Translations Input characteristic creation failed!");
+        SQUID_LOG_ERROR(BLE_TAG, "Spacemouse Translations Input characteristic creation failed!");
     }
     
     if (inputSpacerotat) {
         inputSpacerotat->setCallbacks(this);
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse rotations characteristic created");
+        SQUID_LOG_INFO(BLE_TAG, "Spacemouse rotations characteristic created");
     } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Spacemouse Rotations Input characteristic creation failed!");
+        SQUID_LOG_ERROR(BLE_TAG, "Spacemouse Rotations Input characteristic creation failed!");
     }
     
     if (inputSpaceclick) {
         inputSpaceclick->setCallbacks(this);
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse buttons characteristic created");
+        SQUID_LOG_INFO(BLE_TAG, "Spacemouse buttons characteristic created");
     } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Spacemouse Buttons Input characteristic creation failed!");
+        SQUID_LOG_ERROR(BLE_TAG, "Spacemouse Buttons Input characteristic creation failed!");
     }
     #else
     
     #if MOUSE_ENABLE
     if (inputMouse) {
         inputMouse->setCallbacks(this);
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Mouse characteristic created");
+        SQUID_LOG_INFO(BLE_TAG, "Mouse characteristic created");
     } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Mouse Input characteristic creation failed!");
+        SQUID_LOG_ERROR(BLE_TAG, "Mouse Input characteristic creation failed!");
     }
     #endif
     
     #if DIGITIZER_ENABLE
     if (inputDigitizer) {
         inputDigitizer->setCallbacks(this);
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Digitizer characteristic created");
+        SQUID_LOG_INFO(BLE_TAG, "Digitizer characteristic created");
     } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Digitizer Input characteristic creation failed!");
+        SQUID_LOG_ERROR(BLE_TAG, "Digitizer Input characteristic creation failed!");
     }
     #endif
     
     #if GAMEPAD_ENABLE
     if (inputGamepad) {
         inputGamepad->setCallbacks(this);
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Gamepad characteristic created");
+        SQUID_LOG_INFO(BLE_TAG, "Gamepad characteristic created");
     } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Gamepad Input characteristic creation failed!");
+        SQUID_LOG_ERROR(BLE_TAG, "Gamepad Input characteristic creation failed!");
     }
     #endif
     #endif
@@ -260,14 +256,14 @@ void BLETransport::createHIDService() {
     #if STENO_ENABLE
     if (inputSteno) {
         inputSteno->setCallbacks(this);
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Steno characteristic created");
+        SQUID_LOG_INFO(BLE_TAG, "Steno characteristic created");
     } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Steno Input characteristic creation failed!");
+        SQUID_LOG_ERROR(BLE_TAG, "Steno Input characteristic creation failed!");
     }
     #endif
     
     // Start HID services AFTER creating all characteristics
-    SQUID_LOG_DEBUG(TRANSPORT_TAG, "Starting HID services...");
+    SQUID_LOG_DEBUG(BLE_TAG, "Starting HID services...");
     hidDevice->startServices();
     
     // Wait a moment for services to be fully initialized
@@ -313,29 +309,29 @@ void BLETransport::verifyCharacteristicHandles() {
         if (charac) {
             uint16_t handle = charac->getHandle();
             if (handle == 0) {
-                SQUID_LOG_ERROR(TRANSPORT_TAG, "%s characteristic has INVALID handle (0)!", name);
+                SQUID_LOG_ERROR(BLE_TAG, "%s characteristic has INVALID handle (0)!", name);
                 allValid = false;
             } else {
-                SQUID_LOG_INFO(TRANSPORT_TAG, "%s characteristic handle: %d, UUID: %s", 
+                SQUID_LOG_INFO(BLE_TAG, "%s characteristic handle: %d, UUID: %s", 
                              name, handle, charac->getUUID().toString().c_str());
             }
         } else {
-            SQUID_LOG_ERROR(TRANSPORT_TAG, "%s characteristic is NULL", name);
+            SQUID_LOG_ERROR(BLE_TAG, "%s characteristic is NULL", name);
             allValid = false;
         }
     }
     
     if (allValid) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "All HID characteristics created successfully!");
+        SQUID_LOG_INFO(BLE_TAG, "All HID characteristics created successfully!");
     } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Some HID characteristics failed to create properly");
+        SQUID_LOG_ERROR(BLE_TAG, "Some HID characteristics failed to create properly");
     }
 }
 
 void BLETransport::debugCharacteristics() {
-    SQUID_LOG_INFO(TRANSPORT_TAG, "=== Characteristic Debug ===");
-    SQUID_LOG_INFO(TRANSPORT_TAG, "HID Device: %s", hidDevice ? "VALID" : "NULL");
-    SQUID_LOG_INFO(TRANSPORT_TAG, "HID Service: %s", hidDevice && hidDevice->getHidService() ? "VALID" : "NULL");
+    SQUID_LOG_INFO(BLE_TAG, "=== Characteristic Debug ===");
+    SQUID_LOG_INFO(BLE_TAG, "HID Device: %s", hidDevice ? "VALID" : "NULL");
+    SQUID_LOG_INFO(BLE_TAG, "HID Service: %s", hidDevice && hidDevice->getHidService() ? "VALID" : "NULL");
     
     std::vector<std::pair<NimBLECharacteristic*, const char*>> characteristics = {
         {inputNKRO, "NKRO Input"},
@@ -365,26 +361,26 @@ void BLETransport::debugCharacteristics() {
     
     for (auto& [charac, name] : characteristics) {
         if (charac) {
-            SQUID_LOG_INFO(TRANSPORT_TAG, "%s: Handle=%d, UUID=%s", 
+            SQUID_LOG_INFO(BLE_TAG, "%s: Handle=%d, UUID=%s", 
                          name, 
                          charac->getHandle(),
                          charac->getUUID().toString().c_str());
         } else {
-            SQUID_LOG_ERROR(TRANSPORT_TAG, "%s: NULL", name);
+            SQUID_LOG_ERROR(BLE_TAG, "%s: NULL", name);
         }
     }
-    SQUID_LOG_INFO(TRANSPORT_TAG, "=== End Debug ===");
+    SQUID_LOG_INFO(BLE_TAG, "=== End Debug ===");
 }
 
 bool BLETransport::sendData(const uint8_t* data, size_t length) {
     // Generic data transmission - I nuked SPP so this does nothing rn
-    SQUID_LOG_DEBUG(TRANSPORT_TAG, "Generic data send - Length: %zu", length); // Random debug line that I don't think can ever be triggered
+    SQUID_LOG_DEBUG(BLE_TAG, "Generic data send - Length: %zu", length); // Random debug line that I don't think can ever be triggered
     return true; // This is here because it threw a compiler error before I had it here
 }
 
 bool BLETransport::sendReport(uint8_t reportId, const uint8_t* data, size_t length) {
     if (!isConnected()) {
-        SQUID_LOG_DEBUG(TRANSPORT_TAG, "Cannot send report - not connected");
+        SQUID_LOG_DEBUG(BLE_TAG, "Cannot send report - not connected");
         return false;
     }
     
@@ -393,40 +389,40 @@ bool BLETransport::sendReport(uint8_t reportId, const uint8_t* data, size_t leng
     
     // Map report IDs to characteristics
     switch (reportId) {
-        case 0x01: characteristic = inputNKRO; charName = "NKRO"; break;
+        case NKRO_ID: characteristic = inputNKRO; charName = "NKRO"; break;
         #if MEDIA_ENABLE
-        case 0x03: characteristic = inputMediaKeys; charName = "Media Keys"; break;
+        case MEDIA_KEYS_ID: characteristic = inputMediaKeys; charName = "Media Keys"; break;
         #endif
         #if SPACEMOUSE_ENABLE
-        case 0x04: characteristic = inputSpacetrans; charName = "Spacetrans"; break;
-        case 0x05: characteristic = inputSpacerotat; charName = "Spacerotat"; break;
-        case 0x06: characteristic = inputSpaceclick; charName = "Spaceclick"; break;
+        case SPACETRANS_ID: characteristic = inputSpacetrans; charName = "Spacetrans"; break;
+        case SPACEROTAT_ID: characteristic = inputSpacerotat; charName = "Spacerotat"; break;
+        case SPACECLICK_ID: characteristic = inputSpaceclick; charName = "Spaceclick"; break;
         #else
         #if MOUSE_ENABLE
-        case 0x07: characteristic = inputMouse; charName = "Mouse"; break;
+        case MOUSE_ID: characteristic = inputMouse; charName = "Mouse"; break;
         #endif
         #if DIGITIZER_ENABLE
-        case 0x08: characteristic = inputDigitizer; charName = "Digitizer"; break;
+        case DIGITIZER_ID: characteristic = inputDigitizer; charName = "Digitizer"; break;
         #endif
         #if GAMEPAD_ENABLE
-        case 0x09: characteristic = inputGamepad; charName = "Gamepad"; break;
+        case GAMEPAD_ID: characteristic = inputGamepad; charName = "Gamepad"; break;
         #endif
         #endif
         #if STENO_ENABLE
-        case 0x50: characteristic = inputSteno; charName = "Steno"; break;
+        case STENO_ID: characteristic = inputSteno; charName = "Steno"; break;
         #endif
         default:
-            SQUID_LOG_WARN(TRANSPORT_TAG, "Unknown report ID: %d", reportId);
+            SQUID_LOG_WARN(BLE_TAG, "Unknown report ID: %d", reportId);
             return false;
     }
     
     if (!characteristic) {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Characteristic for %s (ID %d) is NULL!", charName, reportId);
+        SQUID_LOG_ERROR(BLE_TAG, "Characteristic for %s (ID %d) is NULL!", charName, reportId);
         return false;
     }
     
     if (characteristic->getHandle() == 0) {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Characteristic for %s (ID %d) has invalid handle 0!", charName, reportId);
+        SQUID_LOG_ERROR(BLE_TAG, "Characteristic for %s (ID %d) has invalid handle 0!", charName, reportId);
         return false;
     }
     
@@ -435,10 +431,10 @@ bool BLETransport::sendReport(uint8_t reportId, const uint8_t* data, size_t leng
     bool result = characteristic->notify();
     
     if (result) {
-        SQUID_LOG_DEBUG(TRANSPORT_TAG, "Report sent successfully - %s (ID %d), Length: %zu", 
+        SQUID_LOG_DEBUG(BLE_TAG, "Report sent successfully - %s (ID %d), Length: %zu", 
                        charName, reportId, length);
     } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Failed to send report - %s (ID %d), Length: %zu", 
+        SQUID_LOG_ERROR(BLE_TAG, "Failed to send report - %s (ID %d), Length: %zu", 
                        charName, reportId, length);
     }
     
@@ -475,14 +471,14 @@ void BLETransport::setBatteryLevel(uint8_t level) {
                     // Force notification
                     batteryLevelChar->notify();
                     
-                    SQUID_LOG_DEBUG(TRANSPORT_TAG, "Battery level forced update: %d%%", this->batteryLevel);
+                    SQUID_LOG_DEBUG(BLE_TAG, "Battery level forced update: %d%%", this->batteryLevel);
                 }
             }
         }
     }
     
     if (this->batteryLevel != oldLevel) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Battery level changed: %d%% -> %d%%", oldLevel, this->batteryLevel);
+        SQUID_LOG_INFO(BLE_TAG, "Battery level changed: %d%% -> %d%%", oldLevel, this->batteryLevel);
     }
 }
 
@@ -495,23 +491,23 @@ void BLETransport::setReportMap(const uint8_t* descriptor, size_t length) {
     this->reportMap = descriptor;
     this->reportMapLength = length;
     
-    SQUID_LOG_INFO(TRANSPORT_TAG, "Report map stored - Length: %zu", length);
+    SQUID_LOG_INFO(BLE_TAG, "Report map stored - Length: %zu", length);
 }
 
 void BLETransport::setAppearance(uint16_t newAppearance) {
     this->appearance = newAppearance;
-    SQUID_LOG_INFO(TRANSPORT_TAG, "Appearance set to: 0x%04X", appearance);
+    SQUID_LOG_INFO(BLE_TAG, "Appearance set to: 0x%04X", appearance);
     
     // If advertising is already running, we need to restart it with new appearance
     if (advertising && advertising->isAdvertising()) {
-        SQUID_LOG_DEBUG(TRANSPORT_TAG, "Restarting advertising with new appearance");
+        SQUID_LOG_DEBUG(BLE_TAG, "Restarting advertising with new appearance");
         startAdvertising();
     }
 }
 
 bool BLETransport::startAdvertising() {
     if (!advertising) {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "No advertising object available");
+        SQUID_LOG_ERROR(BLE_TAG, "No advertising object available");
         return false;
     }
     
@@ -547,9 +543,9 @@ bool BLETransport::startAdvertising() {
     // Start advertising
     bool result = advertising->start();
     if (result) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "BLE advertising started");
+        SQUID_LOG_INFO(BLE_TAG, "BLE advertising started");
     } else {
-        SQUID_LOG_ERROR(TRANSPORT_TAG, "Failed to start BLE advertising");
+        SQUID_LOG_ERROR(BLE_TAG, "Failed to start BLE advertising");
     }
     
     return result;
@@ -559,7 +555,7 @@ bool BLETransport::startAdvertising() {
 void BLETransport::onConnect(NimBLEServer* pServer) {
     connected = true;
     
-    SQUID_LOG_INFO(TRANSPORT_TAG, "Client connected - Connection count: %d", pServer->getConnectedCount());
+    SQUID_LOG_INFO(BLE_TAG, "Client connected - Connection count: %d", pServer->getConnectedCount());
     
     // Notify all HID characteristics
     if (inputNKRO && inputNKRO->getHandle() != 0) {
@@ -616,7 +612,7 @@ void BLETransport::onConnect(NimBLEServer* pServer) {
 
 void BLETransport::onDisconnect(NimBLEServer* pServer) {
     connected = false;
-    SQUID_LOG_INFO(TRANSPORT_TAG, "Client disconnected");
+    SQUID_LOG_INFO(BLE_TAG, "Client disconnected");
     
     if (transportCallbacks) {
         transportCallbacks->onDisconnect();
@@ -625,18 +621,18 @@ void BLETransport::onDisconnect(NimBLEServer* pServer) {
     // Restart advertising when disconnected
     if (advertising) {
         advertising->start();
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Advertising restarted after disconnect");
+        SQUID_LOG_INFO(BLE_TAG, "Advertising restarted after disconnect");
     }
 }
 
 void BLETransport::onWrite(NimBLECharacteristic* characteristic) {
-    SQUID_LOG_DEBUG(TRANSPORT_TAG, "Characteristic write - Handle: %d, UUID: %s", 
+    SQUID_LOG_DEBUG(BLE_TAG, "Characteristic write - Handle: %d, UUID: %s", 
                    characteristic->getHandle(), characteristic->getUUID().toString().c_str());
     
     // Specifically handle keyboard output reports (LED status and nothing else currently)
     if (characteristic == outputKeyboard) {
         auto value = characteristic->getValue();
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Keyboard output report received - Length: %zu", value.length());
+        SQUID_LOG_INFO(BLE_TAG, "Keyboard output report received - Length: %zu", value.length());
         
         // Logging the raw data for debugging
         std::string hexStr;
@@ -645,7 +641,7 @@ void BLETransport::onWrite(NimBLECharacteristic* characteristic) {
             snprintf(buf, sizeof(buf), "%02X ", value[i]);
             hexStr += buf;
         }
-        SQUID_LOG_DEBUG(TRANSPORT_TAG, "Output report data: %s", hexStr.c_str());
+        SQUID_LOG_DEBUG(BLE_TAG, "Output report data: %s", hexStr.c_str());
     }
     
     if (transportCallbacks) {
@@ -658,47 +654,47 @@ void BLETransport::onWrite(NimBLECharacteristic* characteristic) {
 }
 
 void BLETransport::onSubscribe(NimBLEServer* pServer, ble_gap_conn_desc* desc, uint16_t attr_handle) {
-    SQUID_LOG_INFO(TRANSPORT_TAG, "Subscribe event - attr_handle: %d", attr_handle);
+    SQUID_LOG_INFO(BLE_TAG, "Subscribe event - attr_handle: %d", attr_handle);
     
     // Check which characteristic was subscribed by comparing handles
     if (outputKeyboard) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Subscribing to output reports isn't really a thing."); 
+        SQUID_LOG_INFO(BLE_TAG, "Subscribing to output reports isn't really a thing."); 
     } else if (inputNKRO && inputNKRO->getHandle() == attr_handle) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "NKRO report subscribed");
+        SQUID_LOG_INFO(BLE_TAG, "NKRO report subscribed");
     #if MEDIA_ENABLE
     } else if (inputMediaKeys && inputMediaKeys->getHandle() == attr_handle) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Media keys report subscribed");
+        SQUID_LOG_INFO(BLE_TAG, "Media keys report subscribed");
     #endif
     #if SPACEMOUSE_ENABLE 
     } else if (inputSpacetrans && inputSpacetrans->getHandle() == attr_handle) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse translations report subscribed");
+        SQUID_LOG_INFO(BLE_TAG, "Spacemouse translations report subscribed");
     } else if (inputSpacerotat && inputSpacerotat->getHandle() == attr_handle) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse rotations report subscribed");
+        SQUID_LOG_INFO(BLE_TAG, "Spacemouse rotations report subscribed");
     } else if (inputSpaceclick && inputSpaceclick->getHandle() == attr_handle) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Spacemouse buttons report subscribed");
+        SQUID_LOG_INFO(BLE_TAG, "Spacemouse buttons report subscribed");
     #else
     #if MOUSE_ENABLE
     } else if (inputMouse && inputMouse->getHandle() == attr_handle) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Mouse report subscribed");
+        SQUID_LOG_INFO(BLE_TAG, "Mouse report subscribed");
     #endif
     #if DIGITIZER_ENABLE
     } else if (inputDigitizer && inputDigitizer->getHandle() == attr_handle) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Digitizer report subscribed");
+        SQUID_LOG_INFO(BLE_TAG, "Digitizer report subscribed");
     #endif
     #if GAMEPAD_ENABLE
     } else if (inputGamepad && inputGamepad->getHandle() == attr_handle) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Gamepad report subscribed");
+        SQUID_LOG_INFO(BLE_TAG, "Gamepad report subscribed");
     #endif
     #endif
     #if STENO_ENABLE
     } else if (inputSteno && inputSteno->getHandle() == attr_handle) {
-        SQUID_LOG_INFO(TRANSPORT_TAG, "Steno report subscribed");
+        SQUID_LOG_INFO(BLE_TAG, "Steno report subscribed");
     #endif
     } else {
-        SQUID_LOG_DEBUG(TRANSPORT_TAG, "Unknown characteristic subscribed, handle: %d", attr_handle);
+        SQUID_LOG_DEBUG(BLE_TAG, "Unknown characteristic subscribed, handle: %d", attr_handle);
     }
 }
 
 void BLETransport::onMTUChange(uint16_t MTU, ble_gap_conn_desc* desc) {
-    SQUID_LOG_INFO(TRANSPORT_TAG, "MTU changed to: %d", MTU);
+    SQUID_LOG_INFO(BLE_TAG, "MTU changed to: %d", MTU);
 }
