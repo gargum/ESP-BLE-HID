@@ -6,16 +6,9 @@
 #ifndef STENO_H
 #define STENO_H
 
-#include "drivers/Software/HID/SquidHIDTypes.h"
-#include "drivers/Software/Log/Log.h"
-#include "drivers/Software/Event/Types.h"
 #include "drivers/Software/Transport/Transport.h"
 
-#define STENO_ID 0x50
-
-// Plover HID protocol uses a 4-byte report
 typedef struct {
-    uint8_t reportId;
     uint8_t keys[8];  // 64 bits for 64 keys
 } StenoReport;
 
