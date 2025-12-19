@@ -6,7 +6,7 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
-#include "drivers/Software/Log/Log.h"
+#include "drivers/Data.h"
 
 // ============================================================================
 // Matrix Definitions
