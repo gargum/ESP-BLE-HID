@@ -5,12 +5,9 @@
 
 #include "Steno.h"
 
-static const char* STENO_TAG = "SQUIDSTENO";
-
 SQUIDSTENO::SQUIDSTENO() 
     : transport(nullptr) {
     memset(&_stenoReport, 0, sizeof(_stenoReport));
-    _stenoReport.reportId = STENO_ID;
 }
 
 SQUIDSTENO::~SQUIDSTENO() {
@@ -21,7 +18,6 @@ void SQUIDSTENO::begin(Transport* trans, uint32_t delay_ms) {
     transport = trans;
     _delay_ms = delay_ms;
     memset(&_stenoReport, 0, sizeof(_stenoReport));
-    _stenoReport.reportId = STENO_ID;
     
     SQUID_LOG_INFO(STENO_TAG, "Plover HID stenotype initialized with 64-key layout");
 }
