@@ -7,8 +7,6 @@
 
 #if !SPACEMOUSE_ENABLE
 
-static const char* DIGI_TAG = "SQUIDTABLET";
-
 SQUIDTABLET::SQUIDTABLET() 
     : transport(nullptr), _delay_ms(7), 
       _screenWidth(1920), _screenHeight(1080) {
