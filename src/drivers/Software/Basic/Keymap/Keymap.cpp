@@ -5,8 +5,6 @@
 
 #include "Keymap.h"
 
-static const char* LAYER_KEYMAP_TAG = "SQUIDKEYMAP";
-
 SQUIDKEYMAP::SQUIDKEYMAP() 
     : _press_callback(nullptr), 
       _release_callback(nullptr),
@@ -67,12 +65,12 @@ void SQUIDKEYMAP::begin(
     
     updateKeycodeMappings();
     
-    SQUID_LOG_INFO(LAYER_KEYMAP_TAG, "Layer keymap initialized with %zu layers", _layers.size());
+    SQUID_LOG_INFO(KEYMAP_TAG, "Layer keymap initialized with %zu layers", _layers.size());
 }
 
 void SQUIDKEYMAP::handleKeyEvent(size_t switch_index, bool pressed) {
     if (switch_index >= getKeyCount()) {
-        SQUID_LOG_WARN(LAYER_KEYMAP_TAG, "Invalid key position: %zu", switch_index);
+        SQUID_LOG_WARN(KEYMAP_TAG, "Invalid key position: %zu", switch_index);
         return;
     }
     
@@ -136,7 +134,7 @@ void SQUIDKEYMAP::handleKeyEvent(size_t switch_index, bool pressed) {
                 // If it was a hold, don't update combo state
                 // (holds shouldn't interfere with combo detection)
                 if (_combo_debug_enabled) {
-                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Key %zu was a hold, skipping combo update", switch_index);
+                    SQUID_LOG_DEBUG(KEYMAP_TAG, "Key %zu was a hold, skipping combo update", switch_index);
                 }
             }
             
@@ -163,7 +161,7 @@ void SQUIDKEYMAP::handleKeyEvent(size_t switch_index, bool pressed) {
                     processNormalKey(switch_index, false);
                     
                     if (_combo_debug_enabled) {
-                        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Sending suppressed tap for key %zu", switch_index);
+                        SQUID_LOG_DEBUG(KEYMAP_TAG, "Sending suppressed tap for key %zu", switch_index);
                     }
                 }
             }
@@ -214,7 +212,7 @@ void SQUIDKEYMAP::updateCombos() {
                 // Check for regular timeout
                 if (now - state.start_time > _key_combos[i].timeout_ms) {
                     resetComboState(i);
-                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu timed out (regular)", i);
+                    SQUID_LOG_DEBUG(KEYMAP_TAG, "Combo %zu timed out (regular)", i);
                 }
                 // Check for early timeout
                 else if (shouldEarlyTimeout(i)) {
@@ -247,7 +245,7 @@ void SQUIDKEYMAP::update() {
      static uint32_t last_log = 0;
      if (now - last_log > 1000) {
          last_log = now;
-         SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "update() called");
+         SQUID_LOG_DEBUG(KEYMAP_TAG, "update() called");
      }
     
     // Process delayed key events
@@ -286,7 +284,7 @@ void SQUIDKEYMAP::update() {
                 }
                 
                 if (should_send_hold) {
-                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - switched to HOLD action (in combo: %d)", 
+                    SQUID_LOG_DEBUG(KEYMAP_TAG, "Tap/Hold key %zu - switched to HOLD action (in combo: %d)", 
                                    i, in_combo_sequence);
                     
                     // Send hold action press
@@ -295,10 +293,10 @@ void SQUIDKEYMAP::update() {
                         tap_hold.hold_action_sent = true;
                         
                         // DEBUG: Log that hold action was sent
-                        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Hold action SENT for key %zu", i);
+                        SQUID_LOG_DEBUG(KEYMAP_TAG, "Hold action SENT for key %zu", i);
                     }
                 } else {
-                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - hold suppressed due to triggered combo", i);
+                    SQUID_LOG_DEBUG(KEYMAP_TAG, "Tap/Hold key %zu - hold suppressed due to triggered combo", i);
                 }
             }
         }
@@ -341,7 +339,7 @@ void SQUIDKEYMAP::setDefaultLayer(uint8_t layer) {
             _layer_change_callback(layer);
         }
         
-        SQUID_LOG_INFO(LAYER_KEYMAP_TAG, "Default layer set to %d", layer);
+        SQUID_LOG_INFO(KEYMAP_TAG, "Default layer set to %d", layer);
     }
 }
 
@@ -354,12 +352,12 @@ void SQUIDKEYMAP::momentaryLayer(uint8_t layer, bool pressed) {
     if (pressed) {
         if (it == _layer_state.active_layers.end()) {
             _layer_state.active_layers.push_back(layer);
-            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Layer %d activated (momentary)", layer);
+            SQUID_LOG_DEBUG(KEYMAP_TAG, "Layer %d activated (momentary)", layer);
         }
     } else {
         if (it != _layer_state.active_layers.end()) {
             _layer_state.active_layers.erase(it);
-            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Layer %d deactivated (momentary)", layer);
+            SQUID_LOG_DEBUG(KEYMAP_TAG, "Layer %d deactivated (momentary)", layer);
         }
     }
 }
@@ -379,7 +377,7 @@ void SQUIDKEYMAP::toggleLayer(uint8_t layer) {
         }
     }
     
-    SQUID_LOG_INFO(LAYER_KEYMAP_TAG, "Layer %d toggled %s", layer, 
+    SQUID_LOG_INFO(KEYMAP_TAG, "Layer %d toggled %s", layer, 
                   _layer_state.layer_states[layer] ? "ON" : "OFF");
     
     if (_layer_change_callback) {
@@ -532,7 +530,7 @@ void SQUIDKEYMAP::updateComboForKey(size_t switch_index, bool pressed) {
         // (let it be processed as a normal key)
         if (!pressed && isKeyTap(switch_index)) {
             if (_combo_debug_enabled) {
-                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Key %zu was a tap - not updating combo %zu", 
+                SQUID_LOG_DEBUG(KEYMAP_TAG, "Key %zu was a tap - not updating combo %zu", 
                               switch_index, combo_idx);
             }
             continue;
@@ -554,7 +552,7 @@ void SQUIDKEYMAP::updateComboForKey(size_t switch_index, bool pressed) {
                         // Start timing on first key press
                         if (state.start_time == 0) {
                             state.start_time = now;
-                            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu started", combo_idx);
+                            SQUID_LOG_DEBUG(KEYMAP_TAG, "Combo %zu started", combo_idx);
                         }
                     }
                     
@@ -572,7 +570,7 @@ void SQUIDKEYMAP::updateComboForKey(size_t switch_index, bool pressed) {
                         // Start timing on first key press
                         if (state.start_time == 0) {
                             state.start_time = now;
-                            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu started", combo_idx);
+                            SQUID_LOG_DEBUG(KEYMAP_TAG, "Combo %zu started", combo_idx);
                         }
                     }
                     
@@ -616,7 +614,7 @@ void SQUIDKEYMAP::checkCombo(size_t combo_idx) {
         if (now - state.start_time > combo.timeout_ms * 3) { // 3x the combo timeout
             sendComboAction(combo.action, false);
             resetComboState(combo_idx);
-            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu force-released after timeout", combo_idx);
+            SQUID_LOG_DEBUG(KEYMAP_TAG, "Combo %zu force-released after timeout", combo_idx);
             return;
         }
         
@@ -672,7 +670,7 @@ void SQUIDKEYMAP::checkCombo(size_t combo_idx) {
             // IMPORTANT: Reset tap/hold states for combo keys
             resetTapHoldForCombo(combo_idx);
             
-            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu released (all_released: %d, any_just_released: %d)", 
+            SQUID_LOG_DEBUG(KEYMAP_TAG, "Combo %zu released (all_released: %d, any_just_released: %d)", 
                           combo_idx, all_released, any_just_released);
         }
         return;
@@ -729,7 +727,7 @@ void SQUIDKEYMAP::triggerCombo(size_t combo_idx, bool pressed) {
     
     sendComboAction(combo.action, pressed);
     
-    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu %s", combo_idx, 
+    SQUID_LOG_DEBUG(KEYMAP_TAG, "Combo %zu %s", combo_idx, 
                   pressed ? "triggered" : "released");
 }
 
@@ -782,7 +780,7 @@ void SQUIDKEYMAP::updateKeycodeMappings() {
     }
     
     // Log for debugging
-    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Keycode mappings updated - %zu unique keycodes", 
+    SQUID_LOG_DEBUG(KEYMAP_TAG, "Keycode mappings updated - %zu unique keycodes", 
                    _keycode_to_positions.size());
 }
 
@@ -926,7 +924,7 @@ void SQUIDKEYMAP::resetComboState(size_t combo_idx) {
         _early_timeout_info[combo_idx] = EarlyTimeoutInfo();
     }
     
-    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu reset", combo_idx);
+    SQUID_LOG_DEBUG(KEYMAP_TAG, "Combo %zu reset", combo_idx);
 }
 
 void SQUIDKEYMAP::resetTapHoldForCombo(size_t combo_idx) {
@@ -958,7 +956,7 @@ void SQUIDKEYMAP::updateEarlyTimeoutInfo(size_t combo_idx, bool key_pressed) {
         info.active_key_count++;
         
         if (_combo_debug_enabled) {
-            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu: Key pressed, active count: %zu", 
+            SQUID_LOG_DEBUG(KEYMAP_TAG, "Combo %zu: Key pressed, active count: %zu", 
                           combo_idx, info.active_key_count);
         }
     } else {
@@ -968,7 +966,7 @@ void SQUIDKEYMAP::updateEarlyTimeoutInfo(size_t combo_idx, bool key_pressed) {
         }
         
         if (_combo_debug_enabled) {
-            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu: Key released, active count: %zu", 
+            SQUID_LOG_DEBUG(KEYMAP_TAG, "Combo %zu: Key released, active count: %zu", 
                           combo_idx, info.active_key_count);
         }
     }
@@ -991,7 +989,7 @@ bool SQUIDKEYMAP::shouldEarlyTimeout(size_t combo_idx) const {
         // and we haven't triggered the combo yet, it's not going to happen
         if (time_since_last_release > TYPING_FLOW_THRESHOLD) { // 50ms is enough time for a combo
             if (_combo_debug_enabled) {
-                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu: Early timeout after %ums", 
+                SQUID_LOG_DEBUG(KEYMAP_TAG, "Combo %zu: Early timeout after %ums", 
                               combo_idx, time_since_last_release);
             }
             return true;
@@ -1022,7 +1020,7 @@ void SQUIDKEYMAP::updateKeyTapInfo(size_t switch_index, bool pressed) {
         tap_info.release_sent = false;
         
         if (_combo_debug_enabled) {
-            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Key %zu pressed at %u (tap count: %u)", 
+            SQUID_LOG_DEBUG(KEYMAP_TAG, "Key %zu pressed at %u (tap count: %u)", 
                           switch_index, now, tap_info.tap_count);
         }
     } else {
@@ -1037,14 +1035,14 @@ void SQUIDKEYMAP::updateKeyTapInfo(size_t switch_index, bool pressed) {
                 tap_info.tap_count++;
                 
                 if (_combo_debug_enabled) {
-                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Key %zu was a tap (%ums, count: %u)", 
+                    SQUID_LOG_DEBUG(KEYMAP_TAG, "Key %zu was a tap (%ums, count: %u)", 
                                   switch_index, press_duration, tap_info.tap_count);
                 }
             } else {
                 tap_info.is_tap = false;
                 
                 if (_combo_debug_enabled) {
-                    SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Key %zu was a hold (%ums)", 
+                    SQUID_LOG_DEBUG(KEYMAP_TAG, "Key %zu was a hold (%ums)", 
                                   switch_index, press_duration);
                 }
             }
@@ -1095,7 +1093,7 @@ void SQUIDKEYMAP::setComboTapHold(size_t combo_idx, bool enabled, uint16_t tap_t
     }
     
     if (_combo_debug_enabled) {
-        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo %zu tap/hold %s (timeout: %ums)", 
+        SQUID_LOG_DEBUG(KEYMAP_TAG, "Combo %zu tap/hold %s (timeout: %ums)", 
                       combo_idx, enabled ? "enabled" : "disabled", tap_timeout);
     }
 }
@@ -1191,14 +1189,14 @@ void SQUIDKEYMAP::processNormalKey(size_t switch_index, bool pressed) {
         
         if (pressed && tap_info.press_sent) {
             if (_combo_debug_enabled) {
-                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Skipping duplicate press for key %zu", switch_index);
+                SQUID_LOG_DEBUG(KEYMAP_TAG, "Skipping duplicate press for key %zu", switch_index);
             }
             return;
         }
         
         if (!pressed && tap_info.release_sent) {
             if (_combo_debug_enabled) {
-                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Skipping duplicate release for key %zu", switch_index);
+                SQUID_LOG_DEBUG(KEYMAP_TAG, "Skipping duplicate release for key %zu", switch_index);
             }
             return;
         }
@@ -1285,13 +1283,13 @@ void SQUIDKEYMAP::processDelayedNormalKey(size_t switch_index) {
     processNormalKey(switch_index, false);
     
     if (_combo_debug_enabled) {
-        SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Sent delayed normal key for tap %zu", switch_index);
+        SQUID_LOG_DEBUG(KEYMAP_TAG, "Sent delayed normal key for tap %zu", switch_index);
     }
 }
 
 void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const LayerKeymapEntry& action) {
     if (switch_index >= _tap_hold_states.size()) {
-        SQUID_LOG_WARN(LAYER_KEYMAP_TAG, "Switch index %zu out of bounds for tap/hold states", switch_index);
+        SQUID_LOG_WARN(KEYMAP_TAG, "Switch index %zu out of bounds for tap/hold states", switch_index);
         return;
     }
     
@@ -1319,7 +1317,7 @@ void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const Lay
         if (time_since_trigger < 200) { // Only suppress for 200ms after combo trigger
             if (pressed) {
                 // Don't start tap/hold tracking for keys in recently triggered combos
-                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, 
+                SQUID_LOG_DEBUG(KEYMAP_TAG, 
                     "Tap/Hold key %zu suppressed - part of recently triggered combo (%ums ago)", 
                     switch_index, time_since_trigger);
                 tap_hold.reset();
@@ -1330,7 +1328,7 @@ void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const Lay
             return;
         } else {
             // Combo was triggered a while ago, allow normal tap/hold
-            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, 
+            SQUID_LOG_DEBUG(KEYMAP_TAG, 
                 "Tap/Hold key %zu allowed - combo was triggered %ums ago", 
                 switch_index, time_since_trigger);
             // Fall through to normal processing
@@ -1366,10 +1364,10 @@ void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const Lay
             // If we're in a combo sequence, adjust tap timeout to be shorter
             // This allows combos to form while still allowing tap/hold
             tap_hold.tap_timeout = now + (tap_hold.tap_timeout_ms / 2);
-            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu pressed - in combo sequence, shortened timeout: %u", 
+            SQUID_LOG_DEBUG(KEYMAP_TAG, "Tap/Hold key %zu pressed - in combo sequence, shortened timeout: %u", 
                            switch_index, tap_hold.tap_timeout);
         } else {
-            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu pressed - tap timeout: %u", 
+            SQUID_LOG_DEBUG(KEYMAP_TAG, "Tap/Hold key %zu pressed - tap timeout: %u", 
                            switch_index, tap_hold.tap_timeout);
         }
     } else {
@@ -1381,14 +1379,14 @@ void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const Lay
             // This was definitely a hold
             if (tap_hold.hold_action_sent) {
                 // Hold action was already sent by update() - just release it
-                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - releasing HOLD action (duration: %ums)", 
+                SQUID_LOG_DEBUG(KEYMAP_TAG, "Tap/Hold key %zu - releasing HOLD action (duration: %ums)", 
                                switch_index, press_duration);
                 if (_release_callback) {
                     _release_callback(tap_hold.hold_action);
                 }
             } else {
                 // Hold action wasn't sent yet (edge case) - send press and release
-                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - LATE HOLD (duration: %ums)", 
+                SQUID_LOG_DEBUG(KEYMAP_TAG, "Tap/Hold key %zu - LATE HOLD (duration: %ums)", 
                                switch_index, press_duration);
                 if (_press_callback) {
                     _press_callback(tap_hold.hold_action);
@@ -1401,7 +1399,7 @@ void SQUIDKEYMAP::processTapHoldKey(size_t switch_index, bool pressed, const Lay
         // Check if this was a tap (released before timeout)
         else if (tap_hold.pending_tap) {
             // This was a tap (released before timeout)
-            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Tap/Hold key %zu - sending TAP action (duration: %ums)", 
+            SQUID_LOG_DEBUG(KEYMAP_TAG, "Tap/Hold key %zu - sending TAP action (duration: %ums)", 
                            switch_index, press_duration);
             
             // Send tap action (press and release)
@@ -1498,7 +1496,7 @@ void SQUIDKEYMAP::sendTapAction(size_t switch_index) {
         }
         
         if (_combo_debug_enabled) {
-            SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Sent tap action for key %zu", switch_index);
+            SQUID_LOG_DEBUG(KEYMAP_TAG, "Sent tap action for key %zu", switch_index);
         }
     }
 }
@@ -1560,7 +1558,7 @@ void SQUIDKEYMAP::cleanupStuckCombos() {
             
             // If combo has been triggered for more than 1 second, force release it
             if (trigger_duration > 1000) {
-                SQUID_LOG_WARN(LAYER_KEYMAP_TAG, 
+                SQUID_LOG_WARN(KEYMAP_TAG, 
                     "Combo %zu stuck in triggered state for %ums - force releasing", 
                     i, trigger_duration);
                 
@@ -1571,7 +1569,7 @@ void SQUIDKEYMAP::cleanupStuckCombos() {
                 resetComboState(i);
                 
                 // Also log which keys might be causing the issue
-                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Combo keys reset");
+                SQUID_LOG_DEBUG(KEYMAP_TAG, "Combo keys reset");
             }
         }
     }
@@ -1607,7 +1605,7 @@ bool SQUIDKEYMAP::detectTypingFlow(size_t switch_index, bool pressed) {
             _typing_flow_start = now;
             
             if (_combo_debug_enabled) {
-                SQUID_LOG_DEBUG(LAYER_KEYMAP_TAG, "Entered typing flow (gap: %ums)", time_since_last_key);
+                SQUID_LOG_DEBUG(KEYMAP_TAG, "Entered typing flow (gap: %ums)", time_since_last_key);
             }
             
             return true;
