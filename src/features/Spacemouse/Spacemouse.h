@@ -6,19 +6,7 @@
 #ifndef SPACEMOUSE_H
 #define SPACEMOUSE_H
 
-#include "drivers/Software/Log/Log.h"
-#include "drivers/Software/Event/Types.h"
-#include "drivers/Software/HID/SquidHIDTypes.h"
-#include "drivers/Software/Transport/Transport.h"
-
-#define SPACETRANS_ID 0x04 // 3DConnexion, why tf did you give one thing 3 report IDs?!?!
-#define SPACEROTAT_ID 0x05 // Look at any gamepad's HID Report you guys, you don't have to do this
-#define SPACECLICK_ID 0x06 // Why would you do it like this?! 
-
-#if DIGITIZER_ENABLE
-#define DEFAULT_WIDTH   1920
-#define DEFAULT_HEIGHT  1080
-#endif
+#include "drivers/Software/Transport/Transport.h" 
 
 // Spacemouse report structures
 typedef struct {
