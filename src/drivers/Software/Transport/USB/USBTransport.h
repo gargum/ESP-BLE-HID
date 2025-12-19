@@ -9,12 +9,25 @@
 #include "../Transport.h"
 
 // Using ESP32's built-in USB HID support
-#include "USB.h"
-#include "USBHID.h"
-#include "USBVendor.h"
-#include "USBHIDVendor.h"
 
-class USBTransport : public Transport, public USBHIDDevice {
+#if __has_include("USB.h")
+#include "USB.h"
+#endif
+#if __has_include("USBHID.h")
+#include "USBHID.h"
+#endif
+#if __has_include("USBVendor.h")
+#include "USBVendor.h"
+#endif
+#if __has_include("USBHIDVendor.h")
+#include "USBHIDVendor.h"
+#endif
+
+class USBTransport : public Transport
+#if __has_include("USBHIDVendor.h")
+, public USBHIDDevice 
+#endif
+{
 private:
     TransportCallbacks* callbacks;
     std::string deviceName;
@@ -23,8 +36,10 @@ private:
     uint8_t batteryLevel;
     uint16_t appearance;
 
+    #if __has_include("USBHID.h")
     // USB Components
     USBHID hid;
+    #endif
     const uint8_t* reportMap;
     size_t reportMapLength;
     
@@ -56,9 +71,11 @@ public:
 
     bool supportsHID() override { return true; }
 
+    #if __has_include("USBHIDVendor.h")
     // USBHIDDevice interface
     uint16_t _onGetDescriptor(uint8_t* buffer) override;
     void _onOutput(uint8_t report_id, const uint8_t* buffer, uint16_t len) override;
+    #endif
 };
 
 #endif // USBTRANSPORT_H
